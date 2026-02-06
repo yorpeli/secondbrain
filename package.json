@@ -6,10 +6,16 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "gen:types": "supabase gen types typescript --project-id tjlcdwsckbbkedyzrzda > lib/database.types.ts",
-    "analytics:run": "tsx analytics/run.ts"
+    "analytics:run": "tsx analytics/run.ts",
+    "dataviz:run": "tsx data-viz/run.ts",
+    "dataviz:demo": "tsx data-viz/run.ts demo"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
+    "chart.js": "^4.5.1",
+    "chartjs-node-canvas": "^5.0.0",
+    "chartjs-plugin-annotation": "^3.1.0",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "docx": "^9.5.1",
     "dotenv": "^17.2.4"
   },

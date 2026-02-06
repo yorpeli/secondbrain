@@ -98,6 +98,33 @@ The analytics agent (`analytics/`) queries Payoneer's Looker dashboards to analy
 
 **Environment:** Requires `LOOKER_BASE_URL`, `LOOKER_CLIENT_ID`, `LOOKER_CLIENT_SECRET`. See `agents/analytics.md` for full documentation.
 
+### Data-Viz Agent
+
+The data-viz agent (`data-viz/`) is a **visual storytelling subagent**. It receives structured analytics results, decides which charts to produce, crafts insight-stating titles, and renders branded PNG images.
+
+**Architecture:** LLM-powered chart advisor (the intelligence) + rendering library (templates + renderer, the infrastructure).
+
+**Invocation:** Claude Code subagent via the Task tool. Pass analytics result data + intent + output context.
+
+**Templates:** `volume-trend`, `approval-comparison`, `funnel-health`, `opportunity-map`, `segment-heatmap`
+
+**Output contexts:** `document` (800x450), `slide` (1920x1080), `dashboard` (600x400)
+
+**CLI (for direct use):**
+```bash
+npx tsx data-viz/run.ts demo <template> [--output=<path>]
+npx tsx data-viz/run.ts render <template> --data=<spec.json> --output=<path>
+npx tsx data-viz/run.ts list-templates
+```
+
+**Key design decisions:**
+- The agent does NOT query data sources — the analytics agent owns data acquisition
+- If the agent needs more data for better visualization, it returns an advisory (not a request) — the orchestrator decides whether to fetch it
+- Brand colors derived from `lib/doc-style.ts` — single source of truth
+- Docx embedding handled via `lib/chart-embed.ts` (separate from the agent)
+
+See `agents/data-viz.md` for the full subagent definition.
+
 ## Supabase Connection
 
 - **Project ref:** `tjlcdwsckbbkedyzrzda`
@@ -556,7 +583,8 @@ second-brain/
 │   └── ppp-ingest.ts      # PPP processing
 ├── agents/                # Agent definitions
 │   ├── research.md        # Research agent
-│   └── analytics.md       # Analytics agent (CLM funnel analysis)
+│   ├── analytics.md       # Analytics agent (CLM funnel analysis)
+│   └── data-viz.md        # Data-viz subagent (visual storytelling)
 ├── analytics/             # Analytics agent — Looker-based CLM analysis
 │   ├── config/            # Constants, look configs
 │   ├── knowledge/         # Country tiers, funnels, filter mappings
@@ -566,10 +594,18 @@ second-brain/
 │   ├── analyses/          # Analysis modules (scan, compare, deep-dive, diagnose)
 │   ├── agent.ts           # Task runner (picks up agent_tasks)
 │   └── run.ts             # CLI entry point
+├── data-viz/              # Data-viz rendering library
+│   ├── config/brand.ts    # Chart colors (derived from lib/doc-style.ts)
+│   ├── lib/               # Types, renderer, chart defaults
+│   ├── templates/         # Chart templates (volume-trend, etc.)
+│   ├── agent.ts           # Supabase task runner (secondary)
+│   └── run.ts             # CLI entry point
 ├── lib/                   # Shared utilities
 │   ├── supabase.ts        # Supabase client initialization
 │   ├── types.ts           # TypeScript types (generated or manual)
-│   └── logging.ts         # Agent logging helpers
+│   ├── logging.ts         # Agent logging helpers
+│   ├── doc-style.ts       # Docx brand primitives (colors, fonts, tables)
+│   └── chart-embed.ts     # Chart → docx ImageRun helper
 └── supabase/
     └── functions/         # Edge function source (reference)
         ├── ingest-ppp/
