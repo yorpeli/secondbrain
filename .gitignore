@@ -12,6 +12,9 @@ output/
 .env.local
 .env.*.local
 
+# Claude Code (user-local config)
+.claude/
+
 # IDE
 .vscode/
 .idea/

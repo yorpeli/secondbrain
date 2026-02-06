@@ -81,6 +81,23 @@ Two entry points share one Supabase Postgres database:
 
 **Key principle:** The database is the shared backbone. Neither entry point owns the data. Claude.ai handles conversational interaction and human decision-making. Claude Code handles automation, scripts, and programmatic tasks. Both read and write the same tables.
 
+### Analytics Agent
+
+The analytics agent (`analytics/`) queries Payoneer's Looker dashboards to analyze CLM funnel performance. It can be invoked via CLI or picked up as an `agent_task`.
+
+**Commands:** `scan-opportunities`, `compare <country>`, `deep-dive <country>`, `diagnose <country>`, `check-tasks`
+
+**CLI:** `npx tsx analytics/run.ts <command> [args]`
+
+**Task format:** Set `target_agent = 'analytics'` and put a JSON command in `description`:
+```json
+{"type": "deep-dive", "country": "Brazil"}
+```
+
+**Key concept — GLPS-adjusted approval rate:** The 4Step approval rate is adjusted using the GLPS qualification funnel. This is the primary metric for CLM vs 4Step comparison. See `analytics/lib/data-utils.ts:calculateAccountsApprovedGLPS()`.
+
+**Environment:** Requires `LOOKER_BASE_URL`, `LOOKER_CLIENT_ID`, `LOOKER_CLIENT_SECRET`. See `agents/analytics.md` for full documentation.
+
 ## Supabase Connection
 
 - **Project ref:** `tjlcdwsckbbkedyzrzda`
@@ -532,13 +549,23 @@ agent_registry (standalone)
 second-brain/
 ├── CLAUDE.md              # This file — project definition for Claude Code
 ├── README.md              # Setup and overview
-├── .env                   # Supabase credentials (never commit)
+├── .env                   # Supabase + Looker credentials (never commit)
 ├── package.json
 ├── tsconfig.json
 ├── scripts/               # Standalone automation scripts
-│   └── ppp-ingest.ts      # PPP processing (first script to port)
-├── agents/                # Sub-agent definitions
-│   └── (future: research, analytics, etc.)
+│   └── ppp-ingest.ts      # PPP processing
+├── agents/                # Agent definitions
+│   ├── research.md        # Research agent
+│   └── analytics.md       # Analytics agent (CLM funnel analysis)
+├── analytics/             # Analytics agent — Looker-based CLM analysis
+│   ├── config/            # Constants, look configs
+│   ├── knowledge/         # Country tiers, funnels, filter mappings
+│   ├── looks/             # Looker Look configurations (JSON)
+│   ├── lib/               # Looker client, data utils, formatting
+│   │   └── __tests__/     # Unit tests (node --test)
+│   ├── analyses/          # Analysis modules (scan, compare, deep-dive, diagnose)
+│   ├── agent.ts           # Task runner (picks up agent_tasks)
+│   └── run.ts             # CLI entry point
 ├── lib/                   # Shared utilities
 │   ├── supabase.ts        # Supabase client initialization
 │   ├── types.ts           # TypeScript types (generated or manual)

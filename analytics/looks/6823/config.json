@@ -1,0 +1,218 @@
+{
+  "look_id": "6823",
+  "name": "4Step Registration Funnel",
+  "title_in_looker": "4Step Registration Funnel - D2P",
+  "system": "4Step",
+  "model": "product",
+  "view": "clm_population_main_dashboard",
+  "saved_query_id": "kKmH52Cn5Jk6fd7FyzbgqPJb4msVQwkV",
+  "status": "mapped",
+  "last_verified": "2025-01-30",
+
+  "description": {
+    "summary": "4Step (legacy) registration funnel. Simpler flow with fewer steps, generally higher conversion than CLM.",
+    "business_context": "4Step is the old registration system. It has fewer steps and creates less friction, resulting in higher approval rates (~45% vs CLM's ~17%). Used to compare against CLM for rollout decisions.",
+    "important_note": "Saved Look returns AGGREGATE data (1 row). For per-country/device breakdown, use custom queries with dimension fields.",
+    "when_to_use": [
+      "Get overall 4Step funnel metrics",
+      "Compare 4Step vs CLM approval rates",
+      "Identify countries where CLM could replace 4Step"
+    ]
+  },
+
+  "key_difference_from_clm": {
+    "filter": "is_clm_registration",
+    "clm_value": "CLM",
+    "four_step_value": "4STEP",
+    "additional_filter": {
+      "reg_flow_changes": "pure_4step"
+    }
+  },
+
+  "table_calculations": {
+    "accounts_approved_glps": {
+      "label": "Accounts Approved (GLPS)",
+      "formula": "(glps_qualification_approved - glps_qualification_approved_auto) / glps_qualification_opened_not_approved_auto * accounts_approved",
+      "description": "Projected approvals scaled by GLPS approval ratio. This is the PRIMARY metric shown in the Look.",
+      "required_fields": [
+        "accounts_approved",
+        "glps_qualification_approved",
+        "glps_qualification_approved_auto",
+        "glps_qualification_opened_not_approved_auto"
+      ]
+    }
+  },
+
+  "funnel_steps": [
+    {"order": 1, "name": "Accounts Created", "field": "accounts_created", "key_point": true},
+    {"order": 2, "name": "Step 2 Completed", "field": "4step_completed_step2", "key_point": false, "benchmark": 0.73},
+    {"order": 3, "name": "Step 4 Completed", "field": "4step_completed_step4", "key_point": false, "benchmark": 0.59},
+    {"order": 4, "name": "Accounts Approved", "field": "accounts_approved", "key_point": true, "primary_metric": true, "benchmark": 0.45},
+    {"order": 5, "name": "GLPS Approved", "field": "glps_qualification_approved", "key_point": false},
+    {"order": 6, "name": "Had FTL (30 Days)", "field": "fft_dynamic_measure", "key_point": true, "secondary_metric": true, "benchmark": 0.029},
+    {"order": 7, "name": "Reached $500", "field": "icp500_dynamic_measure", "key_point": false},
+    {"order": 8, "name": "Reached $10K", "field": "icp10k_dynamic_measure", "key_point": false}
+  ],
+
+  "placeholder_fields": {
+    "note": "These fields exist but return 0 in current data",
+    "fields": [
+      "4step_level_placeholder_1",
+      "4step_level_placeholder_2",
+      "4step_level_placeholder_3",
+      "4step_level_placeholder_4",
+      "4step_level_placeholder_5",
+      "4step_level_placeholder_6",
+      "4step_level_placeholder_7",
+      "4step_level_placeholder_8"
+    ]
+  },
+
+  "filters": {
+    "required": {
+      "is_clm_registration": {
+        "field": "clm_population_main_dashboard.is_clm_registration",
+        "value": "4STEP",
+        "description": "Must be 4STEP for this funnel"
+      },
+      "reg_flow_changes": {
+        "field": "clm_population_main_dashboard.reg_flow_changes",
+        "value": "pure_4step",
+        "description": "Filter for pure 4step flow (no quotes needed in API)"
+      },
+      "map_payments": {
+        "field": "clm_population_main_dashboard.map_payments",
+        "value": "Exclude",
+        "description": "Exclude MAP payments"
+      }
+    },
+    "defaults_from_look": {
+      "registration_program_calc": "Payoneer D2P",
+      "ah_creation_date_date": "30 days"
+    },
+    "notes": "is_bot filter is NOT applied (any value) to match saved Look behavior"
+  },
+
+  "query_templates": {
+    "aggregate_totals": {
+      "name": "Aggregate Totals",
+      "description": "Overall 4Step funnel metrics (no dimension breakdown)",
+      "use_saved_query": true,
+      "notes": "Run saved Look directly - returns 1 row with totals"
+    },
+    "by_country": {
+      "name": "4Step by Country",
+      "description": "4Step funnel broken down by country (with GLPS fields for table calc)",
+      "fields": [
+        "clm_population_main_dashboard.country_name",
+        "clm_population_main_dashboard.accounts_created",
+        "clm_population_main_dashboard.4step_completed_step2",
+        "clm_population_main_dashboard.4step_completed_step4",
+        "clm_population_main_dashboard.accounts_approved",
+        "clm_population_main_dashboard.glps_qualification_approved",
+        "clm_population_main_dashboard.glps_qualification_approved_auto",
+        "clm_population_main_dashboard.glps_qualification_opened_not_approved_auto",
+        "clm_population_main_dashboard.fft_dynamic_measure"
+      ],
+      "filters": {
+        "is_clm_registration": "4STEP",
+        "reg_flow_changes": "pure_4step",
+        "registration_program_calc": "Payoneer D2P",
+        "map_payments": "Exclude",
+        "ah_creation_date_date": "8 weeks",
+        "country_name": "-NULL"
+      },
+      "sorts": ["clm_population_main_dashboard.accounts_created desc"],
+      "notes": "Custom query - adds country dimension. Use table_calculations.accounts_approved_glps formula for primary metric."
+    },
+    "weekly_trend_by_country": {
+      "name": "Weekly Trend by Country",
+      "description": "4Step weekly trends grouped by country (with GLPS fields)",
+      "fields": [
+        "clm_population_main_dashboard.ah_creation_date_week",
+        "clm_population_main_dashboard.country_name",
+        "clm_population_main_dashboard.accounts_created",
+        "clm_population_main_dashboard.accounts_approved",
+        "clm_population_main_dashboard.glps_qualification_approved",
+        "clm_population_main_dashboard.glps_qualification_approved_auto",
+        "clm_population_main_dashboard.glps_qualification_opened_not_approved_auto",
+        "clm_population_main_dashboard.fft_dynamic_measure"
+      ],
+      "filters": {
+        "is_clm_registration": "4STEP",
+        "reg_flow_changes": "pure_4step",
+        "registration_program_calc": "Payoneer D2P",
+        "map_payments": "Exclude",
+        "ah_creation_date_date": "8 weeks",
+        "country_name": "-NULL"
+      },
+      "sorts": ["clm_population_main_dashboard.ah_creation_date_week"],
+      "notes": "For comparing week-over-week trends"
+    },
+    "single_country": {
+      "name": "Single Country Detail",
+      "description": "4Step metrics for a specific country (with GLPS fields)",
+      "fields": [
+        "clm_population_main_dashboard.ah_creation_date_week",
+        "clm_population_main_dashboard.accounts_created",
+        "clm_population_main_dashboard.4step_completed_step2",
+        "clm_population_main_dashboard.4step_completed_step4",
+        "clm_population_main_dashboard.accounts_approved",
+        "clm_population_main_dashboard.glps_qualification_approved",
+        "clm_population_main_dashboard.glps_qualification_approved_auto",
+        "clm_population_main_dashboard.glps_qualification_opened_not_approved_auto",
+        "clm_population_main_dashboard.fft_dynamic_measure"
+      ],
+      "filters": {
+        "is_clm_registration": "4STEP",
+        "reg_flow_changes": "pure_4step",
+        "registration_program_calc": "Payoneer D2P",
+        "map_payments": "Exclude",
+        "ah_creation_date_date": "8 weeks",
+        "country_name": "{{COUNTRY_NAME}}"
+      },
+      "sorts": ["clm_population_main_dashboard.ah_creation_date_week"],
+      "notes": "Replace {{COUNTRY_NAME}} with exact Looker country name"
+    }
+  },
+
+  "benchmark_metrics": {
+    "note": "Based on 30-day aggregate data from 2025-01-30",
+    "accounts_created": 232747,
+    "step2_rate": 0.73,
+    "step4_rate": 0.59,
+    "approval_rate": 0.451,
+    "ftl_rate": 0.029,
+    "comparison_to_clm": {
+      "clm_approval_rate": 0.17,
+      "four_step_approval_rate": 0.45,
+      "delta": 0.28,
+      "note": "4Step outperforms CLM by ~28 percentage points on approval"
+    }
+  },
+
+  "relationships": {
+    "compare_with": [
+      {
+        "look_id": "6797",
+        "name": "CLM Funnel",
+        "purpose": "Compare approval rates to identify rollout opportunities"
+      },
+      {
+        "look_id": "7806",
+        "name": "Rollout Status",
+        "purpose": "Check current rollout % to determine if CLM can expand"
+      }
+    ]
+  },
+
+  "notes": [
+    "Same view as CLM - just different is_clm_registration filter value",
+    "Saved Look returns aggregate (1 row) - use custom queries for dimensions",
+    "reg_flow_changes filter: pure_4step (no quotes needed in API)",
+    "map_payments: Exclude (required filter)",
+    "is_bot filter NOT applied (any value)",
+    "PRIMARY METRIC: Use table_calculations.accounts_approved_glps formula, not raw accounts_approved",
+    "4Step raw approval ~75%, but GLPS-adjusted ~32% (closer to CLM comparison basis)"
+  ]
+}

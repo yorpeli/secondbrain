@@ -1,0 +1,62 @@
+{
+  "description": "Memory of real-world events that may explain data anomalies or expected impacts",
+  "last_updated": "2025-01-30",
+
+  "event_types": [
+    "release",
+    "bug",
+    "hotfix",
+    "marketing_campaign",
+    "product_change",
+    "policy_change",
+    "external_factor",
+    "rollout_change",
+    "incident"
+  ],
+
+  "events": [
+    {
+      "id": "example_001",
+      "date": "2025-01-15",
+      "type": "release",
+      "title": "Example: CLM v2.1 Release",
+      "description": "New document upload flow released",
+      "affected_countries": ["all"],
+      "affected_funnels": ["CLM"],
+      "expected_impact": "positive",
+      "expected_metric": "submitted_all_docs_step",
+      "expected_change_percent": 5,
+      "impact_delay_weeks": 1,
+      "added_date": "2025-01-30",
+      "notes": "This is an example event - delete and replace with real events"
+    }
+  ],
+
+  "future_plans": [
+    {
+      "id": "plan_001",
+      "planned_date": "2025-03-01",
+      "type": "rollout_change",
+      "title": "Example: Increase CLM rollout in Brazil",
+      "description": "Plan to increase CLM traffic from 25% to 50%",
+      "affected_countries": ["Brazil"],
+      "expected_impact": "Check CLM vs 4Step performance before decision",
+      "added_date": "2025-01-30",
+      "notes": "This is an example plan - delete and replace with real plans"
+    }
+  ],
+
+  "findings_to_track": [
+    {
+      "id": "finding_001",
+      "found_date": "2025-01-30",
+      "title": "Example: Approval rate spike in Country X",
+      "description": "Noticed unusual 15% increase in approval rate",
+      "metric": "accounts_approved",
+      "country": "Example Country",
+      "follow_up_date": "2025-02-06",
+      "status": "tracking",
+      "notes": "This is an example finding - delete and replace with real findings"
+    }
+  ]
+}

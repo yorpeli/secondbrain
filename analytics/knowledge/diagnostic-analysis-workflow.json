@@ -1,0 +1,163 @@
+{
+  "title": "CLM Country Diagnostic Analysis Workflow",
+  "description": "Diagnose underperforming CLM countries by identifying issues in specific segments",
+  "last_updated": "2026-01-30",
+
+  "overview": {
+    "goal": "Identify and diagnose issues in underperforming CLM countries by segment (AH type, device, combinations)",
+    "use_case": "Troubleshooting countries with low approval rates to understand WHERE and WHY users drop off",
+    "key_principle": "Compare segment performance to country baseline to surface relative issues"
+  },
+
+  "identification_criteria": {
+    "low_performer_threshold": 0.15,
+    "min_volume": 100,
+    "note": "Countries with <15% CLM approval rate AND >100 accounts warrant investigation. Can also run on any country for segment breakdown."
+  },
+
+  "script": {
+    "path": "scripts/diagnose-country.js",
+    "commands": {
+      "single_country": "node scripts/diagnose-country.js \"Country Name\"",
+      "from_scan": "node scripts/diagnose-country.js --from-scan"
+    },
+    "queries": 5,
+    "query_details": {
+      "1": {
+        "name": "Overall Baseline",
+        "purpose": "Country-level funnel metrics for comparison baseline",
+        "filter": "8 weeks ago for 4 weeks"
+      },
+      "2": {
+        "name": "By AH Type",
+        "field": "entity_type",
+        "values": ["Individual", "Company", "Sole Proprietor"],
+        "purpose": "Identify which account types are struggling"
+      },
+      "3": {
+        "name": "By Device",
+        "field": "dynamic_dimension",
+        "requires_filter": "dimension_selector = 'device type'",
+        "values": ["Desktop", "Mobile Web", "Mobile App"],
+        "purpose": "Identify device-specific issues"
+      },
+      "4": {
+        "name": "By Combination",
+        "fields": ["entity_type", "dynamic_dimension"],
+        "purpose": "Cross-segment analysis (e.g., Company + Mobile Web)",
+        "note": "Critical for finding hidden issues in specific combinations"
+      },
+      "5": {
+        "name": "Weekly Trend",
+        "filter": "12 weeks",
+        "purpose": "Detect degradation patterns over time"
+      }
+    }
+  },
+
+  "analysis_components": {
+    "segment_comparison": {
+      "what": "Compare each segment's conversion rates to country baseline",
+      "thresholds": {
+        "yellow_flag": ">10% below baseline",
+        "red_flag": ">20% below baseline"
+      },
+      "metrics_analyzed": ["Segmentation", "Docs Submitted", "Approval"]
+    },
+    "trend_analysis": {
+      "what": "Compare older mature period vs newer mature period",
+      "methodology": {
+        "data_fetched": "12 weeks of weekly data",
+        "mature_weeks_only": "Only weeks 4+ ago are used for rate comparison",
+        "comparison": "Weeks 8-11 ago vs weeks 4-7 ago",
+        "reason": "Accounts take ~4 weeks to mature (approval process). Including recent weeks would show false declining trends."
+      },
+      "thresholds": {
+        "yellow_flag": ">10% decline",
+        "red_flag": ">20% decline"
+      }
+    },
+    "volume_requirements": {
+      "country_minimum": 100,
+      "segment_minimum": 20,
+      "note": "Segments with <20 accounts marked as 'low volume' and excluded from analysis"
+    }
+  },
+
+  "common_findings": {
+    "mobile_issues": {
+      "pattern": "Mobile Web and Mobile App consistently show lower approval than Desktop",
+      "seen_in": ["Bangladesh", "Philippines"],
+      "typical_gap": "40-50% below baseline"
+    },
+    "company_issues": {
+      "pattern": "Companies struggle more than Individuals, especially on doc submission",
+      "seen_in": ["Bangladesh", "Philippines"],
+      "typical_gap": "40-90% below baseline"
+    },
+    "combination_issues": {
+      "pattern": "Company + Mobile is often the worst-performing segment",
+      "example": "Philippines: Company + Mobile Web = 0% approval"
+    }
+  },
+
+  "output": {
+    "console": "Formatted report with prioritized issues",
+    "file": "outputs/diagnostic-{country}-{date}.json",
+    "contents": [
+      "baseline metrics",
+      "issues by AH type",
+      "issues by device",
+      "issues by combination",
+      "trend analysis",
+      "priority issues summary",
+      "raw query data"
+    ]
+  },
+
+  "recommended_workflow": {
+    "step_1": {
+      "action": "Run opportunity scan",
+      "command": "node scripts/scan-opportunities.js",
+      "purpose": "Get overview of all countries"
+    },
+    "step_2": {
+      "action": "Identify countries needing diagnosis",
+      "criteria": [
+        "Low CLM approval rate (<15-20%)",
+        "Declining trends from deep-dive",
+        "Large FTL gaps"
+      ]
+    },
+    "step_3": {
+      "action": "Run diagnostic on each country",
+      "command": "node scripts/diagnose-country.js \"Country\"",
+      "output": "Segment-level issues with severity"
+    },
+    "step_4": {
+      "action": "Prioritize investigation",
+      "focus_on": [
+        "Red flag issues (>20% below baseline)",
+        "High-volume segments with issues",
+        "Declining trend metrics"
+      ]
+    },
+    "step_5": {
+      "action": "Investigate root causes",
+      "next_steps": [
+        "Check specific funnel steps with largest drops",
+        "Review UX for problematic device types",
+        "Analyze doc submission patterns for Companies"
+      ]
+    }
+  },
+
+  "integration_with_opportunity_flow": {
+    "when_to_use_diagnostic": [
+      "Country shows declining approval trend in deep-dive",
+      "Country has good delta vs 4Step but low absolute approval",
+      "Investigating why a country is NOT_READY or NO_OPPORTUNITY"
+    ],
+    "complementary_analysis": "Opportunity flow finds WHERE to increase rollout, Diagnostic finds WHY performance issues exist"
+  }
+}

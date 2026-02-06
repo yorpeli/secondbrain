@@ -1,0 +1,177 @@
+{
+  "description": "Mapping of business filter names to Looker field names",
+  "status": "verified - 4Step filters confirmed 2026-01-30, CLM filters partially verified",
+  "view_prefix": "clm_population_main_dashboard",
+
+  "filters": {
+    "account_type": {
+      "business_name": "AH Type / Account Type",
+      "looker_field": "entity_type",
+      "confirmed": true,
+      "default_value": "",
+      "possible_values": ["Company", "Individual", "Sole Proprietor"],
+      "notes": "Can be used as dimension for grouping. Combine with device_type for cross-segment analysis.",
+      "discovered": "2026-01-30"
+    },
+    "country_business_tier": {
+      "business_name": "Country Business Tier",
+      "looker_field": "country_business_tier",
+      "confirmed": true,
+      "default_value": "",
+      "possible_values": ["TBD"],
+      "notes": "Filter by 1+2 (Tier 1 and Tier 2)"
+    },
+    "country_group_rollout": {
+      "business_name": "Country Group (Only Rollout)",
+      "looker_field": "TBD",
+      "confirmed": false,
+      "default_value": "Not not in rollout",
+      "notes": "Countries included in CLM rollout. May not need if querying specific countries."
+    },
+    "is_bot": {
+      "business_name": "Is Bot",
+      "looker_field": "is_bot",
+      "confirmed": true,
+      "default_value": "0",
+      "possible_values": ["0", "1", ""],
+      "notes": "For CLM: use '0' to exclude bots. For 4Step: leave empty (any value) to match saved Look."
+    },
+    "is_suspected_bot": {
+      "business_name": "Is Suspected Bot",
+      "looker_field": "TBD",
+      "confirmed": false,
+      "default_value": "exclude",
+      "notes": "Field not found yet - need to verify"
+    },
+    "is_blocked": {
+      "business_name": "Blocked",
+      "looker_field": "is_blocked",
+      "confirmed": true,
+      "default_value": "",
+      "notes": "Exclude pre-approval blocks, include post-approval"
+    },
+    "map_payments": {
+      "business_name": "Map Payments",
+      "looker_field": "map_payments",
+      "confirmed": true,
+      "default_value": "Exclude",
+      "possible_values": ["Exclude", "Include", ""],
+      "notes": "CRITICAL: Must use 'Exclude' for BOTH CLM and 4Step to get FTL data. Without this filter, fft_dynamic_measure returns null."
+    },
+    "registration_program": {
+      "business_name": "Registration Program",
+      "looker_field": "TBD",
+      "confirmed": false,
+      "default_value": "all",
+      "notes": "Include all programs"
+    },
+    "registration_type": {
+      "business_name": "CLM vs 4Step Selection",
+      "looker_field": "is_clm_registration",
+      "confirmed": true,
+      "default_value": "CLM",
+      "possible_values": ["CLM", "4STEP"],
+      "notes": "Use 'CLM' for CLM funnel, '4STEP' for 4Step funnel. Case sensitive."
+    },
+    "reg_flow_changes": {
+      "business_name": "Registration Flow Changes",
+      "looker_field": "reg_flow_changes",
+      "confirmed": true,
+      "default_value": "",
+      "possible_values": ["pure_4step", ""],
+      "notes": "Required for 4Step queries: use 'pure_4step' (no quotes in API). Leave empty for CLM."
+    },
+    "dimension_selector": {
+      "business_name": "Table Dynamic Filter",
+      "looker_field": "dimension_selector",
+      "confirmed": true,
+      "default_value": "registration country",
+      "possible_values": ["registration country", "device type"],
+      "notes": "Controls what dynamic_dimension shows"
+    },
+    "experiments_filter": {
+      "business_name": "Experiments Dynamic Filter",
+      "looker_field": "experiments_dynamic_dimension",
+      "confirmed": false,
+      "default_value": "All",
+      "notes": "Include all experiments"
+    },
+    "device_type": {
+      "business_name": "Device Type",
+      "looker_field": "dynamic_dimension",
+      "requires_filter": {
+        "field": "dimension_selector",
+        "value": "device type"
+      },
+      "confirmed": true,
+      "default_value": "all",
+      "possible_values": ["Desktop", "Mobile Web", "Mobile App"],
+      "notes": "Use dynamic_dimension field with dimension_selector='device type'. Can combine with entity_type for AH type × device breakdown.",
+      "discovered": "2026-01-30"
+    },
+    "country_name": {
+      "business_name": "Country",
+      "looker_field": "country_name",
+      "confirmed": true,
+      "default_value": "-NULL",
+      "notes": "-NULL means exclude nulls (show all countries). Use exact country name for specific filtering."
+    },
+    "date_range": {
+      "business_name": "Date Range",
+      "looker_field": "ah_creation_date_date",
+      "confirmed": true,
+      "default_value": "8 weeks ago for 4 weeks",
+      "possible_values": [
+        "7 days",
+        "30 days",
+        "90 days",
+        "8 weeks",
+        "12 weeks",
+        "8 weeks ago for 4 weeks"
+      ],
+      "notes": "For MATURE cohort analysis, use '8 weeks ago for 4 weeks' to get accounts created 8-12 weeks ago with their current approval/FTL status. DO NOT filter by ah_creation_date_week directly - it returns inconsistent data."
+    },
+    "accounts_threshold": {
+      "business_name": "Minimum Accounts",
+      "looker_field": "accounts_created_clm",
+      "confirmed": true,
+      "default_value": ">=20",
+      "notes": "Filter for statistical significance"
+    }
+  },
+
+  "default_query_filters": {
+    "clm": {
+      "description": "Default filters for CLM funnel queries",
+      "filters": {
+        "is_clm_registration": "CLM",
+        "ah_creation_date_date": "8 weeks",
+        "country_name": "-NULL",
+        "is_bot": "0",
+        "is_blocked": "",
+        "entity_type": "",
+        "map_payments": "Exclude",
+        "dimension_selector": "registration country",
+        "accounts_created_clm": ">=1"
+      },
+      "notes": ["map_payments: Exclude is REQUIRED for FTL data (fft_dynamic_measure)"]
+    },
+    "four_step": {
+      "description": "Default filters for 4Step funnel queries (verified 2026-01-30)",
+      "filters": {
+        "is_clm_registration": "4STEP",
+        "reg_flow_changes": "pure_4step",
+        "registration_program_calc": "Payoneer D2P",
+        "map_payments": "Exclude",
+        "ah_creation_date_date": "90 days",
+        "country_name": "-NULL"
+      },
+      "notes": [
+        "is_bot filter NOT applied (any value) to match saved Look",
+        "reg_flow_changes: use 'pure_4step' without quotes in API",
+        "map_payments: MUST be 'Exclude'",
+        "Primary metric: use GLPS-adjusted approval, not raw accounts_approved"
+      ]
+    }
+  }
+}

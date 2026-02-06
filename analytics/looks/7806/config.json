@@ -1,0 +1,183 @@
+{
+  "look_id": "7806",
+  "name": "CLM Rollout Status by Country",
+  "title_in_looker": "CLM Rollout Configured Percentage by Country (D2P)",
+  "system": "Both",
+  "model": "product",
+  "view": "clm_population_main_dashboard",
+  "saved_query_id": "PnHZBtMSBb8VmbgrDm8BRzC44HH46Rdx",
+  "status": "mapped",
+  "last_verified": "2025-01-30",
+
+  "description": {
+    "summary": "Shows current CLM rollout percentage by country, along with CLM and 4Step registration volumes.",
+    "business_context": "D2P (Direct to Payoneer) customers connect directly, not through partners. This Look shows what percentage of traffic is routed to CLM vs 4Step for each country.",
+    "when_to_use": [
+      "Check current rollout status for any country",
+      "Identify countries with 100% CLM rollout",
+      "Compare CLM vs 4Step registration volumes",
+      "Detect anomalies (4Step traffic in 100% CLM countries)",
+      "Support rollout increase decisions (used with funnel Looks)"
+    ]
+  },
+
+  "key_fields": {
+    "country_name": {
+      "field": "clm_population_main_dashboard.country_name",
+      "description": "Country full name"
+    },
+    "country_business_tier": {
+      "field": "clm_population_main_dashboard.country_business_tier",
+      "description": "Tier 0-4. Note: Tier 4 = Rest of World (same as Tier 3)",
+      "values": ["0", "1", "2", "3", "4"],
+      "tier_mapping": {
+        "0": "Tier 0 (China, Hong Kong)",
+        "1": "Tier 1 (Top 6)",
+        "2": "Tier 2",
+        "3": "Tier 3 (Rest of World)",
+        "4": "Tier 4 (Rest of World - treat same as Tier 3)"
+      }
+    },
+    "clm_rollout_percentage": {
+      "field": "clm_population_main_dashboard.clm_rollout_percentage",
+      "description": "Percentage of traffic routed to CLM (0, 0.25, or 1.0)",
+      "values": [0, 0.25, 1.0],
+      "display_values": ["0%", "25%", "100%"]
+    },
+    "clm_registrations": {
+      "field": "clm_registrations",
+      "description": "Number of registrations through CLM system",
+      "type": "calculated_field"
+    },
+    "step_registrations": {
+      "field": "step_registrations",
+      "description": "Number of registrations through 4Step system",
+      "type": "calculated_field"
+    },
+    "registration_country": {
+      "field": "clm_population_main_dashboard.registration_country",
+      "description": "Country code"
+    },
+    "accounts_created_clm": {
+      "field": "clm_population_main_dashboard.accounts_created_clm",
+      "description": "CLM accounts created"
+    }
+  },
+
+  "filters": {
+    "current_defaults": {
+      "registration_program_calc": {
+        "field": "clm_population_main_dashboard.registration_program_calc",
+        "value": "Payoneer D2P",
+        "description": "Direct to Payoneer customers (not through partners)",
+        "alternatives": ["", "Payoneer D2P"],
+        "notes": "Empty = no filter (all programs). D2P = direct customers only."
+      },
+      "country_name": {
+        "field": "clm_population_main_dashboard.country_name",
+        "value": "-Country Not Chosen",
+        "description": "Exclude unassigned countries"
+      },
+      "registration_client_id": {
+        "field": "clm_population_main_dashboard.registration_client_id",
+        "value": "100129010,100014285",
+        "description": "Specific client IDs - purpose TBD, keep for now"
+      },
+      "ah_creation_date_date": {
+        "field": "clm_population_main_dashboard.ah_creation_date_date",
+        "value": "30 days",
+        "description": "Last 30 days of data"
+      }
+    }
+  },
+
+  "analysis_rules": {
+    "rollout_validation": {
+      "description": "Check if traffic distribution matches rollout percentage",
+      "rules": [
+        {
+          "condition": "rollout_percentage = 100%",
+          "expected": "step_registrations should be ~0",
+          "if_violated": "Flag as issue - 4Step traffic in 100% CLM country"
+        },
+        {
+          "condition": "rollout_percentage = 25%",
+          "expected": "~25% CLM, ~75% 4Step",
+          "tolerance": "±10%",
+          "if_violated": "May indicate traffic routing issue"
+        },
+        {
+          "condition": "rollout_percentage = 0%",
+          "expected": "clm_registrations should be ~0",
+          "if_violated": "CLM traffic in 0% rollout country"
+        }
+      ]
+    },
+    "opportunity_detection": {
+      "description": "Identify countries ready for rollout increase",
+      "requires": "Combine with Look 6797 (CLM Funnel) data",
+      "logic": "If country has 25% rollout AND CLM approval_rate >= 4Step approval_rate → opportunity to increase rollout"
+    }
+  },
+
+  "query_templates": {
+    "current_rollout_status": {
+      "name": "Current Rollout Status (All Countries)",
+      "description": "Get rollout percentage and registration counts for all countries",
+      "use_saved_query": true,
+      "query_id": "PnHZBtMSBb8VmbgrDm8BRzC44HH46Rdx",
+      "notes": "Run saved Look directly for this query"
+    },
+    "countries_at_25_percent": {
+      "name": "Countries at 25% Rollout",
+      "description": "Filter to countries that could potentially increase rollout",
+      "post_filter": "clm_rollout_percentage = 0.25",
+      "notes": "These are candidates for rollout increase analysis"
+    },
+    "countries_at_100_percent_with_4step": {
+      "name": "Anomaly: 4Step in 100% CLM Countries",
+      "description": "Find countries with 100% CLM but still have 4Step traffic",
+      "post_filter": "clm_rollout_percentage = 1.0 AND step_registrations > 0",
+      "notes": "These should be flagged as potential issues"
+    },
+    "tier_summary": {
+      "name": "Rollout Summary by Tier",
+      "description": "Aggregate rollout status by tier",
+      "post_aggregation": "Group by tier, count countries at each rollout level",
+      "notes": "Requires post-processing of results"
+    }
+  },
+
+  "relationships": {
+    "used_with": [
+      {
+        "look_id": "6797",
+        "name": "CLM Funnel",
+        "purpose": "Compare CLM approval rates to identify rollout opportunities"
+      }
+    ],
+    "data_flow": "Get rollout status from 7806 → Get approval rates from 6797 → Identify opportunities"
+  },
+
+  "sample_data": {
+    "description": "Sample from 2025-01-30 run",
+    "total_countries": 225,
+    "rollout_distribution": {
+      "0_percent": "TBD",
+      "25_percent": "Multiple countries including US, Pakistan, Nigeria",
+      "100_percent": "Multiple countries including Kenya, Algeria, South Africa"
+    },
+    "file": "output/sample-results.json"
+  },
+
+  "known_issues": [
+    "Client IDs filter purpose not yet understood",
+    "Tier 4 exists in data but not in original tier definitions - treat as Tier 3"
+  ],
+
+  "notes": [
+    "D2P = Direct to Payoneer (not through partners)",
+    "Partner programs have separate filters if needed in future",
+    "Use in conjunction with funnel Looks for opportunity analysis"
+  ]
+}

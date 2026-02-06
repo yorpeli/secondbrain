@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "gen:types": "supabase gen types typescript --project-id tjlcdwsckbbkedyzrzda > lib/database.types.ts"
+    "gen:types": "supabase gen types typescript --project-id tjlcdwsckbbkedyzrzda > lib/database.types.ts",
+    "analytics:run": "tsx analytics/run.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
-    "docx": "^9.5.1"
+    "docx": "^9.5.1",
+    "dotenv": "^17.2.4"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",

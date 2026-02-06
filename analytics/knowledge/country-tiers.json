@@ -1,0 +1,77 @@
+{
+  "description": "Country tier definitions with baselines and targets for approval rates",
+  "maturity_window_weeks": 4,
+  "measurement_note": "Use accounts created 4-8 weeks ago for mature approval rate calculations",
+
+  "tiers": {
+    "tier0": {
+      "name": "Tier 0",
+      "aliases": ["top 8"],
+      "countries": ["China", "Hong Kong"],
+      "countries_looker_names": ["China", "Hong Kong"],
+      "baseline": 0.30,
+      "target": 0.40,
+      "notes": "Not found in current data - may need verification"
+    },
+    "tier1": {
+      "name": "Tier 1 (Top 6)",
+      "aliases": ["top 6", "top 8"],
+      "countries": ["US", "UK", "UAE", "Singapore", "India", "Brazil"],
+      "countries_looker_names": [
+        "United States of America",
+        "United Kingdom",
+        "United Arab Emirates",
+        "Singapore",
+        "India",
+        "Brazil"
+      ],
+      "baseline": 0.30,
+      "target": 0.40,
+      "notes": "India not found in current data - may need verification"
+    },
+    "tier2": {
+      "name": "Tier 2",
+      "aliases": [],
+      "countries": ["Ukraine", "Argentina", "Vietnam", "Pakistan", "Philippines", "Colombia", "Israel", "South Korea", "Japan", "Mexico", "Bangladesh", "Turkey"],
+      "countries_looker_names": [
+        "Ukraine",
+        "Argentina",
+        "Vietnam",
+        "Pakistan",
+        "Philippines",
+        "Colombia",
+        "Israel",
+        "Korea, South",
+        "Japan",
+        "Mexico",
+        "Bangladesh",
+        "Turkey"
+      ],
+      "baseline": 0.20,
+      "target": 0.30,
+      "notes": "Note: 'Korea, South' not 'South Korea' in Looker"
+    },
+    "tier3": {
+      "name": "Tier 3 (Rest of World)",
+      "aliases": ["row", "rest of world"],
+      "countries": "all_others",
+      "baseline": 0.18,
+      "target": 0.25
+    },
+    "tier4": {
+      "name": "Tier 4 (Rest of World)",
+      "aliases": ["row"],
+      "countries": "all_others",
+      "baseline": 0.18,
+      "target": 0.25,
+      "notes": "Tier 4 appears in Looker data but should be treated same as Tier 3"
+    }
+  },
+
+  "tier_mapping_note": "In Looker data (Look 7806), tiers are 0-4. Tier 4 = Rest of World = same as Tier 3.",
+
+  "naming_conventions": {
+    "top_6": "Tier 1 only",
+    "top_8": "Tier 0 + Tier 1"
+  }
+}

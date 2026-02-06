@@ -1,0 +1,123 @@
+{
+  "description": "Master registry of all Looker Looks used by the analytics system",
+  "last_updated": "2026-01-30",
+  "total_looks": 4,
+  "mapped_looks": 3,
+
+  "looks": [
+    {
+      "id": "6797",
+      "name": "CLM Funnel by Selected Dimensions",
+      "system": "CLM",
+      "type": "funnel",
+      "status": "mapped",
+      "description": "Main CLM registration funnel. Tracks user journey from account creation through approval and activation. Supports dynamic grouping by country or device type.",
+      "primary_use_cases": [
+        "Track CLM funnel conversion rates",
+        "Weekly trend analysis by country",
+        "Weekly trend analysis by device",
+        "Identify anomalies in approval rates",
+        "Compare performance across tiers"
+      ],
+      "key_metrics": [
+        "accounts_approved (PRIMARY)",
+        "fft_dynamic_measure (SECONDARY - Had FTL)"
+      ],
+      "config_path": "looks/6797/config.json"
+    },
+    {
+      "id": "7806",
+      "name": "CLM Rollout Status by Country",
+      "system": "Both",
+      "type": "rollout",
+      "status": "mapped",
+      "description": "Shows current CLM rollout percentage by country (0%, 25%, 100%), along with CLM and 4Step registration volumes. Used to check rollout status and detect traffic routing anomalies.",
+      "primary_use_cases": [
+        "Check current rollout status by country",
+        "See CLM vs 4Step registration volumes",
+        "Detect anomalies (4Step traffic in 100% CLM countries)",
+        "Identify countries at 25% rollout (candidates for increase)",
+        "Support rollout increase decisions"
+      ],
+      "key_metrics": [
+        "clm_rollout_percentage",
+        "clm_registrations",
+        "step_registrations"
+      ],
+      "config_path": "looks/7806/config.json",
+      "notes": "D2P (Direct to Payoneer) customers only. Tier 4 in data = treat as Tier 3 (Rest of World)."
+    },
+    {
+      "id": "6823",
+      "name": "4Step Registration Funnel",
+      "system": "4Step",
+      "type": "funnel",
+      "status": "mapped",
+      "description": "Legacy 4Step registration funnel. Simpler flow with fewer steps, higher approval rate (~45% vs CLM's ~17%). Uses same view as CLM but filtered by is_clm_registration=4STEP.",
+      "primary_use_cases": [
+        "Track 4Step funnel conversion rates",
+        "Compare with CLM performance",
+        "Identify countries where CLM outperforms 4Step",
+        "Benchmark approval rates (45% target)"
+      ],
+      "key_metrics": [
+        "accounts_approved (PRIMARY - ~45% approval rate)",
+        "fft_dynamic_measure (SECONDARY - Had FTL ~2.9%)"
+      ],
+      "config_path": "looks/6823/config.json",
+      "notes": "Same view as CLM (clm_population_main_dashboard). Key filter: is_clm_registration=4STEP, reg_flow_changes=\"pure_4step\". Saved Look returns 1 aggregate row - use custom queries for dimensions."
+    },
+    {
+      "id": "TBD",
+      "name": "CLM vs 4Step Comparison",
+      "system": "Both",
+      "type": "comparison",
+      "status": "pending",
+      "description": "Side-by-side comparison of CLM and 4Step funnels. Critical for identifying opportunities to expand CLM rollout.",
+      "primary_use_cases": [
+        "Compare approval rates CLM vs 4Step by country",
+        "Identify CLM outperformance opportunities",
+        "Support rollout decisions"
+      ],
+      "key_metrics": [
+        "clm_approval_rate",
+        "four_step_approval_rate",
+        "delta"
+      ],
+      "config_path": "looks/TBD/config.json",
+      "notes": "Need Look ID from user - may be same as another look with different filters"
+    }
+  ],
+
+  "look_relationships": {
+    "opportunity_detection": {
+      "description": "To find CLM rollout opportunities",
+      "looks_needed": ["6797 (CLM Funnel)", "7806 (Rollout Status)", "6823 (4Step Funnel)"],
+      "logic": "1. Get rollout status from 7806 (find 25% countries). 2. Get CLM approval rates from 6797. 3. Get 4Step approval rates. 4. If CLM >= 4Step, recommend increasing rollout."
+    },
+    "rollout_anomaly_detection": {
+      "description": "Detect traffic routing issues",
+      "looks_needed": ["7806 (Rollout Status)"],
+      "logic": "If country has 100% CLM rollout but step_registrations > 0, flag as issue"
+    },
+    "funnel_anomaly_detection": {
+      "description": "To detect funnel anomalies",
+      "looks_needed": ["6797 (CLM Funnel)"],
+      "logic": "Compare week-over-week, flag > 2 std dev from rolling mean"
+    },
+    "tier_performance": {
+      "description": "To track tier baseline/target progress",
+      "looks_needed": ["6797 (CLM Funnel)"],
+      "logic": "Compare mature approval rates against tier baselines and targets"
+    }
+  },
+
+  "how_to_add_new_look": [
+    "1. Get the Look ID from Looker",
+    "2. Run: node -e \"require('./lib/looker-client').getLook('ID').then(l => console.log(l))\"",
+    "3. Review fields and filters",
+    "4. Create looks/{id}/config.json using _template",
+    "5. Update this registry",
+    "6. Update status to 'mapped'"
+  ]
+}

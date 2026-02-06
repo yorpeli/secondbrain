@@ -1,0 +1,65 @@
+{
+  "description": "Time-based considerations for data analysis and anomaly detection",
+
+  "maturity": {
+    "approval_maturity_weeks": 4,
+    "explanation": "Account creation to approval takes up to 4 weeks",
+    "measurement_rule": "For mature approval rates, analyze accounts created 4-8 weeks ago",
+    "example": {
+      "today": "2025-01-30",
+      "mature_data_start": "2024-12-02",
+      "mature_data_end": "2024-12-30",
+      "still_maturing": "2024-12-30 to 2025-01-30"
+    }
+  },
+
+  "leading_indicators": {
+    "description": "Track fast-approval cohorts as early signals",
+    "cohorts": [
+      {
+        "name": "approved_under_1_week",
+        "description": "Accounts approved within 7 days of creation",
+        "signal": "Increase may indicate process improvement or quality change"
+      },
+      {
+        "name": "approved_under_2_weeks",
+        "description": "Accounts approved within 14 days of creation",
+        "signal": "Leading indicator before full maturity data"
+      }
+    ],
+    "implementation_note": "May require custom query or separate Look"
+  },
+
+  "comparison_periods": {
+    "week_over_week": {
+      "description": "Compare same metric across consecutive weeks",
+      "use_case": "Detect sudden changes, anomalies"
+    },
+    "baseline_comparison": {
+      "description": "Compare against tier baseline",
+      "use_case": "Ensure not dropping below starting point"
+    },
+    "target_tracking": {
+      "description": "Compare against tier target",
+      "use_case": "Track progress toward goals"
+    }
+  },
+
+  "anomaly_detection_approach": {
+    "method": "statistical",
+    "description": "Use standard deviations rather than hard thresholds",
+    "reasoning": "Different countries have different normal ranges (e.g., 5% vs 15%)",
+    "suggested_approach": [
+      "Calculate rolling mean and std dev per country",
+      "Flag if current value > 2 std dev from mean",
+      "Consider both positive and negative anomalies"
+    ]
+  },
+
+  "date_dimension_fields": {
+    "full_date": "ah_creation_date_date",
+    "week": "ah_creation_date_week",
+    "month": "ah_creation_date_month",
+    "notes": "Use _week suffix for weekly trend analysis"
+  }
+}

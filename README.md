@@ -18,6 +18,7 @@ See [CLAUDE.md](./CLAUDE.md) for the full project definition: schema, convention
 - Node.js 18+
 - Supabase service role key
 - OpenAI API key (for embeddings)
+- Looker API credentials (for analytics agent)
 
 ### Install
 
@@ -35,6 +36,9 @@ Create `.env` in the project root (never commit):
 SUPABASE_URL=https://tjlcdwsckbbkedyzrzda.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 OPENAI_API_KEY=<your-openai-key>
+LOOKER_BASE_URL=<your-looker-instance.cloud.looker.com>
+LOOKER_CLIENT_ID=<your-looker-client-id>
+LOOKER_CLIENT_SECRET=<your-looker-client-secret>
 ```
 
 ## Structure
@@ -47,6 +51,7 @@ second-brain/
 ├── package.json
 ├── scripts/           # Automation scripts
 ├── agents/            # Sub-agent definitions
+├── analytics/         # Analytics agent — Looker-based CLM funnel analysis
 ├── lib/               # Shared utilities (DB client, logging, types)
 └── supabase/
     └── functions/     # Edge function source (reference)
@@ -57,6 +62,12 @@ second-brain/
 ```bash
 # Run a script
 npx tsx scripts/ppp-ingest.ts
+
+# Analytics agent — CLM funnel analysis via Looker
+npx tsx analytics/run.ts scan-opportunities
+npx tsx analytics/run.ts compare <country> [--detailed]
+npx tsx analytics/run.ts deep-dive <country>
+npx tsx analytics/run.ts diagnose <country>
 
 # Generate TypeScript types from DB schema
 npx supabase gen types typescript --project-id tjlcdwsckbbkedyzrzda > lib/types.ts

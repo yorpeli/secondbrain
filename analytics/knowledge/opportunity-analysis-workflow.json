@@ -1,0 +1,206 @@
+{
+  "title": "CLM vs 4Step Opportunity Analysis Workflow",
+  "description": "Two-phase workflow to identify and validate CLM rollout opportunities",
+  "last_updated": "2026-01-30",
+
+  "overview": {
+    "goal": "Identify countries where CLM outperforms 4Step and recommend rollout increases",
+    "phases": [
+      "Phase 1: Scan - Quick scorecard across all Tier 0/1/2 countries",
+      "Phase 2: Deep Dive - Detailed analysis of strong opportunity countries"
+    ],
+    "key_principle": "Use mature cohorts (8-12 weeks old) for reliable approval/FTL metrics"
+  },
+
+  "phase_1_scan": {
+    "script": "scripts/scan-opportunities.js",
+    "command": "node scripts/scan-opportunities.js",
+    "purpose": "Generate opportunity scorecard for all Tier 0/1/2 countries",
+    "queries": 3,
+    "query_details": {
+      "1": {
+        "name": "Rollout Status",
+        "data": ["country_name", "tier", "rollout_percentage", "volumes"],
+        "filter": "30 days"
+      },
+      "2": {
+        "name": "CLM Mature Cohort",
+        "data": ["accounts_created_clm", "accounts_approved", "fft_dynamic_measure"],
+        "filter": "8 weeks ago for 4 weeks",
+        "grouped_by": "country_name"
+      },
+      "3": {
+        "name": "4Step Mature Cohort",
+        "data": ["accounts_created", "GLPS fields", "fft_dynamic_measure"],
+        "filter": "8 weeks ago for 4 weeks",
+        "grouped_by": "country_name"
+      }
+    },
+    "local_processing": [
+      "Filter to Tier 0, 1, 2 countries",
+      "Calculate GLPS-adjusted approval for 4Step",
+      "Calculate approval delta (CLM - 4Step)",
+      "Classify opportunities"
+    ],
+    "output": {
+      "console": "Scorecard table with all countries",
+      "file": "outputs/opportunity-scan-{date}.json"
+    },
+    "classification": {
+      "STRONG_OPPORTUNITY": "Delta >= +2%",
+      "WEAK_OPPORTUNITY": "Delta 0% to +2%",
+      "NOT_READY": "Delta -5% to 0%",
+      "NO_OPPORTUNITY": "Delta < -5%"
+    },
+    "minimum_volume": 100,
+    "notes": "Run this first to identify which countries warrant deep dive"
+  },
+
+  "phase_2_deep_dive": {
+    "script": "scripts/deep-dive.js",
+    "command": "node scripts/deep-dive.js <country>",
+    "command_all": "node scripts/deep-dive.js --all",
+    "purpose": "Validate opportunity with trend analysis and funnel health checks",
+    "when_to_use": "Run on all countries classified as STRONG_OPPORTUNITY from Phase 1",
+    "queries": 5,
+    "query_details": {
+      "1": {
+        "name": "Rollout Status",
+        "data": ["tier", "rollout_percentage"]
+      },
+      "2": {
+        "name": "CLM Mature Baseline",
+        "filter": "8 weeks ago for 4 weeks",
+        "note": "Uses Looker's native filter - do NOT calculate locally"
+      },
+      "3": {
+        "name": "4Step Mature Baseline",
+        "filter": "8 weeks ago for 4 weeks"
+      },
+      "4": {
+        "name": "CLM Weekly Trend",
+        "filter": "12 weeks",
+        "purpose": "Volume sparkline and trend direction"
+      },
+      "5": {
+        "name": "CLM Recent",
+        "filter": "2 weeks",
+        "purpose": "Funnel health check"
+      }
+    },
+    "analysis_components": {
+      "mature_baseline": {
+        "what": "CLM vs 4Step approval rate comparison",
+        "source": "Looker native filter",
+        "key_metric": "approval_delta"
+      },
+      "volume_trend": {
+        "what": "12-week volume trend with sparkline",
+        "calculation": "First half vs second half average",
+        "thresholds": {
+          "note": ">10% decline",
+          "red_flag": ">20% decline"
+        }
+      },
+      "funnel_health": {
+        "what": "Recent (2 weeks) vs mature baseline conversion rates",
+        "metrics": {
+          "segmentation": {
+            "step": "Created → Completed Segmentation",
+            "note_threshold": ">10% drop",
+            "red_flag_threshold": ">20% drop"
+          },
+          "doc_submission": {
+            "step": "Segmentation → Submitted All Docs",
+            "note_threshold": ">15% drop",
+            "red_flag_threshold": ">25% drop",
+            "why_more_lenient": "Lagging indicator - users need time to gather documents"
+          }
+        }
+      },
+      "early_approval_signal": {
+        "what": "Recent 2-week approval rate vs mature baseline",
+        "expectation": "Gap expected due to maturation lag (approvals take weeks)"
+      }
+    },
+    "verdicts": {
+      "RECOMMEND": {
+        "criteria": "Delta >= +2%, no red flags",
+        "action": "Recommend rollout increase"
+      },
+      "RECOMMEND_WITH_CAUTION": {
+        "criteria": "Delta >= +2%, but has warnings",
+        "action": "Recommend increase with monitoring"
+      },
+      "MONITOR": {
+        "criteria": "Delta 0-2%",
+        "action": "Maintain current rollout, reassess in 2-4 weeks"
+      },
+      "NOT_READY": {
+        "criteria": "Delta -5% to 0%",
+        "action": "Do not increase, investigate bottlenecks"
+      },
+      "NO_OPPORTUNITY": {
+        "criteria": "Delta < -5%",
+        "action": "Do not increase, significant gap exists"
+      }
+    },
+    "output": {
+      "console": "Detailed report with analysis summary",
+      "file": "outputs/deep-dive-{country}-{date}.json"
+    },
+    "includes_generated_summary": true,
+    "summary_contents": [
+      "Performance assessment with sample sizes",
+      "Volume trend interpretation",
+      "Funnel health analysis",
+      "FTL/activation comparison",
+      "Recommendation with reasoning"
+    ]
+  },
+
+  "recommended_workflow": {
+    "step_1": {
+      "action": "Run opportunity scan",
+      "command": "node scripts/scan-opportunities.js",
+      "result": "Scorecard with all Tier 0/1/2 countries classified"
+    },
+    "step_2": {
+      "action": "Identify strong opportunities",
+      "look_for": "Countries with ✅ STRONG_OPPORTUNITY status"
+    },
+    "step_3": {
+      "action": "Run deep dive on each strong opportunity",
+      "command": "node scripts/deep-dive.js \"<country>\"",
+      "example": "node scripts/deep-dive.js \"Philippines\""
+    },
+    "step_4": {
+      "action": "Review deep dive verdicts",
+      "look_for": [
+        "RECOMMEND or RECOMMEND_WITH_CAUTION verdicts",
+        "Warning signs that need attention",
+        "FTL gaps that should be monitored"
+      ]
+    },
+    "step_5": {
+      "action": "Compile recommendations",
+      "output": "List of countries with supporting data for rollout decisions"
+    }
+  },
+
+  "critical_rules": {
+    "always_use_looker_filters": "For mature baseline, ALWAYS use Looker's native '8 weeks ago for 4 weeks' filter. Do NOT calculate week classification locally.",
+    "glps_for_4step": "Always use GLPS-adjusted approval rate for 4Step, not raw accounts_approved",
+    "map_payments_filter": "REQUIRED for FTL data - fft_dynamic_measure returns null without 'map_payments: Exclude'",
+    "minimum_volume": "Require at least 100 accounts for statistical relevance"
+  },
+
+  "output_files": {
+    "scan": "outputs/opportunity-scan-{date}.json",
+    "deep_dive": "outputs/deep-dive-{country}-{date}.json",
+    "contents": {
+      "scan": ["summary counts", "all country metrics", "raw query data"],
+      "deep_dive": ["verdict", "generated summary", "all metrics", "warnings/notes", "methodology", "raw data"]
+    }
+  }
+}

@@ -1,0 +1,261 @@
+{
+  "look_id": "6797",
+  "name": "CLM Funnel by Selected Dimensions",
+  "title_in_looker": "CLM Funnel by Selected Dimensions (in Filters)",
+  "system": "CLM",
+  "model": "product",
+  "view": "clm_population_main_dashboard",
+  "saved_query_id": "KC8dTZ5jHSmpqP46BkkRJQyXpjJbhFtD",
+  "status": "mapped",
+  "last_verified": "2025-01-30",
+
+  "description": {
+    "summary": "Main CLM registration funnel tracking user journey from account creation through approval and activation.",
+    "business_context": "CLM (Customer Lifecycle Management) is the new registration system with more steps than the legacy 4Step system. It creates more friction but provides better data collection.",
+    "when_to_use": [
+      "Tracking CLM funnel performance over time",
+      "Comparing conversion rates across countries",
+      "Comparing conversion rates across device types",
+      "Identifying anomalies in specific funnel steps",
+      "Measuring progress against tier baselines and targets"
+    ]
+  },
+
+  "funnel_steps": [
+    {"order": 1, "name": "Account Created", "field": "accounts_created_clm", "key_point": true},
+    {"order": 2, "name": "MFA SMS Sent", "field": "mfa_sent", "key_point": false},
+    {"order": 3, "name": "MFA SMS Approved", "field": "mfa_approved", "key_point": false},
+    {"order": 4, "name": "Completed Quick Sign Up", "field": "clm_completed_signup", "key_point": false},
+    {"order": 5, "name": "Started Segmentation", "field": "clm_started_segmentation", "key_point": false},
+    {"order": 6, "name": "Completed Segmentation", "field": "clm_finished_segmentation", "key_point": true},
+    {"order": 7, "name": "Signed T&Cs", "field": "provided_information", "key_point": false},
+    {"order": 8, "name": "Docs Requested", "field": "requests_created_step", "key_point": false},
+    {"order": 9, "name": "Submitted 1+ Doc", "field": "requests_submitted_step", "key_point": false},
+    {"order": 10, "name": "Submitted All Docs", "field": "submitted_all_docs_step", "key_point": true},
+    {"order": 11, "name": "Accounts Approved", "field": "accounts_approved", "key_point": true, "primary_metric": true},
+    {"order": 12, "name": "Had FTL (30 Days)", "field": "fft_dynamic_measure", "key_point": true, "secondary_metric": true},
+    {"order": 13, "name": "Reached $500", "field": "icp_500", "key_point": false},
+    {"order": 14, "name": "Reached $10K", "field": "icp_10k", "key_point": false}
+  ],
+
+  "dimensions": {
+    "dynamic_dimension": {
+      "field": "clm_population_main_dashboard.dynamic_dimension",
+      "description": "Output field that shows grouping based on dimension_selector filter",
+      "controlled_by": "dimension_selector filter"
+    },
+    "experiments_dynamic_dimension": {
+      "field": "clm_population_main_dashboard.experiments_dynamic_dimension",
+      "description": "Experiment grouping",
+      "default": "All"
+    },
+    "date_dimensions": {
+      "date": "clm_population_main_dashboard.ah_creation_date_date",
+      "week": "clm_population_main_dashboard.ah_creation_date_week",
+      "month": "clm_population_main_dashboard.ah_creation_date_month"
+    }
+  },
+
+  "filters": {
+    "required": {
+      "is_clm_registration": {
+        "field": "clm_population_main_dashboard.is_clm_registration",
+        "value": "CLM",
+        "description": "Must be CLM for this funnel"
+      }
+    },
+    "recommended_defaults": {
+      "is_bot": {
+        "field": "clm_population_main_dashboard.is_bot",
+        "value": "0",
+        "description": "Exclude bots"
+      },
+      "country_name": {
+        "field": "clm_population_main_dashboard.country_name",
+        "value": "-NULL",
+        "description": "Exclude null countries (show all real countries)"
+      },
+      "map_payments": {
+        "field": "clm_population_main_dashboard.map_payments",
+        "value": "Exclude",
+        "description": "REQUIRED for FTL data - fft_dynamic_measure returns null without this filter"
+      }
+    },
+    "dynamic_filters": {
+      "dimension_selector": {
+        "field": "clm_population_main_dashboard.dimension_selector",
+        "options": ["registration country", "device type"],
+        "default": "registration country",
+        "description": "Controls what dynamic_dimension shows"
+      },
+      "date_range": {
+        "field": "clm_population_main_dashboard.ah_creation_date_date",
+        "examples": ["30 days", "8 weeks", "2024-12-01 to 2024-12-31"],
+        "default": "8 weeks",
+        "description": "Date range for account creation"
+      },
+      "country_name": {
+        "field": "clm_population_main_dashboard.country_name",
+        "examples": ["United States of America", "United Kingdom", "-NULL"],
+        "description": "Filter to specific country or -NULL for all"
+      },
+      "accounts_threshold": {
+        "field": "clm_population_main_dashboard.accounts_created_clm",
+        "examples": [">=20", ">=1", ">=100"],
+        "default": ">=1",
+        "description": "Minimum accounts for statistical relevance"
+      }
+    },
+    "available_but_not_mapped": {
+      "entity_type": "clm_population_main_dashboard.entity_type",
+      "country_business_tier": "clm_population_main_dashboard.country_business_tier",
+      "region": "clm_population_main_dashboard.region",
+      "is_blocked": "clm_population_main_dashboard.is_blocked",
+      "reg_flow_changes": "clm_population_main_dashboard.reg_flow_changes",
+      "cdd_edd_ind": "clm_population_main_dashboard.cdd_edd_ind"
+    }
+  },
+
+  "query_templates": {
+    "weekly_trend_by_country": {
+      "name": "Weekly Trend by Country",
+      "description": "8 weeks of data grouped by week and country",
+      "fields": [
+        "clm_population_main_dashboard.ah_creation_date_week",
+        "clm_population_main_dashboard.dynamic_dimension",
+        "clm_population_main_dashboard.accounts_created_clm",
+        "clm_population_main_dashboard.clm_finished_segmentation",
+        "clm_population_main_dashboard.submitted_all_docs_step",
+        "clm_population_main_dashboard.accounts_approved",
+        "clm_population_main_dashboard.fft_dynamic_measure"
+      ],
+      "filters": {
+        "dimension_selector": "registration country",
+        "ah_creation_date_date": "8 weeks",
+        "is_clm_registration": "CLM",
+        "is_bot": "0",
+        "country_name": "-NULL",
+        "accounts_created_clm": ">=1"
+      },
+      "sorts": ["clm_population_main_dashboard.ah_creation_date_week"]
+    },
+    "weekly_trend_by_device": {
+      "name": "Weekly Trend by Device",
+      "description": "8 weeks of data grouped by week and device type",
+      "fields": [
+        "clm_population_main_dashboard.ah_creation_date_week",
+        "clm_population_main_dashboard.dynamic_dimension",
+        "clm_population_main_dashboard.accounts_created_clm",
+        "clm_population_main_dashboard.accounts_approved",
+        "clm_population_main_dashboard.fft_dynamic_measure"
+      ],
+      "filters": {
+        "dimension_selector": "device type",
+        "ah_creation_date_date": "8 weeks",
+        "is_clm_registration": "CLM",
+        "is_bot": "0",
+        "country_name": "-NULL"
+      },
+      "sorts": ["clm_population_main_dashboard.ah_creation_date_week"]
+    },
+    "single_country_drilldown": {
+      "name": "Single Country Drilldown by Device",
+      "description": "Drill into a specific country, broken down by device",
+      "fields": [
+        "clm_population_main_dashboard.ah_creation_date_week",
+        "clm_population_main_dashboard.dynamic_dimension",
+        "clm_population_main_dashboard.accounts_created_clm",
+        "clm_population_main_dashboard.accounts_approved"
+      ],
+      "filters": {
+        "dimension_selector": "device type",
+        "ah_creation_date_date": "8 weeks",
+        "is_clm_registration": "CLM",
+        "is_bot": "0",
+        "country_name": "{{COUNTRY_NAME}}"
+      },
+      "sorts": ["clm_population_main_dashboard.ah_creation_date_week"],
+      "notes": "Replace {{COUNTRY_NAME}} with exact Looker country name"
+    },
+    "mature_data_snapshot": {
+      "name": "Mature Data Snapshot",
+      "description": "Snapshot of mature data (8-12 weeks ago) for accurate approval rates",
+      "fields": [
+        "clm_population_main_dashboard.accounts_created_clm",
+        "clm_population_main_dashboard.clm_finished_segmentation",
+        "clm_population_main_dashboard.submitted_all_docs_step",
+        "clm_population_main_dashboard.accounts_approved",
+        "clm_population_main_dashboard.fft_dynamic_measure"
+      ],
+      "filters": {
+        "ah_creation_date_date": "8 weeks ago for 4 weeks",
+        "is_clm_registration": "CLM",
+        "map_payments": "Exclude",
+        "is_bot": "0",
+        "country_name": "{{COUNTRY_NAME}}"
+      },
+      "notes": "IMPORTANT: Use 'ah_creation_date_date' filter, NOT 'ah_creation_date_week'. The week filter returns inconsistent data. 'map_payments: Exclude' is REQUIRED for FTL data."
+    },
+    "mature_data_by_country": {
+      "name": "Mature Data by Country",
+      "description": "All countries with mature cohort data for comparison",
+      "fields": [
+        "clm_population_main_dashboard.country_name",
+        "clm_population_main_dashboard.accounts_created_clm",
+        "clm_population_main_dashboard.accounts_approved",
+        "clm_population_main_dashboard.fft_dynamic_measure"
+      ],
+      "filters": {
+        "ah_creation_date_date": "8 weeks ago for 4 weeks",
+        "is_clm_registration": "CLM",
+        "map_payments": "Exclude",
+        "is_bot": "0",
+        "country_name": "-NULL",
+        "accounts_created_clm": ">=50"
+      },
+      "sorts": ["clm_population_main_dashboard.accounts_created_clm desc"],
+      "notes": "Use for multi-country comparison. Minimum 50 accounts for statistical relevance."
+    }
+  },
+
+  "calculated_metrics": {
+    "approval_rate": {
+      "formula": "accounts_approved / accounts_created_clm",
+      "description": "Primary metric for tier comparison"
+    },
+    "ftl_rate": {
+      "formula": "fft_dynamic_measure / accounts_created_clm",
+      "description": "Secondary metric - activation rate"
+    },
+    "segmentation_rate": {
+      "formula": "clm_finished_segmentation / accounts_created_clm",
+      "description": "How many complete the segmentation step"
+    },
+    "doc_completion_rate": {
+      "formula": "submitted_all_docs_step / accounts_created_clm",
+      "description": "How many submit all required documents"
+    }
+  },
+
+  "verified_country_names": {
+    "tier0": ["China", "Hong Kong"],
+    "tier1": ["United States of America", "United Kingdom", "United Arab Emirates", "Singapore", "India", "Brazil"],
+    "tier2": ["Ukraine", "Argentina", "Vietnam", "Pakistan", "Philippines", "Colombia", "Israel", "Korea, South", "Japan", "Mexico", "Bangladesh", "Turkey"],
+    "notes": "Use exact names when filtering. 'Korea, South' not 'South Korea'."
+  },
+
+  "known_issues": [
+    "China, Hong Kong, India not appearing in recent data - may need verification",
+    "Some filter fields (is_suspected_bot, registration_program) not yet mapped",
+    "CRITICAL: Do NOT filter by ah_creation_date_week directly - returns inconsistent data. Use ah_creation_date_date with range syntax instead."
+  ],
+
+  "critical_filter_requirements": {
+    "fft_dynamic_measure": {
+      "requires": "map_payments: Exclude",
+      "without_it": "Returns null instead of FTL count",
+      "discovered": "2026-01-30",
+      "note": "This filter is REQUIRED for FTL data to appear. Without it, fft_dynamic_measure returns null."
+    }
+  }
+}

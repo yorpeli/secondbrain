@@ -1,0 +1,341 @@
+{
+  "description": "Registration funnel definitions for CLM (new) and 4Step (old) systems",
+
+  "primary_metric": {
+    "name": "accounts_approved_glps",
+    "description": "GLPS-adjusted approval count - the PRIMARY metric for comparing CLM vs 4Step",
+    "important": "Do NOT use raw accounts_approved for 4Step comparison. Use GLPS-adjusted metric."
+  },
+  "secondary_metric": "had_ftl",
+
+  "mature_cohort_methodology": {
+    "description": "How to correctly query mature cohorts for reliable metrics",
+    "correct_filter": {
+      "field": "ah_creation_date_date",
+      "value": "8 weeks ago for 4 weeks",
+      "explanation": "Selects accounts CREATED 8-12 weeks ago, returns their CURRENT approval/FTL status"
+    },
+    "why_8_weeks": [
+      "Approval process takes up to 4 weeks to complete",
+      "FTL window is 30 days from account creation",
+      "8 weeks (56 days) ensures both windows have closed"
+    ],
+    "wrong_approaches": [
+      {
+        "approach": "Filtering by ah_creation_date_week directly",
+        "filter": "ah_creation_date_week = '2025-11-16'",
+        "problem": "Returns inconsistent/incomplete data - DO NOT USE week filter directly"
+      },
+      {
+        "approach": "Local week classification from weekly data",
+        "problem": "Calculating 'weeks ago' locally and classifying as mature/recent gives different results than Looker's native filter",
+        "discovered": "2026-01-30",
+        "fix": "Always use Looker's native date filter for mature baseline queries"
+      }
+    ],
+    "critical_rule": "ALWAYS use Looker's native 'ah_creation_date_date' filter with range syntax. Do NOT try to replicate date logic locally - timezone and week boundary differences cause inconsistencies.",
+    "discovered": "2026-01-30",
+    "note": "The week DIMENSION works fine for grouping (e.g., volume trends), but filtering/classification must use Looker's native filter"
+  },
+
+  "deep_dive_methodology": {
+    "description": "How to perform deep analysis on opportunity countries",
+    "purpose": "Verify mature cohort findings with additional checks before recommending rollout increase",
+    "queries": {
+      "1_rollout_status": "Get current tier and rollout percentage",
+      "2_clm_mature_baseline": "CLM metrics with Looker filter '8 weeks ago for 4 weeks'",
+      "3_4step_mature_baseline": "4Step metrics with Looker filter '8 weeks ago for 4 weeks'",
+      "4_clm_weekly_trend": "12 weeks of weekly data for volume sparkline",
+      "5_clm_recent": "Last 2 weeks for funnel health check"
+    },
+    "analysis_components": {
+      "mature_baseline": {
+        "description": "Primary comparison of CLM vs 4Step approval rates",
+        "source": "Looker native filter '8 weeks ago for 4 weeks'"
+      },
+      "volume_trend": {
+        "description": "12-week volume sparkline to detect traffic issues",
+        "calculation": "Compare first half vs second half average"
+      },
+      "funnel_health": {
+        "description": "Recent (2 weeks) vs mature baseline conversion rates",
+        "metrics": ["Created → Segmentation", "Segmentation → Docs Submitted"]
+      },
+      "early_approval_signal": {
+        "description": "Recent approval rate vs mature baseline",
+        "note": "Gap expected due to maturation lag"
+      }
+    },
+    "thresholds": {
+      "volume": {
+        "note": 0.10,
+        "red_flag": 0.20,
+        "description": "Volume decline percentage"
+      },
+      "segmentation": {
+        "note": 0.10,
+        "red_flag": 0.20,
+        "description": "Segmentation rate drop from baseline"
+      },
+      "doc_submission": {
+        "note": 0.15,
+        "red_flag": 0.25,
+        "description": "Doc submission rate drop - MORE LENIENT because it's a lagging indicator (users need time to gather documents)"
+      }
+    },
+    "verdicts": {
+      "RECOMMEND": "Delta >= +2%, no red flags",
+      "RECOMMEND_WITH_CAUTION": "Delta >= +2%, but has warnings",
+      "MONITOR": "Delta 0-2%, not yet clear winner",
+      "NOT_READY": "Delta -5% to 0%, CLM slightly behind",
+      "NO_OPPORTUNITY": "Delta < -5%, significant gap"
+    }
+  },
+
+  "critical_insight": {
+    "title": "GLPS-Adjusted vs Raw Approval Rates",
+    "description": "4Step has TWO approval metrics that differ significantly",
+    "raw_approval": {
+      "field": "accounts_approved",
+      "typical_range": "40-75%",
+      "what_it_is": "Simple accounts_approved / accounts_created ratio"
+    },
+    "glps_adjusted_approval": {
+      "field": "accounts_approved_glps (table calculation)",
+      "typical_range": "17-37%",
+      "what_it_is": "Adjusted metric that accounts for GLPS qualification status",
+      "formula": "(glps_approved - glps_auto) / glps_opened_not_approved_auto * accounts_approved",
+      "why_use_it": "This is the metric shown in Looker's 4Step funnel and should be used for CLM comparison"
+    },
+    "example": {
+      "country": "Argentina (90 days)",
+      "accounts_created": 19991,
+      "raw_approved": 15126,
+      "raw_rate": "75.7%",
+      "glps_approved": 6383,
+      "glps_rate": "31.9%",
+      "note": "GLPS rate (31.9%) is the correct metric for CLM comparison, not raw (75.7%)"
+    }
+  },
+
+  "opportunity_definition": "When CLM GLPS-adjusted approval rate matches or exceeds 4Step GLPS-adjusted rate in a country, consider increasing CLM rollout percentage",
+
+  "clm_funnel": {
+    "name": "CLM Registration Funnel",
+    "description": "New system with more steps, creates more friction. Expected to perform lower than 4Step.",
+    "steps": [
+      {
+        "order": 1,
+        "name": "Accounts Created - Email Verified",
+        "looker_field": "accounts_created_clm",
+        "is_key_point": true,
+        "description": "User entered their details and verified email"
+      },
+      {
+        "order": 2,
+        "name": "MFA - SMS Sent",
+        "looker_field": "mfa_sent",
+        "is_key_point": false
+      },
+      {
+        "order": 3,
+        "name": "MFA - SMS Approved",
+        "looker_field": "mfa_approved",
+        "is_key_point": false
+      },
+      {
+        "order": 4,
+        "name": "Completed Quick Sign Up",
+        "looker_field": "clm_completed_signup",
+        "is_key_point": false
+      },
+      {
+        "order": 5,
+        "name": "CLM - Started Segmentation",
+        "looker_field": "clm_started_segmentation",
+        "is_key_point": false
+      },
+      {
+        "order": 6,
+        "name": "CLM - Completed Segmentation",
+        "looker_field": "clm_finished_segmentation",
+        "is_key_point": true,
+        "description": "User entered all basic info, now moving to KYC/KYB process"
+      },
+      {
+        "order": 7,
+        "name": "Completed Sign Up - Signed T&Cs",
+        "looker_field": "provided_information",
+        "is_key_point": false
+      },
+      {
+        "order": 8,
+        "name": "Docs Requested (After AAS)",
+        "looker_field": "requests_created_step",
+        "is_key_point": false
+      },
+      {
+        "order": 9,
+        "name": "Submitted At Least 1 Document",
+        "looker_field": "requests_submitted_step",
+        "is_key_point": false
+      },
+      {
+        "order": 10,
+        "name": "Submitted All Docs",
+        "looker_field": "submitted_all_docs_step",
+        "is_key_point": true,
+        "description": "User completed everything, now moving to agents for review"
+      },
+      {
+        "order": 11,
+        "name": "Accounts Approved",
+        "looker_field": "accounts_approved",
+        "is_key_point": true,
+        "is_primary_metric": true,
+        "description": "User gets notification of approval. PRIMARY METRIC for opportunities."
+      },
+      {
+        "order": 12,
+        "name": "Had FTL (30 Days)",
+        "looker_field": "fft_dynamic_measure",
+        "is_key_point": true,
+        "is_secondary_metric": true,
+        "description": "User performed a financial transaction - activation complete. SECONDARY METRIC."
+      },
+      {
+        "order": 13,
+        "name": "Reached $500 Volume (30 Days)",
+        "looker_field": "icp_500",
+        "is_key_point": false
+      },
+      {
+        "order": 14,
+        "name": "Reached $10K Volume (30 Days)",
+        "looker_field": "icp_10k",
+        "is_key_point": false
+      }
+    ],
+    "key_conversion_points": [
+      "accounts_created_clm → clm_finished_segmentation",
+      "clm_finished_segmentation → submitted_all_docs_step",
+      "submitted_all_docs_step → accounts_approved",
+      "accounts_approved → fft_dynamic_measure"
+    ]
+  },
+
+  "four_step_funnel": {
+    "name": "4Step Registration Funnel",
+    "look_id": "6823",
+    "description": "Legacy system with fewer steps, simpler flow. Uses same view as CLM but filtered by is_clm_registration=4STEP.",
+    "required_filters": {
+      "is_clm_registration": "4STEP",
+      "reg_flow_changes": "pure_4step",
+      "map_payments": "Exclude",
+      "registration_program_calc": "Payoneer D2P"
+    },
+    "steps": [
+      {
+        "order": 1,
+        "name": "Accounts Created",
+        "looker_field": "accounts_created",
+        "is_key_point": true,
+        "description": "User started registration"
+      },
+      {
+        "order": 2,
+        "name": "4STEP - Completed Step 2",
+        "looker_field": "4step_completed_step2",
+        "is_key_point": false,
+        "typical_rate": "80-97%"
+      },
+      {
+        "order": 3,
+        "name": "4STEP - Completed Step 4",
+        "looker_field": "4step_completed_step4",
+        "is_key_point": false,
+        "typical_rate": "47-91%"
+      },
+      {
+        "order": 4,
+        "name": "Accounts Approved (Raw)",
+        "looker_field": "accounts_approved",
+        "is_key_point": false,
+        "description": "Raw approval count - DO NOT use for CLM comparison"
+      },
+      {
+        "order": 5,
+        "name": "Accounts Approved (GLPS)",
+        "looker_field": "accounts_approved_glps",
+        "is_table_calculation": true,
+        "formula": "(glps_qualification_approved - glps_qualification_approved_auto) / glps_qualification_opened_not_approved_auto * accounts_approved",
+        "required_fields": [
+          "accounts_approved",
+          "glps_qualification_approved",
+          "glps_qualification_approved_auto",
+          "glps_qualification_opened_not_approved_auto"
+        ],
+        "is_key_point": true,
+        "is_primary_metric": true,
+        "description": "GLPS-adjusted approval count. PRIMARY METRIC for CLM comparison.",
+        "typical_rate": "17-37%"
+      },
+      {
+        "order": 6,
+        "name": "Had FTL (30 Days)",
+        "looker_field": "fft_dynamic_measure",
+        "is_key_point": true,
+        "is_secondary_metric": true
+      },
+      {
+        "order": 7,
+        "name": "Reached $500 Volume (30 Days)",
+        "looker_field": "icp500_dynamic_measure",
+        "is_key_point": false
+      },
+      {
+        "order": 8,
+        "name": "Reached $10K Volume (30 Days)",
+        "looker_field": "icp10k_dynamic_measure",
+        "is_key_point": false
+      }
+    ],
+    "key_conversion_points": [
+      "accounts_created → 4step_completed_step2",
+      "4step_completed_step2 → 4step_completed_step4",
+      "4step_completed_step4 → accounts_approved_glps (table calc)",
+      "accounts_approved_glps → fft_dynamic_measure"
+    ]
+  },
+
+  "benchmark_comparison": {
+    "clm_approval_rate": 0.17,
+    "four_step_approval_rate_glps": 0.25,
+    "four_step_approval_rate_raw": 0.55,
+    "clm_ftl_rate": 0.02,
+    "four_step_ftl_rate": 0.03,
+    "note": "Use GLPS-adjusted rate (25%) for 4Step comparison, not raw rate (55%). Actual rates vary significantly by country.",
+    "by_country_examples_90_days": [
+      {"country": "China", "4step_glps": 0.369, "clm": "TBD"},
+      {"country": "Argentina", "4step_glps": 0.319, "clm": "TBD"},
+      {"country": "United States", "4step_glps": 0.299, "clm": "TBD"},
+      {"country": "India", "4step_glps": 0.235, "clm": "TBD"},
+      {"country": "Pakistan", "4step_glps": 0.204, "clm": "TBD"},
+      {"country": "Bangladesh", "4step_glps": 0.190, "clm": "TBD"},
+      {"country": "Nigeria", "4step_glps": 0.188, "clm": "TBD"},
+      {"country": "Philippines", "4step_glps": 0.172, "clm": "TBD"}
+    ]
+  },
+
+  "metric_definitions": {
+    "accounts_created": "Total registrations started (email verified for CLM)",
+    "accounts_approved": "Raw approval count (account approved by agent)",
+    "accounts_approved_glps": "GLPS-adjusted approval count (table calculation) - USE THIS FOR 4STEP",
+    "glps_qualification_approved": "Accounts that passed GLPS qualification",
+    "glps_qualification_approved_auto": "GLPS approvals done automatically",
+    "glps_qualification_opened_not_approved_auto": "GLPS cases opened but not auto-approved",
+    "fft_dynamic_measure": "Had First Transaction Loaded within 30 days",
+    "icp500_dynamic_measure": "Reached $500 transaction volume within 30 days",
+    "icp10k_dynamic_measure": "Reached $10K transaction volume within 30 days"
+  }
+}
