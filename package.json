@@ -1,0 +1,22 @@
+{
+  "name": "second-brain",
+  "version": "0.1.0",
+  "description": "Knowledge management and automation system for product leadership",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "gen:types": "supabase gen types typescript --project-id tjlcdwsckbbkedyzrzda > lib/database.types.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "supabase": "^2.19.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
