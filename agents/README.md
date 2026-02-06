@@ -22,6 +22,8 @@ Claude Code invokes these agents via the Task tool when specialized expertise is
 | Coaching | `coaching.md` | PM development, feedback drafting |
 | Content | `content.md` | Email writing, communications |
 | PPP Analyst | `ppp-analyst.md` | Deep-dive on PPP reports, pattern detection |
+| Doc-Gen | `doc-gen.md` | Generate branded .docx documents from Second Brain data |
+| PMM | `pmm.md` | Brand voice consistency, content review, narrative strategy |
 
 ## Creating a New Agent
 

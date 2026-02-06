@@ -7,3 +7,7 @@ export * from './database.types.js'
 
 // Logging
 export { logAgent, logError, logFinding, logRecommendation } from './logging.js'
+
+// Document generation
+export * from './doc-style.js'
+export * from './doc-templates/index.js'

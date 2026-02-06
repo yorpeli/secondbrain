@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
   public: {
     Tables: {
       agent_log: {
@@ -222,6 +227,146 @@ export type Database = {
         }
         Relationships: []
       }
+      embeddings: {
+        Row: {
+          chunk_index: number | null
+          chunk_text: string
+          content_section_id: string | null
+          created_at: string | null
+          embedding: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          chunk_index?: number | null
+          chunk_text: string
+          content_section_id?: string | null
+          created_at?: string | null
+          embedding?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          chunk_index?: number | null
+          chunk_text?: string
+          content_section_id?: string | null
+          created_at?: string | null
+          embedding?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "embeddings_content_section_id_fkey"
+            columns: ["content_section_id"]
+            isOneToOne: false
+            referencedRelation: "content_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "embeddings_content_section_id_fkey"
+            columns: ["content_section_id"]
+            isOneToOne: false
+            referencedRelation: "v_content_with_entity"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entity_tags: {
+        Row: {
+          created_at: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      initiative_stakeholders: {
+        Row: {
+          created_at: string | null
+          id: string
+          initiative_id: string
+          person_id: string
+          role: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          initiative_id: string
+          person_id: string
+          role?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          initiative_id?: string
+          person_id?: string
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "initiative_stakeholders_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "initiatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiative_stakeholders_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "v_initiative_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiative_stakeholders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiative_stakeholders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiative_stakeholders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+        ]
+      }
       initiatives: {
         Row: {
           created_at: string | null
@@ -265,7 +410,152 @@ export type Database = {
           updated_at?: string | null
           why_it_matters?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "initiatives_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiatives_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "initiatives_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+        ]
+      }
+      meeting_action_items: {
+        Row: {
+          created_at: string | null
+          description: string
+          due_date: string | null
+          id: string
+          meeting_id: string
+          owner_id: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          due_date?: string | null
+          id?: string
+          meeting_id: string
+          owner_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          meeting_id?: string
+          owner_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_action_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_action_items_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "v_meetings_with_attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_action_items_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_action_items_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_action_items_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+        ]
+      }
+      meeting_attendees: {
+        Row: {
+          created_at: string | null
+          id: string
+          meeting_id: string
+          person_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          meeting_id: string
+          person_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          meeting_id?: string
+          person_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_attendees_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attendees_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "v_meetings_with_attendees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attendees_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attendees_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_attendees_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+        ]
       }
       meetings: {
         Row: {
@@ -367,7 +657,152 @@ export type Database = {
           updated_at?: string | null
           working_style?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_reports_to_id_fkey"
+            columns: ["reports_to_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_reports_to_id_fkey"
+            columns: ["reports_to_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_reports_to_id_fkey"
+            columns: ["reports_to_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "people_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_team_overview"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      performance_reviews: {
+        Row: {
+          accomplishments: string | null
+          challenges: string | null
+          created_at: string | null
+          development_goals: string | null
+          growth_areas: string | null
+          id: string
+          manager_summary: string | null
+          notes: string | null
+          overall_rating: string | null
+          peer_feedback: string | null
+          person_id: string
+          rating_score: number | null
+          review_date: string | null
+          review_file_path: string | null
+          review_period: string
+          reviewer_id: string | null
+          self_assessment: string | null
+          strengths: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accomplishments?: string | null
+          challenges?: string | null
+          created_at?: string | null
+          development_goals?: string | null
+          growth_areas?: string | null
+          id?: string
+          manager_summary?: string | null
+          notes?: string | null
+          overall_rating?: string | null
+          peer_feedback?: string | null
+          person_id: string
+          rating_score?: number | null
+          review_date?: string | null
+          review_file_path?: string | null
+          review_period: string
+          reviewer_id?: string | null
+          self_assessment?: string | null
+          strengths?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accomplishments?: string | null
+          challenges?: string | null
+          created_at?: string | null
+          development_goals?: string | null
+          growth_areas?: string | null
+          id?: string
+          manager_summary?: string | null
+          notes?: string | null
+          overall_rating?: string | null
+          peer_feedback?: string | null
+          person_id?: string
+          rating_score?: number | null
+          review_date?: string | null
+          review_file_path?: string | null
+          review_period?: string
+          reviewer_id?: string | null
+          self_assessment?: string | null
+          strengths?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "performance_reviews_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "performance_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+        ]
       }
       ppp_reports: {
         Row: {
@@ -439,7 +874,192 @@ export type Database = {
           tags?: string[] | null
           workstream_name?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "ppp_sections_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ppp_sections_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ppp_sections_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "ppp_sections_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "ppp_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ppp_sections_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "v_ppp_swimlanes"
+            referencedColumns: ["report_id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          slug: string
+          status: string | null
+          team_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          slug: string
+          status?: string | null
+          team_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          status?: string | null
+          team_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_team_overview"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_decisions: {
+        Row: {
+          category: string
+          created_at: string | null
+          decided_at: string | null
+          description: string
+          id: string
+          status: string
+          supersedes_id: string | null
+          tags: string[] | null
+          title: string
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          decided_at?: string | null
+          description: string
+          id?: string
+          status?: string
+          supersedes_id?: string | null
+          tags?: string[] | null
+          title: string
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          decided_at?: string | null
+          description?: string
+          id?: string
+          status?: string
+          supersedes_id?: string | null
+          tags?: string[] | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_decisions_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "project_decisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tags: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
         Relationships: []
+      }
+      task_dependencies: {
+        Row: {
+          blocked_by_task_id: string
+          created_at: string | null
+          id: string
+          task_id: string
+        }
+        Insert: {
+          blocked_by_task_id: string
+          created_at?: string | null
+          id?: string
+          task_id: string
+        }
+        Update: {
+          blocked_by_task_id?: string
+          created_at?: string | null
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_blocked_by_task_id_fkey"
+            columns: ["blocked_by_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -487,7 +1107,113 @@ export type Database = {
           title?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "initiatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "v_initiative_dashboard"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          joined_date: string | null
+          person_id: string
+          role: string | null
+          team_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          joined_date?: string | null
+          person_id: string
+          role?: string | null
+          team_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          joined_date?: string | null
+          person_id?: string
+          role?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "v_team_overview"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       teams: {
         Row: {
@@ -529,10 +1255,92 @@ export type Database = {
           status?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "teams_leader_id_fkey"
+            columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teams_leader_id_fkey"
+            columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "v_org_tree"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teams_leader_id_fkey"
+            columns: ["leader_id"]
+            isOneToOne: false
+            referencedRelation: "v_person_teams"
+            referencedColumns: ["person_id"]
+          },
+        ]
       }
     }
     Views: {
+      v_content_with_entity: {
+        Row: {
+          content: string | null
+          date: string | null
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string | null
+          id: string | null
+          is_private: boolean | null
+          section_type: string | null
+          title: string | null
+        }
+        Relationships: []
+      }
+      v_initiative_dashboard: {
+        Row: {
+          id: string | null
+          objective: string | null
+          owner_name: string | null
+          priority: string | null
+          slug: string | null
+          start_date: string | null
+          status: string | null
+          target_date: string | null
+          tasks_blocked: number | null
+          tasks_done: number | null
+          tasks_in_progress: number | null
+          tasks_todo: number | null
+          title: string | null
+        }
+        Relationships: []
+      }
+      v_meetings_with_attendees: {
+        Row: {
+          attendee_slugs: string[] | null
+          attendees: string[] | null
+          date: string | null
+          discussion_notes: string | null
+          id: string | null
+          meeting_type: string | null
+          private_notes: string | null
+          purpose: string | null
+          topic: string | null
+        }
+        Relationships: []
+      }
+      v_open_action_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string | null
+          meeting_date: string | null
+          meeting_topic: string | null
+          meeting_type: string | null
+          owner_name: string | null
+          owner_slug: string | null
+        }
+        Relationships: []
+      }
       v_org_tree: {
         Row: {
           current_focus: string | null
@@ -551,6 +1359,19 @@ export type Database = {
           team_slug: string | null
           type: string | null
           working_style: string | null
+        }
+        Relationships: []
+      }
+      v_person_teams: {
+        Row: {
+          name: string | null
+          person_id: string | null
+          role: string | null
+          team_mission: string | null
+          team_name: string | null
+          team_role: string | null
+          team_slug: string | null
+          type: string | null
         }
         Relationships: []
       }
@@ -573,6 +1394,23 @@ export type Database = {
         }
         Relationships: []
       }
+      v_ppp_week_comparison: {
+        Row: {
+          current_quality: number | null
+          current_status: string | null
+          current_summary: string | null
+          current_tags: string[] | null
+          current_week: string | null
+          lead_name: string | null
+          previous_quality: number | null
+          previous_status: string | null
+          previous_summary: string | null
+          previous_tags: string[] | null
+          previous_week: string | null
+          workstream_name: string | null
+        }
+        Relationships: []
+      }
       v_team_overview: {
         Row: {
           id: string | null
@@ -590,6 +1428,39 @@ export type Database = {
       }
     }
     Functions: {
+      get_person_context: {
+        Args: { person_slug: string }
+        Returns: {
+          current_focus: string
+          growth_areas: string[]
+          name: string
+          person_id: string
+          relationship_notes: string
+          role: string
+          section_content: string
+          section_date: string
+          section_title: string
+          section_type: string
+          strengths: string[]
+          team_name: string
+          type: string
+          working_style: string
+        }[]
+      }
+      get_team_with_members: {
+        Args: { team_slug: string }
+        Returns: {
+          leader_name: string
+          member_name: string
+          member_role: string
+          member_slug: string
+          mission: string
+          north_star_metric: string
+          scope: string[]
+          team_id: string
+          team_name: string
+        }[]
+      }
       search_knowledge: {
         Args: {
           match_count?: number
@@ -607,14 +1478,134 @@ export type Database = {
     Enums: {
       [_ in never]: never
     }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
 }
 
-// Convenience type aliases
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
-export type Insertable<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
-export type Updatable<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
-export type Views<T extends keyof Database['public']['Views']> = Database['public']['Views'][T]['Row']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
 
 // Common entity types
 export type Person = Tables<'people'>
@@ -627,11 +1618,22 @@ export type PPPSection = Tables<'ppp_sections'>
 export type AgentLog = Tables<'agent_log'>
 export type AgentTask = Tables<'agent_tasks'>
 export type ContentSection = Tables<'content_sections'>
+export type PerformanceReview = Tables<'performance_reviews'>
+export type MeetingActionItem = Tables<'meeting_action_items'>
+export type MeetingAttendee = Tables<'meeting_attendees'>
+export type TeamMember = Tables<'team_members'>
+export type Embedding = Tables<'embeddings'>
 
 // View types
-export type OrgTreePerson = Views<'v_org_tree'>
-export type PPPSwimlane = Views<'v_ppp_swimlanes'>
-export type TeamOverview = Views<'v_team_overview'>
+export type OrgTreePerson = Tables<'v_org_tree'>
+export type PPPSwimlane = Tables<'v_ppp_swimlanes'>
+export type TeamOverview = Tables<'v_team_overview'>
+export type PPPWeekComparison = Tables<'v_ppp_week_comparison'>
+export type OpenActionItem = Tables<'v_open_action_items'>
+export type MeetingWithAttendees = Tables<'v_meetings_with_attendees'>
+export type InitiativeDashboard = Tables<'v_initiative_dashboard'>
+export type ContentWithEntity = Tables<'v_content_with_entity'>
+export type PersonTeams = Tables<'v_person_teams'>
 
 // Enum-like constants
 export const PersonType = {

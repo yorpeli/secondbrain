@@ -4,6 +4,9 @@ node_modules/
 # Build output
 dist/
 
+# Generated documents
+output/
+
 # Environment (never commit secrets)
 .env
 .env.local
