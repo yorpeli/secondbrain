@@ -120,16 +120,16 @@
       "business_name": "Date Range",
       "looker_field": "ah_creation_date_date",
       "confirmed": true,
-      "default_value": "8 weeks ago for 4 weeks",
+      "default_value": "4 weeks ago for 4 weeks",
       "possible_values": [
         "7 days",
         "30 days",
         "90 days",
         "8 weeks",
         "12 weeks",
-        "8 weeks ago for 4 weeks"
+        "4 weeks ago for 4 weeks"
       ],
-      "notes": "For MATURE cohort analysis, use '8 weeks ago for 4 weeks' to get accounts created 8-12 weeks ago with their current approval/FTL status. DO NOT filter by ah_creation_date_week directly - it returns inconsistent data."
+      "notes": "For MATURE cohort analysis, use '4 weeks ago for 4 weeks' to get accounts created 4-8 weeks ago with their current approval/FTL status. DO NOT filter by ah_creation_date_week directly - it returns inconsistent data."
     },
     "accounts_threshold": {
       "business_name": "Minimum Accounts",
@@ -145,16 +145,21 @@
       "description": "Default filters for CLM funnel queries",
       "filters": {
         "is_clm_registration": "CLM",
-        "ah_creation_date_date": "8 weeks",
+        "registration_program_calc": "Payoneer D2P",
+        "ah_creation_date_date": "4 weeks ago for 4 weeks",
         "country_name": "-NULL",
         "is_bot": "0",
-        "is_blocked": "",
+        "is_blocked": "0",
         "entity_type": "",
         "map_payments": "Exclude",
         "dimension_selector": "registration country",
         "accounts_created_clm": ">=1"
       },
-      "notes": ["map_payments: Exclude is REQUIRED for FTL data (fft_dynamic_measure)"]
+      "notes": [
+        "map_payments: Exclude is REQUIRED for FTL data (fft_dynamic_measure)",
+        "registration_program_calc: Payoneer D2P must match 4Step filter",
+        "is_blocked: 0 excludes pre-approval blocks"
+      ]
     },
     "four_step": {
       "description": "Default filters for 4Step funnel queries (verified 2026-01-30)",

@@ -68,9 +68,11 @@ async function fetchCLMMature(countryName: string): Promise<LookerRow | null> {
     ],
     filters: {
       [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
+      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
       [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
       [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
       [`${VIEW_PREFIX}.is_bot`]: '0',
+      [`${VIEW_PREFIX}.is_blocked`]: '0',
       [`${VIEW_PREFIX}.country_name`]: countryName,
     },
     limit: '10',
@@ -121,9 +123,11 @@ async function fetchCLMWeekly(countryName: string): Promise<LookerRow[]> {
     ],
     filters: {
       [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
+      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
       [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
       [`${VIEW_PREFIX}.ah_creation_date_date`]: WEEKLY_TREND_FILTER,
       [`${VIEW_PREFIX}.is_bot`]: '0',
+      [`${VIEW_PREFIX}.is_blocked`]: '0',
       [`${VIEW_PREFIX}.country_name`]: countryName,
     },
     sorts: [`${VIEW_PREFIX}.ah_creation_date_week`],
@@ -145,9 +149,11 @@ async function fetchCLMRecent(countryName: string): Promise<LookerRow | null> {
     ],
     filters: {
       [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
+      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
       [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
       [`${VIEW_PREFIX}.ah_creation_date_date`]: RECENT_FILTER,
       [`${VIEW_PREFIX}.is_bot`]: '0',
+      [`${VIEW_PREFIX}.is_blocked`]: '0',
       [`${VIEW_PREFIX}.country_name`]: countryName,
     },
     limit: '10',
@@ -171,13 +177,23 @@ function buildCLMMetrics(row: LookerRow): CLMMetrics {
   };
 }
 
-function build4StepMetrics(row: LookerRow): FourStepMetrics {
+function build4StepMetrics(row: LookerRow, findings?: Finding[]): FourStepMetrics {
   const created = (row.accounts_created as number) || 0;
-  const glpsApproved = calculateAccountsApprovedGLPS(row);
+  const approved = (row.accounts_approved as number) || 0;
+  let glpsApproved: number;
+  try {
+    glpsApproved = calculateAccountsApprovedGLPS(row);
+  } catch {
+    glpsApproved = approved;
+    findings?.push({
+      summary: 'GLPS denominator missing — using raw approval count as fallback (rates may be inflated)',
+      tags: ['glps-data-missing', 'data-quality'],
+    });
+  }
   return {
     created,
     glps_approved: glpsApproved,
-    approved: (row.accounts_approved as number) || 0,
+    approved,
     ftl: (row.fft_dynamic_measure as number) || 0,
     approval_rate: created > 0 ? glpsApproved / created : 0,
     ftl_rate: created > 0 ? ((row.fft_dynamic_measure as number) || 0) / created : 0,
@@ -289,8 +305,9 @@ export async function run(options: DeepDiveOptions): Promise<DeepDiveResult> {
     fetchCLMRecent(country),
   ]);
 
+  const findings: Finding[] = [];
   const clmMature = clmMatureRaw ? buildCLMMetrics(clmMatureRaw) : null;
-  const fsMature = fsMatureRaw ? build4StepMetrics(fsMatureRaw) : null;
+  const fsMature = fsMatureRaw ? build4StepMetrics(fsMatureRaw, findings) : null;
   const clmRecent = clmRecentRaw ? buildCLMMetrics(clmRecentRaw) : null;
   const tier = String(rollout.country_business_tier);
   const rolloutPct = (rollout.clm_rollout_percentage as number) || 0;
@@ -390,7 +407,6 @@ export async function run(options: DeepDiveOptions): Promise<DeepDiveResult> {
   );
 
   // Findings
-  const findings: Finding[] = [];
   if (verdict === 'RECOMMEND' || verdict === 'RECOMMEND_WITH_CAUTION') {
     findings.push({
       summary: `${country} deep-dive: ${verdict}. CLM ${formatPct(approvalDelta!, 1, true)} vs 4Step. Rollout at ${formatPct(rolloutPct)}.`,

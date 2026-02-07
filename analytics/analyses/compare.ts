@@ -49,9 +49,11 @@ async function fetchCLM(countryName: string): Promise<LookerRow | null> {
     ],
     filters: {
       [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
+      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
       [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
       [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
       [`${VIEW_PREFIX}.is_bot`]: '0',
+      [`${VIEW_PREFIX}.is_blocked`]: '0',
       [`${VIEW_PREFIX}.country_name`]: countryName,
     },
     limit: '10',
@@ -102,9 +104,11 @@ async function fetchCLMWeekly(countryName: string): Promise<LookerRow[]> {
     ],
     filters: {
       [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
+      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
       [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
       [`${VIEW_PREFIX}.ah_creation_date_date`]: TREND_FILTER,
       [`${VIEW_PREFIX}.is_bot`]: '0',
+      [`${VIEW_PREFIX}.is_blocked`]: '0',
       [`${VIEW_PREFIX}.country_name`]: countryName,
     },
     sorts: [`${VIEW_PREFIX}.ah_creation_date_week`],
@@ -162,15 +166,25 @@ function buildCLMMetrics(row: LookerRow): CLMMetrics {
   };
 }
 
-function build4StepMetrics(row: LookerRow): FourStepMetrics {
+function build4StepMetrics(row: LookerRow, findings?: Finding[]): FourStepMetrics {
   const created = (row.accounts_created as number) || 0;
-  const glpsApproved = calculateAccountsApprovedGLPS(row);
+  const approved = (row.accounts_approved as number) || 0;
+  let glpsApproved: number;
+  try {
+    glpsApproved = calculateAccountsApprovedGLPS(row);
+  } catch {
+    glpsApproved = approved;
+    findings?.push({
+      summary: 'GLPS denominator missing — using raw approval count as fallback (rates may be inflated)',
+      tags: ['glps-data-missing', 'data-quality'],
+    });
+  }
   const ftl = (row.fft_dynamic_measure as number) || 0;
 
   return {
     created,
     glps_approved: glpsApproved,
-    approved: (row.accounts_approved as number) || 0,
+    approved,
     ftl,
     approval_rate: created > 0 ? glpsApproved / created : 0,
     ftl_rate: created > 0 ? ftl / created : 0,
@@ -218,8 +232,9 @@ export async function run(options: CompareOptions): Promise<CompareResult> {
   const clmData = results[0] as LookerRow | null;
   const fsData = results[1] as LookerRow | null;
 
+  const findings: Finding[] = [];
   const clm = clmData ? buildCLMMetrics(clmData) : null;
-  const fourStep = fsData ? build4StepMetrics(fsData) : null;
+  const fourStep = fsData ? build4StepMetrics(fsData, findings) : null;
 
   let delta: { approval: number; ftl: number } | null = null;
   let status: OpportunityStatus = 'MISSING_DATA';
@@ -269,7 +284,6 @@ export async function run(options: CompareOptions): Promise<CompareResult> {
   }
 
   // Findings
-  const findings: Finding[] = [];
   if (delta && status === 'STRONG_OPPORTUNITY') {
     findings.push({
       summary: `${country}: CLM outperforms 4Step by ${formatPct(delta.approval, 1, true)} — strong rollout opportunity`,

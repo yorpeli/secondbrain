@@ -9,7 +9,7 @@
       "Phase 1: Scan - Quick scorecard across all Tier 0/1/2 countries",
       "Phase 2: Deep Dive - Detailed analysis of strong opportunity countries"
     ],
-    "key_principle": "Use mature cohorts (8-12 weeks old) for reliable approval/FTL metrics"
+    "key_principle": "Use mature cohorts (4-8 weeks old) for reliable approval/FTL metrics"
   },
 
   "phase_1_scan": {
@@ -26,13 +26,13 @@
       "2": {
         "name": "CLM Mature Cohort",
         "data": ["accounts_created_clm", "accounts_approved", "fft_dynamic_measure"],
-        "filter": "8 weeks ago for 4 weeks",
+        "filter": "4 weeks ago for 4 weeks",
         "grouped_by": "country_name"
       },
       "3": {
         "name": "4Step Mature Cohort",
         "data": ["accounts_created", "GLPS fields", "fft_dynamic_measure"],
-        "filter": "8 weeks ago for 4 weeks",
+        "filter": "4 weeks ago for 4 weeks",
         "grouped_by": "country_name"
       }
     },
@@ -70,12 +70,12 @@
       },
       "2": {
         "name": "CLM Mature Baseline",
-        "filter": "8 weeks ago for 4 weeks",
+        "filter": "4 weeks ago for 4 weeks",
         "note": "Uses Looker's native filter - do NOT calculate locally"
       },
       "3": {
         "name": "4Step Mature Baseline",
-        "filter": "8 weeks ago for 4 weeks"
+        "filter": "4 weeks ago for 4 weeks"
       },
       "4": {
         "name": "CLM Weekly Trend",
@@ -189,7 +189,7 @@
   },
 
   "critical_rules": {
-    "always_use_looker_filters": "For mature baseline, ALWAYS use Looker's native '8 weeks ago for 4 weeks' filter. Do NOT calculate week classification locally.",
+    "always_use_looker_filters": "For mature baseline, ALWAYS use Looker's native '4 weeks ago for 4 weeks' filter. Do NOT calculate week classification locally.",
     "glps_for_4step": "Always use GLPS-adjusted approval rate for 4Step, not raw accounts_approved",
     "map_payments_filter": "REQUIRED for FTL data - fft_dynamic_measure returns null without 'map_payments: Exclude'",
     "minimum_volume": "Require at least 100 accounts for statistical relevance"

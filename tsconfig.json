@@ -20,6 +20,6 @@
       "@scripts/*": ["scripts/*"]
     }
   },
-  "include": ["lib/**/*", "scripts/**/*", "agents/**/*", "analytics/**/*", "data-viz/**/*"],
+  "include": ["lib/**/*", "scripts/**/*", "agents/**/*", "analytics/**/*", "data-viz/**/*", "pm_team/**/*"],
   "exclude": ["node_modules", "dist"]
 }

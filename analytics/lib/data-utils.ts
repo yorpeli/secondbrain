@@ -82,7 +82,14 @@ export function calculateAccountsApprovedGLPS(row: LookerRow): number {
     (row.glps_qualification_opened_not_approved_auto as number) || 0;
   const approved = (row.accounts_approved as number) || 0;
 
-  if (glpsOpenedNotApprovedAuto === 0) return 0;
+  if (glpsOpenedNotApprovedAuto === 0) {
+    if (approved > 0) {
+      throw new Error(
+        `Cannot calculate GLPS-adjusted approval: glps_opened_not_approved_auto is 0 but accounts_approved is ${approved}. Data may be incomplete or filters misconfigured.`,
+      );
+    }
+    return 0;
+  }
 
   const glpsWithoutAuto = glps - glpsAuto;
   const glpsParam = glpsWithoutAuto / glpsOpenedNotApprovedAuto;

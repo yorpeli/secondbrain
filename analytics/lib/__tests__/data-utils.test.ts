@@ -125,12 +125,24 @@ describe('calculateAccountsApprovedGLPS', () => {
     assert.equal(calculateAccountsApprovedGLPS(row), 200);
   });
 
-  it('returns 0 when glps_opened_not_approved_auto is 0 (division by zero guard)', () => {
+  it('throws when glps_opened_not_approved_auto is 0 but accounts_approved > 0', () => {
     const row = {
       glps_qualification_approved: 100,
       glps_qualification_approved_auto: 20,
       glps_qualification_opened_not_approved_auto: 0,
       accounts_approved: 500,
+    };
+    assert.throws(() => calculateAccountsApprovedGLPS(row), {
+      message: /Cannot calculate GLPS-adjusted approval/,
+    });
+  });
+
+  it('returns 0 when glps_opened_not_approved_auto is 0 and accounts_approved is 0', () => {
+    const row = {
+      glps_qualification_approved: 0,
+      glps_qualification_approved_auto: 0,
+      glps_qualification_opened_not_approved_auto: 0,
+      accounts_approved: 0,
     };
     assert.equal(calculateAccountsApprovedGLPS(row), 0);
   });

@@ -9,7 +9,7 @@ export const VIEW_PREFIX = 'clm_population_main_dashboard';
 export const LOOKER_MODEL = 'product';
 
 // Cohort filters (Looker native date syntax)
-export const MATURE_COHORT_FILTER = '8 weeks ago for 4 weeks';
+export const MATURE_COHORT_FILTER = '4 weeks ago for 4 weeks';
 export const RECENT_FILTER = '2 weeks';
 export const WEEKLY_TREND_FILTER = '12 weeks';
 export const ROLLOUT_DATE_FILTER = '30 days';

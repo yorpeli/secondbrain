@@ -179,7 +179,7 @@
     },
     "mature_data_snapshot": {
       "name": "Mature Data Snapshot",
-      "description": "Snapshot of mature data (8-12 weeks ago) for accurate approval rates",
+      "description": "Snapshot of mature data (4-8 weeks ago) for accurate approval rates",
       "fields": [
         "clm_population_main_dashboard.accounts_created_clm",
         "clm_population_main_dashboard.clm_finished_segmentation",
@@ -188,7 +188,7 @@
         "clm_population_main_dashboard.fft_dynamic_measure"
       ],
       "filters": {
-        "ah_creation_date_date": "8 weeks ago for 4 weeks",
+        "ah_creation_date_date": "4 weeks ago for 4 weeks",
         "is_clm_registration": "CLM",
         "map_payments": "Exclude",
         "is_bot": "0",
@@ -206,7 +206,7 @@
         "clm_population_main_dashboard.fft_dynamic_measure"
       ],
       "filters": {
-        "ah_creation_date_date": "8 weeks ago for 4 weeks",
+        "ah_creation_date_date": "4 weeks ago for 4 weeks",
         "is_clm_registration": "CLM",
         "map_payments": "Exclude",
         "is_bot": "0",

@@ -4,7 +4,7 @@
   "maturity": {
     "approval_maturity_weeks": 4,
     "explanation": "Account creation to approval takes up to 4 weeks",
-    "measurement_rule": "For mature approval rates, analyze accounts created 4-8 weeks ago",
+    "measurement_rule": "For mature approval rates, analyze accounts created 4-8 weeks ago (filter: '4 weeks ago for 4 weeks')",
     "example": {
       "today": "2025-01-30",
       "mature_data_start": "2024-12-02",

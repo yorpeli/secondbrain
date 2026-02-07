@@ -12,13 +12,13 @@
     "description": "How to correctly query mature cohorts for reliable metrics",
     "correct_filter": {
       "field": "ah_creation_date_date",
-      "value": "8 weeks ago for 4 weeks",
-      "explanation": "Selects accounts CREATED 8-12 weeks ago, returns their CURRENT approval/FTL status"
+      "value": "4 weeks ago for 4 weeks",
+      "explanation": "Selects accounts CREATED 4-8 weeks ago, returns their CURRENT approval/FTL status"
     },
-    "why_8_weeks": [
+    "why_4_weeks": [
       "Approval process takes up to 4 weeks to complete",
-      "FTL window is 30 days from account creation",
-      "8 weeks (56 days) ensures both windows have closed"
+      "4 weeks ago is the minimum maturity threshold — every account has had at least 4 weeks",
+      "Using a more recent cohort (4-8 weeks) gives fresher signal than the previous 8-12 week window"
     ],
     "wrong_approaches": [
       {
@@ -43,15 +43,15 @@
     "purpose": "Verify mature cohort findings with additional checks before recommending rollout increase",
     "queries": {
       "1_rollout_status": "Get current tier and rollout percentage",
-      "2_clm_mature_baseline": "CLM metrics with Looker filter '8 weeks ago for 4 weeks'",
-      "3_4step_mature_baseline": "4Step metrics with Looker filter '8 weeks ago for 4 weeks'",
+      "2_clm_mature_baseline": "CLM metrics with Looker filter '4 weeks ago for 4 weeks'",
+      "3_4step_mature_baseline": "4Step metrics with Looker filter '4 weeks ago for 4 weeks'",
       "4_clm_weekly_trend": "12 weeks of weekly data for volume sparkline",
       "5_clm_recent": "Last 2 weeks for funnel health check"
     },
     "analysis_components": {
       "mature_baseline": {
         "description": "Primary comparison of CLM vs 4Step approval rates",
-        "source": "Looker native filter '8 weeks ago for 4 weeks'"
+        "source": "Looker native filter '4 weeks ago for 4 weeks'"
       },
       "volume_trend": {
         "description": "12-week volume sparkline to detect traffic issues",

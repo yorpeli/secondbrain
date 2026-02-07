@@ -125,6 +125,31 @@ npx tsx data-viz/run.ts list-templates
 
 See `agents/data-viz.md` for the full subagent definition.
 
+### PM Team & Team Lead Agent
+
+The PM Team (`pm_team/`) is an autonomous AI product management team. Agents behave like junior-to-mid PMs — they own areas, track metrics, investigate, recommend, and escalate.
+
+**Workflows SOP:** `pm_team/workflows.md` — the single source of truth for agent SOPs. Covers session start protocol, task lifecycle, communication, shared memory, onboarding, and escalation. Editable by team-lead (minor) and Yonatan (any).
+
+**Team Lead Agent** (`pm_team/team-lead/`): Three CLI subcommands, not one monolithic agent.
+
+**Commands:** `hygiene`, `synthesize`, `enforce`, `check-tasks`
+
+**CLI:** `npx tsx pm_team/team-lead/run.ts <command> [args]`
+
+**Task format:** Set `target_agent = 'team-lead'` and put a JSON command in `description`:
+```json
+{"type": "hygiene", "days": 14}
+{"type": "synthesize", "days": 7, "agents": ["analytics"]}
+{"type": "enforce"}
+```
+
+See `agents/team-lead.md` for the full agent definition.
+
+### Shared Task Utilities
+
+`lib/tasks.ts` consolidates the task pickup/claim/complete pattern used by agent task runners. Functions: `createTask()`, `claimTask()`, `completeTask()`, `failTask()`, `getPendingTasks()`. Uses lazy Supabase import.
+
 ## Supabase Connection
 
 - **Project ref:** `tjlcdwsckbbkedyzrzda`
@@ -365,6 +390,10 @@ Work items for and between agents.
 | `created_by` | text | `human`, `agent:ppp-ingest`, `claude-chat`, etc. |
 | `picked_up_by` | text | Which agent actually took it |
 | `result_summary` | text | Outcome when completed |
+| `result_details` | jsonb | Structured results for downstream consumption |
+| `due_date` | date | When this should be completed by |
+| `parent_task_id` | uuid FK → agent_tasks | For workflow chaining (follow-up tasks) |
+| `updated_at` | timestamptz | Auto-updated on modification |
 | `related_entity_type` / `related_entity_id` | text / uuid | Optional entity link |
 | `tags` | text[] | |
 | `completed_at` | timestamptz | When finished |
@@ -461,6 +490,7 @@ Pre-joined queries for common lookups. **Always prefer a view over a raw multi-t
 | `v_content_with_entity` | Content sections with parent entity name | Notes, coaching logs |
 | `v_ppp_swimlanes` | PPP sections with lead name resolved | PPP analysis |
 | `v_ppp_week_comparison` | Current vs previous week per swimlane | Week-over-week diffs |
+| `v_agent_tasks_dashboard` | Agent tasks with health status + registry info | Task monitoring, hygiene |
 
 ### Database Functions
 
@@ -562,7 +592,7 @@ ppp_reports ── ppp_sections (report_id)
 tasks ── tasks (parent_task_id, self-referential)
       └── task_dependencies (blocking relationships)
 
-agent_tasks (standalone — no FK to people or agents)
+agent_tasks ── agent_tasks (parent_task_id, self-referential for follow-ups)
 agent_log (standalone — references agent_slug as text, not FK)
 project_decisions (self-referential via supersedes_id)
 agent_registry (standalone)
@@ -584,7 +614,8 @@ second-brain/
 ├── agents/                # Agent definitions
 │   ├── research.md        # Research agent
 │   ├── analytics.md       # Analytics agent (CLM funnel analysis)
-│   └── data-viz.md        # Data-viz subagent (visual storytelling)
+│   ├── data-viz.md        # Data-viz subagent (visual storytelling)
+│   └── team-lead.md       # Team Lead agent (hygiene, synthesis, enforcement)
 ├── analytics/             # Analytics agent — Looker-based CLM analysis
 │   ├── config/            # Constants, look configs
 │   ├── knowledge/         # Country tiers, funnels, filter mappings
@@ -600,8 +631,18 @@ second-brain/
 │   ├── templates/         # Chart templates (volume-trend, etc.)
 │   ├── agent.ts           # Supabase task runner (secondary)
 │   └── run.ts             # CLI entry point
+├── pm_team/               # PM Team — autonomous AI product management
+│   ├── pmTeamContext.md   # Vision document (pre-implementation)
+│   ├── ARCHITECTURE.md    # What's built, how it works, key decisions
+│   ├── workflows.md       # Agent SOPs (session start, task lifecycle, etc.)
+│   └── team-lead/         # Team Lead agent
+│       ├── run.ts         # CLI entry point
+│       ├── agent.ts       # Task runner (picks up agent_tasks)
+│       ├── commands/      # hygiene.ts, synthesize.ts, enforce.ts
+│       └── lib/types.ts   # Result types
 ├── lib/                   # Shared utilities
 │   ├── supabase.ts        # Supabase client initialization
+│   ├── tasks.ts           # Shared task utilities (create/claim/complete/fail)
 │   ├── types.ts           # TypeScript types (generated or manual)
 │   ├── logging.ts         # Agent logging helpers
 │   ├── doc-style.ts       # Docx brand primitives (colors, fonts, tables)

@@ -45,10 +45,12 @@ function clmFields(): string[] {
 
 const BASE_FILTERS = (country: string): Record<string, string> => ({
   [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
+  [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
   [`${VIEW_PREFIX}.country_name`]: country,
   [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
   [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
   [`${VIEW_PREFIX}.is_bot`]: '0',
+  [`${VIEW_PREFIX}.is_blocked`]: '0',
 });
 
 async function fetchOverallBaseline(country: string): Promise<LookerRow | null> {

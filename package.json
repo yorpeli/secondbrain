@@ -8,7 +8,8 @@
     "gen:types": "supabase gen types typescript --project-id tjlcdwsckbbkedyzrzda > lib/database.types.ts",
     "analytics:run": "tsx analytics/run.ts",
     "dataviz:run": "tsx data-viz/run.ts",
-    "dataviz:demo": "tsx data-viz/run.ts demo"
+    "dataviz:demo": "tsx data-viz/run.ts demo",
+    "team-lead:run": "tsx pm_team/team-lead/run.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

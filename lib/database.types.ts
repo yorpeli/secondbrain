@@ -92,50 +92,77 @@ export type Database = {
           created_at: string | null
           created_by: string
           description: string | null
+          due_date: string | null
           id: string
+          parent_task_id: string | null
           picked_up_by: string | null
           priority: string | null
           related_entity_id: string | null
           related_entity_type: string | null
+          result_details: Json | null
           result_summary: string | null
           status: string
           tags: string[] | null
           target_agent: string | null
           title: string
+          updated_at: string | null
         }
         Insert: {
           completed_at?: string | null
           created_at?: string | null
           created_by: string
           description?: string | null
+          due_date?: string | null
           id?: string
+          parent_task_id?: string | null
           picked_up_by?: string | null
           priority?: string | null
           related_entity_id?: string | null
           related_entity_type?: string | null
+          result_details?: Json | null
           result_summary?: string | null
           status?: string
           tags?: string[] | null
           target_agent?: string | null
           title: string
+          updated_at?: string | null
         }
         Update: {
           completed_at?: string | null
           created_at?: string | null
           created_by?: string
           description?: string | null
+          due_date?: string | null
           id?: string
+          parent_task_id?: string | null
           picked_up_by?: string | null
           priority?: string | null
           related_entity_id?: string | null
           related_entity_type?: string | null
+          result_details?: Json | null
           result_summary?: string | null
           status?: string
           tags?: string[] | null
           target_agent?: string | null
           title?: string
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "agent_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "agent_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "v_agent_tasks_dashboard"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       content_sections: {
         Row: {
@@ -1281,6 +1308,43 @@ export type Database = {
       }
     }
     Views: {
+      v_agent_tasks_dashboard: {
+        Row: {
+          agent_name: string | null
+          agent_type: string | null
+          completed_at: string | null
+          created_at: string | null
+          created_by: string | null
+          due_date: string | null
+          health: string | null
+          id: string | null
+          parent_task_id: string | null
+          picked_up_by: string | null
+          priority: string | null
+          result_summary: string | null
+          status: string | null
+          tags: string[] | null
+          target_agent: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "agent_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "v_agent_tasks_dashboard"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_content_with_entity: {
         Row: {
           content: string | null
@@ -1607,34 +1671,6 @@ export const Constants = {
   },
 } as const
 
-// Common entity types
-export type Person = Tables<'people'>
-export type Team = Tables<'teams'>
-export type Meeting = Tables<'meetings'>
-export type Task = Tables<'tasks'>
-export type Initiative = Tables<'initiatives'>
-export type PPPReport = Tables<'ppp_reports'>
-export type PPPSection = Tables<'ppp_sections'>
-export type AgentLog = Tables<'agent_log'>
-export type AgentTask = Tables<'agent_tasks'>
-export type ContentSection = Tables<'content_sections'>
-export type PerformanceReview = Tables<'performance_reviews'>
-export type MeetingActionItem = Tables<'meeting_action_items'>
-export type MeetingAttendee = Tables<'meeting_attendees'>
-export type TeamMember = Tables<'team_members'>
-export type Embedding = Tables<'embeddings'>
-
-// View types
-export type OrgTreePerson = Tables<'v_org_tree'>
-export type PPPSwimlane = Tables<'v_ppp_swimlanes'>
-export type TeamOverview = Tables<'v_team_overview'>
-export type PPPWeekComparison = Tables<'v_ppp_week_comparison'>
-export type OpenActionItem = Tables<'v_open_action_items'>
-export type MeetingWithAttendees = Tables<'v_meetings_with_attendees'>
-export type InitiativeDashboard = Tables<'v_initiative_dashboard'>
-export type ContentWithEntity = Tables<'v_content_with_entity'>
-export type PersonTeams = Tables<'v_person_teams'>
-
 // Enum-like constants
 export const PersonType = {
   DIRECT_REPORT: 'direct-report',
@@ -1664,4 +1700,11 @@ export const AgentLogCategory = {
   ERROR: 'error',
   RECOMMENDATION: 'recommendation',
   DECISION: 'decision',
+} as const
+
+export const AgentTaskStatus = {
+  PENDING: 'pending',
+  PICKED_UP: 'picked-up',
+  DONE: 'done',
+  FAILED: 'failed',
 } as const

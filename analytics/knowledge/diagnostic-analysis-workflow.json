@@ -26,7 +26,7 @@
       "1": {
         "name": "Overall Baseline",
         "purpose": "Country-level funnel metrics for comparison baseline",
-        "filter": "8 weeks ago for 4 weeks"
+        "filter": "4 weeks ago for 4 weeks"
       },
       "2": {
         "name": "By AH Type",

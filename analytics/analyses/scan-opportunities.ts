@@ -5,7 +5,7 @@
  * Systematically compares CLM vs 4Step performance across Tier 0/1/2 countries.
  *
  * Methodology:
- * - Uses mature cohorts (8-12 weeks old) for reliable approval/FTL metrics
+ * - Uses mature cohorts (4-8 weeks old) for reliable approval/FTL metrics
  * - Fetches all countries in bulk (3 queries) to minimize API usage
  * - Filters locally to Tier 0/1/2
  * - Calculates GLPS-adjusted approval rate for 4Step
@@ -70,9 +70,11 @@ async function fetchRolloutStatus(entityType?: string): Promise<LookerRow[]> {
 async function fetchCLMMature(entityType?: string): Promise<LookerRow[]> {
   const filters: Record<string, string> = {
     [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
+    [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
     [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
     [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
     [`${VIEW_PREFIX}.is_bot`]: '0',
+    [`${VIEW_PREFIX}.is_blocked`]: '0',
     [`${VIEW_PREFIX}.country_name`]: '-NULL',
   };
   if (entityType) filters[`${VIEW_PREFIX}.entity_type`] = entityType;
@@ -202,13 +204,20 @@ function calculateMetrics(
 
     if (row.four_step) {
       const created = (row.four_step.accounts_created as number) || 0;
-      const glpsApproved = calculateAccountsApprovedGLPS(row.four_step);
+      const approved = (row.four_step.accounts_approved as number) || 0;
+      let glpsApproved: number;
+      try {
+        glpsApproved = calculateAccountsApprovedGLPS(row.four_step);
+      } catch {
+        glpsApproved = approved;
+        result.warnings.push('GLPS_DATA_MISSING — using raw approval as fallback');
+      }
       const ftl = (row.four_step.fft_dynamic_measure as number) || 0;
 
       result.four_step = {
         created,
         glps_approved: glpsApproved,
-        approved: (row.four_step.accounts_approved as number) || 0,
+        approved,
         ftl,
         approval_rate: created > 0 ? glpsApproved / created : 0,
         ftl_rate: created > 0 ? ftl / created : 0,
