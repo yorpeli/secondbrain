@@ -17,9 +17,11 @@ The PM Team is an autonomous AI product management team operating inside Claude 
 
 When an agent starts a session (CLI run or task pickup), follow this sequence:
 
-1. **Check backlog**: Query `agent_tasks` for pending tasks assigned to you
-2. **Read recent agent_log**: Scan last 48h of entries from all agents for relevant context
-3. **Check this file**: If `workflows.md` has been updated since your last run, read the changelog (Section 9)
+1. **Read CLM context**: Read `pm_team/clm-context.md` — foundational business knowledge (company, domain, teams, metrics, constraints). On first run, read fully. On subsequent runs, check the `Last updated` date.
+2. **Check backlog**: Query `agent_tasks` for pending tasks assigned to you
+3. **Read recent agent_log**: Scan last 48h of entries from all agents for relevant context
+4. **Check this file**: If `workflows.md` has been updated since your last run, read the changelog (Section 9)
+5. **Check the playbook**: If `pm_team/playbook.md` has new entries since your last run, read them (check its changelog)
 
 ```sql
 -- Check your backlog
@@ -136,20 +138,47 @@ Always include your agent slug as a tag. Use additional tags for discoverability
 
 ---
 
-## 6. Onboarding Checklist (New Agents)
+## 6. Three-Layer Knowledge Model
+
+PM agents operate with three layers of knowledge:
+
+| Layer | File | Scope | Updated by |
+|-------|------|-------|------------|
+| **Process** | `pm_team/workflows.md` | How to operate (lifecycle, communication, escalation) | Team-lead (minor), Yonatan (any) |
+| **Shared knowledge** | `pm_team/playbook.md` | What the team has learned (patterns, gotchas, domain insights) | Any PM agent, team-lead synthesize |
+| **Individual memory** | `{agent}/memory.md` | Domain-specific working context (baselines, metrics, history) | The owning agent only |
+
+### Decision rule for where to write
+
+- "This is about **how I should work**" → check `workflows.md` (probably already there)
+- "This is about **what any PM would benefit from knowing**" → add to `playbook.md`
+- "This is about **my specific domain only**" → add to my `memory.md`
+- "This is a **specific finding or recommendation**" → write to `agent_log` (and to `playbook.md` if generalizable)
+
+### Adding to the playbook
+
+When you learn something generalizable, add it to the appropriate section in `playbook.md`:
+- Tag your entry with your agent slug and date
+- Add a line to the playbook's changelog
+- If unsure whether something is generalizable, write it to `agent_log` with tag `playbook-candidate` — team-lead synthesize will review
+
+---
+
+## 7. Onboarding Checklist (New Agents)
 
 When a new agent is created, it should:
 
 1. [ ] Read this file (`pm_team/workflows.md`)
-2. [ ] Read `CLAUDE.md` for database schema and project conventions
-3. [ ] Check `agent_registry` for existing agents and their capabilities
-4. [ ] Check `agent_tasks` for any pre-assigned backlog
-5. [ ] Register in `agent_registry` (optional but recommended)
-6. [ ] Introduce self via `agent_log` (category: `observation`, summary: "Agent {slug} initialized — {purpose}")
+2. [ ] Read `pm_team/playbook.md` for shared team knowledge
+3. [ ] Read `CLAUDE.md` for database schema and project conventions
+4. [ ] Check `agent_registry` for existing agents and their capabilities
+5. [ ] Check `agent_tasks` for any pre-assigned backlog
+6. [ ] Register in `agent_registry` (optional but recommended)
+7. [ ] Introduce self via `agent_log` (category: `observation`, summary: "Agent {slug} initialized — {purpose}")
 
 ---
 
-## 7. Escalation
+## 8. Escalation
 
 Create a task for Yonatan (`target_agent = NULL`, `tags = ['needs-human']`) when:
 
@@ -169,7 +198,7 @@ Tags: ['needs-human', '{domain}']
 
 ---
 
-## 8. Workflow Governance
+## 9. Workflow Governance
 
 ### Who Can Edit This File
 
@@ -192,8 +221,9 @@ Tags: ['needs-human', '{domain}']
 
 ---
 
-## 9. Changelog
+## 10. Changelog
 
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-02-07 | Yonatan + Claude Code | v1.0 — Initial version |
+| 2026-02-07 | Yonatan + Claude Code | v1.1 — Added three-layer knowledge model (Section 6), playbook to session start and onboarding |

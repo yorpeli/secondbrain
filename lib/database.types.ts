@@ -1031,6 +1031,69 @@ export type Database = {
           },
         ]
       }
+      research_results: {
+        Row: {
+          agent_slug: string
+          content: string
+          created_at: string | null
+          freshness_date: string
+          id: string
+          research_type: string
+          source_urls: string[] | null
+          status: string
+          summary: string
+          superseded_by: string | null
+          tags: string[] | null
+          topic: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_slug: string
+          content: string
+          created_at?: string | null
+          freshness_date?: string
+          id?: string
+          research_type: string
+          source_urls?: string[] | null
+          status?: string
+          summary: string
+          superseded_by?: string | null
+          tags?: string[] | null
+          topic: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_slug?: string
+          content?: string
+          created_at?: string | null
+          freshness_date?: string
+          id?: string
+          research_type?: string
+          source_urls?: string[] | null
+          status?: string
+          summary?: string
+          superseded_by?: string | null
+          tags?: string[] | null
+          topic?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_results_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "research_results"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_results_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "v_research_current"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tags: {
         Row: {
           category: string | null
@@ -1475,6 +1538,24 @@ export type Database = {
         }
         Relationships: []
       }
+      v_research_current: {
+        Row: {
+          agent_name: string | null
+          agent_slug: string | null
+          created_at: string | null
+          freshness: string | null
+          freshness_date: string | null
+          id: string | null
+          research_type: string | null
+          source_urls: string[] | null
+          status: string | null
+          summary: string | null
+          tags: string[] | null
+          topic: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       v_team_overview: {
         Row: {
           id: string | null
@@ -1669,6 +1750,19 @@ export const Constants = {
   public: {
     Enums: {},
   },
+} as const
+
+export const ResearchType = {
+  DOMAIN: 'domain',
+  COMPETITIVE: 'competitive',
+  MARKET: 'market',
+  REGULATORY: 'regulatory',
+} as const
+
+export const ResearchStatus = {
+  CURRENT: 'current',
+  STALE: 'stale',
+  SUPERSEDED: 'superseded',
 } as const
 
 // Enum-like constants

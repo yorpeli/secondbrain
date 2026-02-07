@@ -1,7 +1,7 @@
 # PM Team — Architecture & Implementation
 
 > Last updated: 2026-02-07
-> Status: Phase 1 (Foundation) + Phase 2 (Team Lead) complete
+> Status: Phase 1 (Foundation) + Phase 2 (Team Lead) + Phase 2.5 (Research Infra) + Phase 3 (Research Agents) + Phase 4 (First PM Agent) complete
 
 ---
 
@@ -43,17 +43,22 @@ This is the primary query surface for the hygiene command.
 
 Uses lazy Supabase import. Existing agents can migrate incrementally.
 
-**`pm_team/workflows.md`** — the Agent SOP. Single source of truth for how agents behave. Covers:
+**`pm_team/workflows.md`** — the Agent SOP. Single source of truth for how agents behave. Covers mission, session start, task lifecycle, communication, knowledge model, onboarding, escalation, governance, and changelog.
 
-1. Mission
-2. Session start protocol
-3. Task lifecycle (create, claim, complete, fail)
-4. Communication (tasks for assignments, agent_log for findings)
-5. Shared memory guidelines (threshold: "would another agent benefit?")
-6. Onboarding checklist for new agents
-7. Escalation criteria
-8. Governance (who can edit, what counts as minor vs. significant changes)
-9. Changelog
+**`pm_team/playbook.md`** — shared PM knowledge. Accumulates generalizable learnings across all PM agents. Read on onboarding and session start. Sections: investigation patterns, data gotchas, domain knowledge, stakeholder patterns, tools & techniques, anti-patterns.
+
+### Four-Layer Knowledge Model
+
+| Layer | File | Scope | Update Cadence | Example |
+|-------|------|-------|----------------|---------|
+| **Business context** | `clm-context.md` | What the business is | Quarterly | "CLM covers KYC, onboarding, compliance. KYC completion rate globally ~23%." |
+| **Process** | `workflows.md` | How to operate | On process changes | "Record result_summary on every completed task" |
+| **Shared knowledge** | `playbook.md` | What the team has learned | Continuous | "When approval rates drop >5%, check regulatory changes first" |
+| **Individual memory** | `{agent}/memory.md` | Domain-specific context | Continuous | "Brazil baseline approval: 72%. FTL normally 14 days." |
+
+**Business context** is the foundational layer — it gives every PM agent the company, domain, team, metric, and constraint knowledge they need before doing any work. It's populated from teams, initiatives, PPP themes, and context_store. Refreshed quarterly or when strategic priorities shift.
+
+**Knowledge flows upward:** An individual PM discovers something → if generalizable, it goes to the playbook → all PMs benefit on their next session start. New PMs read `clm-context.md` first (what the business is), then the playbook (what the team has learned), starting with everything the org knows.
 
 ### Team Lead Agent (Phase 2)
 
@@ -96,6 +101,37 @@ Writes compliance report to `agent_log` with tags `['team-lead', 'enforce']`.
 
 ---
 
+### Research Infrastructure (Phase 2.5)
+
+**`research_results` table** — dedicated storage for PM domain expertise, competitive analysis, market research, and regulatory knowledge. Separate from `content_sections` (which is read-heavy for human-facing data).
+
+| Column | Purpose |
+|--------|---------|
+| `topic` | What was researched |
+| `research_type` | `domain`, `competitive`, `market`, `regulatory` |
+| `agent_slug` | Which agent produced it |
+| `summary` | 2-3 sentence executive summary |
+| `content` | Full research content (markdown) |
+| `source_urls` | URLs consulted |
+| `status` | `current`, `stale`, `superseded` |
+| `freshness_date` | When last verified |
+| `superseded_by` | Points to newer version (self-referential FK) |
+| `tags` | For discovery |
+
+**Versioning model:** When research is refreshed, the old row gets `status = 'superseded'` and `superseded_by` pointing to the new row. History is preserved — you can always trace back through versions.
+
+**`v_research_current` view** — joins with `agent_registry` and computes a `freshness` field:
+
+| Freshness | Condition |
+|-----------|-----------|
+| `fresh` | freshness_date within 30 days |
+| `aging` | freshness_date 30-90 days old |
+| `needs-refresh` | freshness_date > 90 days old |
+
+**Embedding pipeline:** The `generate-embeddings` edge function (v3) now processes `research_results` as a fourth source (alongside people, content_sections, initiatives). Only `status = 'current'` research is embedded. Entity type in embeddings: `research`.
+
+---
+
 ## Key Architecture Decisions
 
 All recorded in `project_decisions` table. The PM-team-specific ones:
@@ -115,6 +151,8 @@ All recorded in `project_decisions` table. The PM-team-specific ones:
 7. **Consolidated task utilities** — `lib/tasks.ts` provides the shared create/claim/complete/fail pattern. New agents import this instead of duplicating the Supabase calls.
 
 8. **Health monitoring via SQL view** — `v_agent_tasks_dashboard` computes task health at query time rather than requiring a separate monitoring process. The team-lead hygiene command simply reads the view.
+
+9. **Dedicated research_results table** — PM domain expertise and competitive analysis stored separately from `content_sections`. Research has its own versioning model (`superseded_by`), freshness tracking, and embedding pipeline integration. This avoids polluting the read-heavy human content table with agent-generated research.
 
 ---
 
@@ -138,11 +176,125 @@ Agent A                    Supabase                     Agent B
 
 ---
 
-## What's Next (Phase 3+)
+### Research Agents (Phase 3)
+
+Research agents are **definition-only** — no TypeScript CLI. The work IS Claude doing web research + reasoning. This pattern differs from the analytics or team-lead agents which have TypeScript implementations.
+
+**Why definition-only?** Research is inherently an LLM task (reading web pages, synthesizing findings, judging quality). A TypeScript wrapper would just be boilerplate. The agent definition in `agents/` IS the agent — it tells Claude what to do, what standards to follow, and where to store results.
+
+**Shared infrastructure:** `lib/research.ts` provides storage utilities for any research agent:
+- `storeResearch()` — stores results in `research_results`, auto-supersedes previous entries on the same topic + type
+- `getExistingResearch()` — checks what's already known before starting new research
+- `markStale()` — flags outdated research
+
+#### Competitive Analysis Agent
+
+Outward-looking: "What are competitors doing, and what should we do about it?" Produces PM-focused competitive intelligence with five sections:
+1. Situation & Key Findings (with "so what" for the PM's area)
+2. Market Map (MECE segmentation with gap/opportunity column)
+3. Competitive Deep-Dive (how competitors solve the problem, not just that they do)
+4. Voice of Customer (pain points, praised features, unmet needs)
+5. Product Implications & Recommendations (specific actions with effort signal and priority)
+
+**Key design decisions:**
+- Payoneer CLM context as defaults, fully overridable
+- Evidence standards: `[Fact]` / `[Inference]` / `[Hypothesis]`, triangulation, source/query logs
+- Depth parameter (`quick` / `standard` / `full`) — quick produces a focused snapshot with feature comparison table, not just a summary
+- Loads team/initiative context to frame findings for the specific PM's decisions
+- Results stored in `research_results` with `research_type = 'competitive'`
+
+See `agents/competitive-analysis.md` for the full definition.
+
+#### Domain Expertise Agent
+
+Inward-looking: "What do I need to understand about [topic] to make good product decisions?" Builds the knowledge PMs need in three research types:
+- **`domain`** — technical/process knowledge (document orchestration, OCR vendor integration, lead scoring models)
+- **`regulatory`** — country-specific compliance (India CKYCR, Canada EFT, EU MiCA, US eKYB)
+- **`market`** — industry trends, benchmarks, best practices (KYC completion rates, vendor pricing models, onboarding patterns)
+
+Deliverable structure:
+1. What This Is (plain-language explanation)
+2. Why It Matters for [Team/Initiative] (connected to real workstreams)
+3. How It Works (detail level appropriate for product decisions)
+4. Current State at Payoneer (pulls from PPP, agent_log, initiatives)
+5. Key Considerations for Product Decisions (risks, decision points, dependencies)
+6. Open Questions & Next Steps (specific people to consult, follow-up research)
+
+**Key design decisions:**
+- Starts with internal context (PPP, agent_log, team data) before external research — identifies what's already known and where the gaps are
+- Specificity over breadth: "RBI requires V-CIP for PPI above INR 10,000" not "India requires KYC"
+- Source preference hierarchy: primary (regulator sites, official docs) > authoritative secondary (law firms, Big 4) > commentary > community
+- Three depth modes: `quick` (fast knowledge brief for unfamiliar terms), `standard` (working knowledge), `deep` (comprehensive with implementation considerations)
+
+See `agents/domain-expertise.md` for the full definition.
+
+#### Research Agent Scope Split
+
+The two research agents together replace the original generic `agents/research.md`:
+- **Competitive analysis** owns `research_type = 'competitive'` — "what are competitors doing?"
+- **Domain expertise** owns `research_type = 'domain' | 'regulatory' | 'market'` — "what do I need to know?"
+
+Both use `lib/research.ts` for storage. Both load team/initiative context. Both follow the same evidence standards.
+
+---
+
+### Hub Countries PM Agent (Phase 4)
+
+The first PM agent in the team. Owns CLM performance for the 4 incorporation hub countries: UK, US, Singapore, UAE. Maps to Yael Feldhiem's Localization & Licensing team.
+
+```
+pm_team/hub-countries/
+├── run.ts                    # CLI entry point (mirrors team-lead/run.ts pattern)
+├── agent.ts                  # Task runner (mirrors team-lead/agent.ts pattern)
+├── commands/
+│   ├── check-in.ts           # Weekly routine: PPP + analytics + flags
+│   └── investigate.ts        # Directed country investigation
+├── lib/
+│   ├── types.ts              # Result types for all commands
+│   └── country-config.ts     # Hub country definitions (names, tags, Looker names)
+└── memory.md                 # Individual PM memory (baselines, migration status)
+
+agents/hub-countries-pm.md    # Full agent definition
+```
+
+**Why incorporation hubs?** These are countries where companies *incorporate* — the entity is registered in the hub, but beneficial owners may be elsewhere. This creates distinct product challenges: cross-border verification, hub-specific licensing, different document requirements. It's a well-bounded PM scope with clear metrics.
+
+#### `check-in`
+
+Weekly routine. Gathers data for all 4 hub countries in parallel:
+1. PPP sections (matched by country tags via `overlaps`)
+2. Analytics agent findings (from agent_log)
+3. Completed analytics tasks (from agent_tasks, filtered client-side by country name)
+4. Current research (from research_results)
+5. All recent agent_log entries tagged with the country
+
+**Flag detection** — 8 rules ranging from PPP status regression (RED) to stale analytics (YELLOW) to research aging (INFO). RED flags auto-create `needs-human` tasks for Yonatan.
+
+Pure SQL + programmatic analysis — no LLM needed.
+
+#### `investigate`
+
+Directed deep-dive into a specific country, optionally filtered by topic. Deeper than check-in: 4 weeks of PPP history, 30-day agent_log window, trend analysis (improving/declining/stable from PPP status trajectory), broader research search.
+
+Produces: structured investigation with data, trends, flags, open questions, and recommended actions.
+
+#### Key design decisions
+
+1. **Country config is self-contained** — `country-config.ts` duplicates Looker names from analytics rather than importing them. PM agent independence from analytics internals.
+
+2. **No brief command in TypeScript** — briefs require LLM reasoning (synthesis, recommendations, formatting). The agent definition in `agents/hub-countries-pm.md` describes how Claude should produce briefs using the `/docx` skill and data-viz agent. TypeScript commands provide the data foundation.
+
+3. **Lazy Supabase imports** — follows the established pattern from lib/tasks.ts and team-lead. Every DB accessor is a separate async function.
+
+4. **Client-side filtering for analytics tasks** — Supabase's PostgREST doesn't support ILIKE on description easily. Analytics tasks are fetched broadly then filtered in TypeScript by country name/code.
+
+---
+
+## What's Next (Phase 5+)
 
 Per the vision in `pmTeamContext.md`:
-- **Analytics PM agent** — owns CLM conversion metrics, produces periodic reports, investigates anomalies. Will use the existing analytics agent as its data source.
-- **More PM agents** — each owning a specific metric, segment, or area.
-- **AI adoption** — using the PM team's outputs to demonstrate AI value to the human PM team.
+- **More PM agents** — each owning a specific metric, segment, or area (e.g., KYC completion rate PM, onboarding conversion PM)
+- **Cross-PM coordination** — team-lead synthesize command already detects cross-agent patterns. As more PMs come online, this becomes more valuable.
+- **AI adoption** — using the PM team's outputs to demonstrate AI value to the human PM team
 
-These phases will be planned separately. The infrastructure built in Phases 1-2 is designed to make adding new agents trivial: create an agent definition in `agents/`, implement the CLI + task runner pattern, register in `agent_registry`, and follow `pm_team/workflows.md`.
+The infrastructure built in Phases 1-4 is designed to make adding new agents trivial: create an agent definition in `agents/`, register in `agent_registry`, add a `pm_team/{agent}/` directory following the hub-countries pattern, and follow `pm_team/workflows.md`.
