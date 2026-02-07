@@ -31,7 +31,15 @@
 - Ops bottleneck: 48% of UK pending approvals are reopened requirements (Jan 22).
 - UK ePOR launched (Persona/Trulioo A/B test).
 - T1 Localization swimlane covers UK consistently. Vendor Optimization also tags UK.
-- We recommended to the V team to expand UK rollout to 100% and they accepted. It should rollout on the week of Feb 8th 2026
+- V-team approved 100% rollout. Going live week of Feb 8th 2026.
+- **Executive announcement sent** (Feb 2026) — co-authored with PMM. Key narrative: performance + ops impact + one-team collaboration.
+- **Validated performance data (shared with V-team):**
+  - CLM vs 4Step approval: 32% vs 20% (all), 38% vs 27% (companies), 40% vs 29% (desktop+companies). Record 47% for companies last week.
+  - E2E time: 5.9 days (Oct) → 3.3 days (Jan), -44%
+  - Reopened docs: 35.2% → 17.4%, -51%
+- **eKYB pilot (live Dec 28):** CVR 44% vs 33% baseline (+11pp). 55% of companies (125/229) saw reduced doc requests.
+- **Cross-functional wins:** Compliance (Guy, Ari) — eCollection, reduced POCA & CVD. Legal (Diana) — small-scale launch without Companies House disclaimer. Ops (Sivan, Asaf) — SLA cut from 2 days to 12 hours, pipeline prioritization.
+- **Product team:** Eliya (PM lead), Yael, Ido, Daniel, Shani, Einat.
 
 ### US
 - EIN doc removal: sanity check successful, rolling to 100%.
@@ -56,7 +64,7 @@ Target: Full CLM rollout by end of H1 2026.
 
 | Country | Rollout % | Status | Notes |
 |---------|-----------|--------|-------|
-| UK      | 25%       | Expanding | Payer expansion planned (IL/ES/DE/UK). E2E testing may delay. |
+| UK      | 100%      | **Live** | Full rollout week of Feb 8, 2026. First hub country fully migrated. |
 | US      | 25%       | **Needs work** | CLM underperforming 4Step (-2.5%). Fix bottlenecks before expanding. |
 | SG      | 100%      | Complete | Fully migrated. Monitor performance. |
 | UAE     | 25%       | Expanding | Modest CLM advantage (+2.7%). Vendor discovery underway. |
