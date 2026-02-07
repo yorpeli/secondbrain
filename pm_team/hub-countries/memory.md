@@ -31,6 +31,7 @@
 - Ops bottleneck: 48% of UK pending approvals are reopened requirements (Jan 22).
 - UK ePOR launched (Persona/Trulioo A/B test).
 - T1 Localization swimlane covers UK consistently. Vendor Optimization also tags UK.
+- We recommended to the V team to expand UK rollout to 100% and they accepted. It should rollout on the week of Feb 8th 2026
 
 ### US
 - EIN doc removal: sanity check successful, rolling to 100%.
