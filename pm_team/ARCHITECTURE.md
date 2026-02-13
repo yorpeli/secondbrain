@@ -1,7 +1,7 @@
 # PM Team — Architecture & Implementation
 
-> Last updated: 2026-02-07
-> Status: Phase 1 (Foundation) + Phase 2 (Team Lead) + Phase 2.5 (Research Infra) + Phase 3 (Research Agents) + Phase 4 (First PM Agent) complete
+> Last updated: 2026-02-13
+> Status: Phase 1 (Foundation) + Phase 2 (Team Lead) + Phase 2.5 (Research Infra) + Phase 3 (Research Agents) + Phase 4 (First PM Agent) + Phase 5 (KYC Product PM) complete
 
 ---
 
@@ -290,11 +290,87 @@ Produces: structured investigation with data, trends, flags, open questions, and
 
 ---
 
-## What's Next (Phase 5+)
+### KYC Product PM Agent (Phase 5)
+
+A fundamentally different PM agent — **0-to-1 product exploration** rather than operational monitoring. Investigates whether Payoneer should productize its KYC capabilities as a standalone B2B service.
+
+```
+pm_team/kyc-product/
+├── run.ts                    # CLI entry point
+├── agent.ts                  # Task runner
+├── commands/
+│   ├── research.ts           # Research orchestration (checks knowledge, creates tasks)
+│   ├── audit.ts              # Internal capability audit (gathers system data, flags gaps)
+│   └── synthesize.ts         # Synthesis report (phase progress, moat validation)
+├── lib/
+│   ├── types.ts              # Result types for all commands
+│   └── playbook-config.ts    # Phase definitions, research workstreams
+└── memory.md                 # Thesis, moat hypotheses, research tracker
+
+agents/kyc-product-pm.md      # Full agent definition
+```
+
+**Why this is different from hub-countries:**
+- Hub-countries **monitors** existing operations (PPP, analytics, flags)
+- KYC Product **orchestrates research** toward building a business case
+- Hub-countries queries data and detects anomalies
+- KYC Product identifies knowledge gaps, creates tasks for other agents and humans, tracks progressive knowledge building
+
+#### `research <topic>`
+
+Orchestrates a research workstream. Does NOT do the research itself — it:
+1. Checks existing knowledge (research_results, agent_log, completed tasks)
+2. Identifies gaps (what's missing, who can provide it)
+3. Creates tasks for competitive-analysis, domain-expertise agents, or Yonatan (needs-human)
+4. Reports current status and recommendations
+
+Also supports `research status` — shows progress across all workstreams.
+
+Phase 1 topics: `market-sizing`, `competitive-landscape`, `customer-segments`, `existing-customers`
+Phase 2 topics: `capabilities`, `manual-ops`, `performance`, `cost-structure`
+
+#### `audit`
+
+Internal capability assessment. Gathers KYC-related data from across the system (PPP sections, analytics results, agent findings, research). Maps 6 capability areas (Verification Flows, Country Coverage, Vendor Integrations, Manual Operations, Performance Metrics, Technology Stack) with known facts, system data, and gaps. Creates grouped `needs-human` tasks for data only Yonatan can provide.
+
+#### `synthesize`
+
+Pulls everything together: phase progress, moat hypothesis validation, pending human tasks, next steps. Produces a state-of-knowledge report.
+
+#### Playbook structure
+
+Five phases with defined workstreams (Phases 1-2) and dynamic workstreams (Phases 3-5):
+
+| Phase | Name | Workstreams |
+|-------|------|-------------|
+| 1 | Market & Competitive Analysis | market-sizing, competitive-landscape, customer-segments, existing-customers |
+| 2 | Internal Capability Audit | capabilities, manual-ops, performance, cost-structure |
+| 3 | Gap Analysis & Product Definition | Dynamic (depends on Phase 1+2) |
+| 4 | Business Case | Dynamic |
+| 5 | Stakeholder Alignment | Dynamic |
+
+Each workstream has: searchTags (for DB discovery), requiredAgents (who can research it), humanDataNeeded (what only Yonatan can provide).
+
+#### Key design decisions
+
+1. **Orchestrator, not researcher** — the agent manages the research process, not the research itself. Competitive analysis and domain expertise agents do the actual research. The agent's job is gap analysis, task creation, and synthesis.
+
+2. **Structured playbook with phases** — unlike hub-countries which runs the same check-in cycle, this agent progresses through phases toward a defined outcome (business case for leadership).
+
+3. **Three moat hypotheses as first-class concept** — brand, high-risk expertise, and manual ops fallback are tracked explicitly in memory.md and validated in synthesis reports.
+
+4. **Grouped human task creation** — rather than creating dozens of individual tasks, the audit command groups data gaps by capability area into single tasks (6 tasks for Yonatan, not 26).
+
+5. **Existing customer context** — eBay, Best Buy, Etsy are documented as proof points in memory.md, with specific data gaps identified for each.
+
+---
+
+## What's Next (Phase 6+)
 
 Per the vision in `pmTeamContext.md`:
 - **More PM agents** — each owning a specific metric, segment, or area (e.g., KYC completion rate PM, onboarding conversion PM)
 - **Cross-PM coordination** — team-lead synthesize command already detects cross-agent patterns. As more PMs come online, this becomes more valuable.
+- **KYC Product PM progression** — as Phases 1-2 complete, the agent evolves to produce gap analysis, business case artifacts, and stakeholder alignment materials
 - **AI adoption** — using the PM team's outputs to demonstrate AI value to the human PM team
 
-The infrastructure built in Phases 1-4 is designed to make adding new agents trivial: create an agent definition in `agents/`, register in `agent_registry`, add a `pm_team/{agent}/` directory following the hub-countries pattern, and follow `pm_team/workflows.md`.
+The infrastructure built in Phases 1-5 is designed to make adding new agents trivial: create an agent definition in `agents/`, register in `agent_registry`, add a `pm_team/{agent}/` directory following the established patterns, and follow `pm_team/workflows.md`.

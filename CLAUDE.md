@@ -202,6 +202,34 @@ The hub countries PM agent (`pm_team/hub-countries/`) is the **first PM agent** 
 
 See `agents/hub-countries-pm.md` for the full agent definition.
 
+### KYC Product PM Agent
+
+The KYC Product PM agent (`pm_team/kyc-product/`) is a **0-to-1 product exploration agent** — it investigates whether Payoneer should productize its KYC capabilities as a standalone B2B service (KYC-as-a-Service).
+
+**Commands:** `research <topic>`, `research status`, `audit`, `synthesize`, `check-tasks`
+
+**CLI:** `npx tsx pm_team/kyc-product/run.ts <command> [args]`
+
+**Task format:** Set `target_agent = 'kyc-product-pm'` and put a JSON command in `description`:
+```json
+{"type": "research", "topic": "market-sizing"}
+{"type": "research", "topic": "competitive-landscape"}
+{"type": "research", "topic": "status"}
+{"type": "audit"}
+{"type": "synthesize", "phase": 1}
+```
+
+**Key concepts:**
+- Unlike operational PM agents, this one **orchestrates research toward a business case** through a structured 5-phase playbook.
+- Phase 1: Market & Competitive Analysis. Phase 2: Internal Capability Audit. Phases 3-5: Gap Analysis, Business Case, Stakeholder Alignment.
+- The agent does NOT do research itself — it identifies knowledge gaps, creates tasks for competitive-analysis/domain-expertise agents and `needs-human` tasks for Yonatan, then tracks progress.
+- Three moat hypotheses under validation: brand, high-risk country expertise, manual operations fallback.
+- Existing enterprise customers: eBay, Best Buy, Etsy.
+- Target value proposition: 95%+ decision rate, 99-99.5% accuracy, automated + manual full stack.
+- Playbook config (phases, workstreams, data requirements) is in `pm_team/kyc-product/lib/playbook-config.ts`.
+
+See `agents/kyc-product-pm.md` for the full agent definition.
+
 ### Shared Utilities
 
 `lib/tasks.ts` consolidates the task pickup/claim/complete pattern used by agent task runners. Functions: `createTask()`, `claimTask()`, `completeTask()`, `failTask()`, `getPendingTasks()`. Uses lazy Supabase import.
@@ -698,7 +726,8 @@ second-brain/
 │   ├── analytics.md       # Analytics agent (CLM funnel analysis)
 │   ├── data-viz.md        # Data-viz subagent (visual storytelling)
 │   ├── team-lead.md       # Team Lead agent (hygiene, synthesis, enforcement)
-│   └── hub-countries-pm.md # Hub Countries PM agent (UK, US, SG, UAE)
+│   ├── hub-countries-pm.md # Hub Countries PM agent (UK, US, SG, UAE)
+│   └── kyc-product-pm.md  # KYC Product PM agent (0-to-1 product exploration)
 ├── analytics/             # Analytics agent — Looker-based CLM analysis
 │   ├── config/            # Constants, look configs
 │   ├── knowledge/         # Country tiers, funnels, filter mappings
@@ -725,12 +754,18 @@ second-brain/
 │   │   ├── agent.ts       # Task runner (picks up agent_tasks)
 │   │   ├── commands/      # hygiene.ts, synthesize.ts, enforce.ts
 │   │   └── lib/types.ts   # Result types
-│   └── hub-countries/     # Hub Countries PM agent (first PM agent)
+│   ├── hub-countries/     # Hub Countries PM agent (first PM agent)
+│   │   ├── run.ts         # CLI entry point
+│   │   ├── agent.ts       # Task runner (picks up agent_tasks)
+│   │   ├── commands/      # check-in.ts, investigate.ts
+│   │   ├── lib/           # types.ts, country-config.ts
+│   │   └── memory.md      # Individual PM memory (baselines, history)
+│   └── kyc-product/       # KYC Product PM agent (0-to-1 exploration)
 │       ├── run.ts         # CLI entry point
 │       ├── agent.ts       # Task runner (picks up agent_tasks)
-│       ├── commands/      # check-in.ts, investigate.ts
-│       ├── lib/           # types.ts, country-config.ts
-│       └── memory.md      # Individual PM memory (baselines, history)
+│       ├── commands/      # research.ts, audit.ts, synthesize.ts
+│       ├── lib/           # types.ts, playbook-config.ts
+│       └── memory.md      # Thesis, moats, research tracker
 ├── lib/                   # Shared utilities
 │   ├── supabase.ts        # Supabase client initialization
 │   ├── tasks.ts           # Shared task utilities (create/claim/complete/fail)
