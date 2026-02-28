@@ -22,6 +22,7 @@ When an agent starts a session (CLI run or task pickup), follow this sequence:
 3. **Read recent agent_log**: Scan last 48h of entries from all agents for relevant context
 4. **Check this file**: If `workflows.md` has been updated since your last run, read the changelog (Section 9)
 5. **Check the playbook**: If `pm_team/playbook.md` has new entries since your last run, read them (check its changelog)
+6. **Semantic search for task context**: If you have a specific task, use `searchByType()` to find relevant prior findings, playbook entries, and PPP data (see Section 5.5)
 
 ```sql
 -- Check your backlog
@@ -138,6 +139,54 @@ Always include your agent slug as a tag. Use additional tags for discoverability
 
 ---
 
+## 5.5. Semantic Search
+
+All PM agents have access to semantic search via `searchByType()` from `lib/embeddings.ts`. This enables finding relevant context that tag-based queries miss.
+
+### Entity Types
+
+| Type | Content | Best for |
+|------|---------|----------|
+| `agent_log` | Agent findings, observations, recommendations | Cross-agent context, historical findings |
+| `playbook` | Shared team knowledge, patterns, gotchas | Institutional knowledge |
+| `ppp` | PPP swimlane entries (status, summary, scores) | Weekly status context, workstream patterns |
+| `research` | Current research results | Domain knowledge, competitive analysis |
+| `person` | People profiles (role, strengths, focus) | People context |
+| `initiative` | Initiative objectives and rationale | Strategic context |
+
+### Usage Pattern
+
+```typescript
+// Lazy import, try/catch, empty array fallback
+let results = []
+try {
+  const { searchByType } = await import('../../../lib/embeddings.js')
+  results = await searchByType(
+    'UK approval rate drop',  // natural language query
+    ['agent_log', 'ppp'],     // entity types to search
+    { threshold: 0.70, limit: 5 }
+  )
+} catch {}
+```
+
+### When to Use Semantic vs Tag Queries
+
+- **Tag queries** (SQL `overlaps`): When you know the exact tags — e.g., `tags @> ['uk']`
+- **Semantic search**: When looking for conceptual matches — e.g., "approval rate regression" may match PPP entries tagged differently
+- **Both**: Agent commands use tag queries for primary data and semantic search for supplementary context
+
+### Threshold Guidelines
+
+- `0.72`: Tight — use when precision matters (check-in, enrich). Fewer but more relevant results.
+- `0.70`: Balanced — use for investigations and research. Good recall with reasonable precision.
+- `0.65`: Loose — use for exploratory searches when casting a wide net.
+
+### Graceful Degradation
+
+Embedding failures (missing `OPENAI_API_KEY`, network errors) must never break agent commands. Always wrap in `try/catch {}` with empty array fallback.
+
+---
+
 ## 6. Three-Layer Knowledge Model
 
 PM agents operate with three layers of knowledge:
@@ -227,3 +276,4 @@ Tags: ['needs-human', '{domain}']
 |------|--------|--------|
 | 2026-02-07 | Yonatan + Claude Code | v1.0 — Initial version |
 | 2026-02-07 | Yonatan + Claude Code | v1.1 — Added three-layer knowledge model (Section 6), playbook to session start and onboarding |
+| 2026-02-28 | Claude Code | v1.2 — Added Section 5.5 (Semantic Search), step 6 to Session Start Protocol |

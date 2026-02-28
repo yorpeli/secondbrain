@@ -199,12 +199,22 @@ async function fetchMeetingBriefData(personSlug: string, date?: string): Promise
     }))
   }
 
+  // Semantic search for related findings
+  let relatedFindings: MeetingBriefInput['relatedFindings'] = []
+  try {
+    const { searchByType } = await import('../lib/embeddings.js')
+    relatedFindings = await searchByType(
+      `${(person as any).name} ${(person as any).role || ''} recent findings recommendations`,
+      ['agent_log', 'ppp'], { threshold: 0.7, limit: 5 })
+  } catch {}
+
   return {
     person: person as unknown as MeetingBriefInput['person'],
     date,
     recentMeetings,
     openActions,
     coachingNotes,
+    relatedFindings,
   }
 }
 

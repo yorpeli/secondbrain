@@ -73,6 +73,12 @@ export interface CountryFlag {
   recommendedAction?: string
 }
 
+export interface SemanticSearchResult {
+  entity_type: string
+  chunk_text: string
+  similarity: number
+}
+
 export interface CountrySnapshot {
   country: HubCountry
   ppp: {
@@ -89,6 +95,7 @@ export interface CountrySnapshot {
   }
   recentActivity: AgentLogEntry[]
   flags: CountryFlag[]
+  semanticContext?: SemanticSearchResult[]
 }
 
 export interface CheckInResult {
@@ -117,4 +124,5 @@ export interface InvestigationResult {
   flags: CountryFlag[]
   openQuestions: string[]
   recommendedActions: string[]
+  semanticFindings?: SemanticSearchResult[]
 }

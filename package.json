@@ -9,7 +9,14 @@
     "analytics:run": "tsx analytics/run.ts",
     "dataviz:run": "tsx data-viz/run.ts",
     "dataviz:demo": "tsx data-viz/run.ts demo",
-    "team-lead:run": "tsx pm_team/team-lead/run.ts"
+    "team-lead:run": "tsx pm_team/team-lead/run.ts",
+    "embed:all": "tsx scripts/generate-embeddings.ts all",
+    "embed:agent-log": "tsx scripts/generate-embeddings.ts agent-log",
+    "embed:playbooks": "tsx scripts/generate-embeddings.ts playbooks",
+    "embed:ppp": "tsx scripts/generate-embeddings.ts ppp",
+    "embed:person": "tsx scripts/generate-embeddings.ts person",
+    "embed:initiative": "tsx scripts/generate-embeddings.ts initiative",
+    "embed:research": "tsx scripts/generate-embeddings.ts research"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

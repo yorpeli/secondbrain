@@ -364,6 +364,14 @@ export async function run(opts: { topic: string; phase?: number }): Promise<Rese
 
   console.log(`  Found: ${research.length} research, ${findings.length} findings, ${tasks.completed.length} completed tasks, ${tasks.pending.length} pending`)
 
+  // Semantic search for related knowledge
+  let semanticRelated: Array<{ entity_type: string; chunk_text: string; similarity: number }> = []
+  try {
+    const { searchByType } = await import('../../../lib/embeddings.js')
+    semanticRelated = await searchByType(
+      `${workstream.name} KYC-as-a-Service`, ['research', 'agent_log', 'playbook'], { threshold: 0.70, limit: 5 })
+  } catch {}
+
   // Identify gaps
   const gaps = identifyGaps(workstream, research, findings, tasks)
   console.log(`  Gaps identified: ${gaps.length}`)
@@ -427,6 +435,13 @@ export async function run(opts: { topic: string; phase?: number }): Promise<Rese
     summaryParts.push(`\nRelevant findings:`)
     for (const f of findings.slice(0, 5)) {
       summaryParts.push(`  - [${f.agent_slug}] ${f.summary.slice(0, 100)}`)
+    }
+  }
+
+  if (semanticRelated.length > 0) {
+    summaryParts.push(`\nSemantic matches (${semanticRelated.length}):`)
+    for (const sr of semanticRelated) {
+      summaryParts.push(`  - [${sr.entity_type}] (${(sr.similarity * 100).toFixed(0)}%) ${sr.chunk_text.slice(0, 120)}...`)
     }
   }
 

@@ -81,160 +81,55 @@ Two entry points share one Supabase Postgres database:
 
 **Key principle:** The database is the shared backbone. Neither entry point owns the data. Claude.ai handles conversational interaction and human decision-making. Claude Code handles automation, scripts, and programmatic tasks. Both read and write the same tables.
 
-### Analytics Agent
+---
 
-The analytics agent (`analytics/`) queries Payoneer's Looker dashboards to analyze CLM funnel performance. It can be invoked via CLI or picked up as an `agent_task`.
+## Agents
 
-**Commands:** `scan-opportunities`, `compare <country>`, `deep-dive <country>`, `diagnose <country>`, `check-tasks`
+Eight agents, each with a CLI entry point or definition doc. For full details (commands, task formats, key concepts), see [docs/agents.md](docs/agents.md).
 
-**CLI:** `npx tsx analytics/run.ts <command> [args]`
+| Agent | `target_agent` slug | Directory | Purpose |
+|-------|---------------------|-----------|---------|
+| Analytics | `analytics` | `analytics/` | Looker-based CLM funnel analysis |
+| Data-Viz | *(subagent, no tasks)* | `data-viz/` | Chart rendering for visual storytelling |
+| PPP Ingest | `ppp-ingest` | `ppp/` | Local PPP deck processing → DB writes |
+| Team Lead | `team-lead` | `pm_team/team-lead/` | Task hygiene, cross-agent synthesis, convention enforcement |
+| Hub Countries PM | `hub-countries-pm` | `pm_team/hub-countries/` | CLM performance for UK, US, Singapore, UAE |
+| KYC Product PM | `kyc-product-pm` | `pm_team/kyc-product/` | 0-to-1 KYC-as-a-Service exploration |
+| Competitive Analysis | `competitive-analysis` | `agents/competitive-analysis.md` | Definition-only research agent (no CLI) |
+| Domain Expertise | `domain-expertise` | `agents/domain-expertise.md` | Definition-only research agent (no CLI) |
 
-**Task format:** Set `target_agent = 'analytics'` and put a JSON command in `description`:
-```json
-{"type": "deep-dive", "country": "Brazil"}
-```
+**CLI pattern:** All TypeScript agents use `npx tsx {dir}/run.ts <command>`. Task runners are `{dir}/agent.ts`.
 
-**Key concept — GLPS-adjusted approval rate:** The 4Step approval rate is adjusted using the GLPS qualification funnel. This is the primary metric for CLM vs 4Step comparison. See `analytics/lib/data-utils.ts:calculateAccountsApprovedGLPS()`.
-
-**Environment:** Requires `LOOKER_BASE_URL`, `LOOKER_CLIENT_ID`, `LOOKER_CLIENT_SECRET`. See `agents/analytics.md` for full documentation.
-
-### Data-Viz Agent
-
-The data-viz agent (`data-viz/`) is a **visual storytelling subagent**. It receives structured analytics results, decides which charts to produce, crafts insight-stating titles, and renders branded PNG images.
-
-**Architecture:** LLM-powered chart advisor (the intelligence) + rendering library (templates + renderer, the infrastructure).
-
-**Invocation:** Claude Code subagent via the Task tool. Pass analytics result data + intent + output context.
-
-**Templates:** `volume-trend`, `approval-comparison`, `funnel-health`, `opportunity-map`, `segment-heatmap`
-
-**Output contexts:** `document` (800x450), `slide` (1920x1080), `dashboard` (600x400)
-
-**CLI (for direct use):**
-```bash
-npx tsx data-viz/run.ts demo <template> [--output=<path>]
-npx tsx data-viz/run.ts render <template> --data=<spec.json> --output=<path>
-npx tsx data-viz/run.ts list-templates
-```
-
-**Key design decisions:**
-- The agent does NOT query data sources — the analytics agent owns data acquisition
-- If the agent needs more data for better visualization, it returns an advisory (not a request) — the orchestrator decides whether to fetch it
-- Brand colors derived from `lib/doc-style.ts` — single source of truth
-- Docx embedding handled via `lib/chart-embed.ts` (separate from the agent)
-
-See `agents/data-viz.md` for the full subagent definition.
-
-### PM Team & Team Lead Agent
-
-The PM Team (`pm_team/`) is an autonomous AI product management team. Agents behave like junior-to-mid PMs — they own areas, track metrics, investigate, recommend, and escalate.
-
-**Four-layer knowledge model:**
-- `pm_team/clm-context.md` — **business context**: Payoneer, CLM domain, teams, metrics, constraints, glossary (refreshed quarterly)
-- `pm_team/workflows.md` — **process**: how agents operate (session start, task lifecycle, communication, escalation)
-- `pm_team/playbook.md` — **shared knowledge**: generalizable learnings across all PM agents (patterns, gotchas, domain insights)
-- `{agent}/memory.md` — **individual memory**: domain-specific context per agent (baselines, metrics, investigation history)
-
-**Team Lead Agent** (`pm_team/team-lead/`): Three CLI subcommands, not one monolithic agent.
-
-**Commands:** `hygiene`, `synthesize`, `enforce`, `check-tasks`
-
-**CLI:** `npx tsx pm_team/team-lead/run.ts <command> [args]`
-
-**Task format:** Set `target_agent = 'team-lead'` and put a JSON command in `description`:
-```json
-{"type": "hygiene", "days": 14}
-{"type": "synthesize", "days": 7, "agents": ["analytics"]}
-{"type": "enforce"}
-```
-
-See `agents/team-lead.md` for the full agent definition.
-
-### Competitive Analysis Agent
-
-The competitive analysis agent (`agents/competitive-analysis.md`) is a **definition-only research agent** — no TypeScript CLI. Claude performs web research + reasoning directly, storing results in `research_results` via `lib/research.ts`.
-
-**Invocation:** Via `agent_tasks` or direct request. Set `target_agent = 'competitive-analysis'`.
-
-**Task format:**
-```json
-{"type": "competitive-analysis", "topic": "KYC verification solutions", "competitors": ["Stripe Identity", "Onfido", "Jumio"]}
-```
-
-**Deliverable:** Five-section PM-focused analysis (Situation & Key Findings, Market Map, Competitive Deep-Dive, Voice of Customer, Product Implications & Recommendations). Depth parameter controls scope: `quick`, `standard`, `full`.
-
-See `agents/competitive-analysis.md` for the full agent definition.
-
-### Domain Expertise Agent
-
-The domain expertise agent (`agents/domain-expertise.md`) is a **definition-only research agent** that builds domain knowledge PMs need for product decisions. Covers three research types: `domain` (technical/process), `regulatory` (country-specific compliance), `market` (best practices, benchmarks).
-
-**Invocation:** Via `agent_tasks` or direct request. Set `target_agent = 'domain-expertise'`.
-
-**Task format:**
-```json
-{"type": "domain-research", "topic": "India CKYCR requirements", "research_type": "regulatory", "team": "localization-licensing"}
-```
-
-**Key behavior:** Before external research, loads internal context from PPP, agent_log, and team data to identify what's already known and where the gaps are.
-
-See `agents/domain-expertise.md` for the full agent definition.
-
-### Hub Countries PM Agent
-
-The hub countries PM agent (`pm_team/hub-countries/`) is the **first PM agent** — it owns CLM performance for the 4 incorporation hub countries: UK, US, Singapore, UAE. Maps to Yael's Localization & Licensing team.
-
-**Commands:** `check-in`, `investigate <country>`, `check-tasks`
-
-**CLI:** `npx tsx pm_team/hub-countries/run.ts <command> [args]`
-
-**Task format:** Set `target_agent = 'hub-countries-pm'` and put a JSON command in `description`:
-```json
-{"type": "check-in"}
-{"type": "investigate", "country": "UK", "topic": "approval rate drop"}
-```
-
-**Key concepts:**
-- Incorporation hubs have distinct dynamics: entity registers in the hub, beneficial owner may be elsewhere. This affects verification, documents, and regulatory requirements.
-- The agent does NOT query Looker directly — it uses the analytics agent for data acquisition.
-- Check-in runs flag detection (RED/YELLOW/INFO) and auto-escalates RED flags as `needs-human` tasks.
-- Country config (PPP tags, Looker names, log tags) is in `pm_team/hub-countries/lib/country-config.ts`.
-
-See `agents/hub-countries-pm.md` for the full agent definition.
-
-### KYC Product PM Agent
-
-The KYC Product PM agent (`pm_team/kyc-product/`) is a **0-to-1 product exploration agent** — it investigates whether Payoneer should productize its KYC capabilities as a standalone B2B service (KYC-as-a-Service).
-
-**Commands:** `research <topic>`, `research status`, `audit`, `synthesize`, `check-tasks`
-
-**CLI:** `npx tsx pm_team/kyc-product/run.ts <command> [args]`
-
-**Task format:** Set `target_agent = 'kyc-product-pm'` and put a JSON command in `description`:
-```json
-{"type": "research", "topic": "market-sizing"}
-{"type": "research", "topic": "competitive-landscape"}
-{"type": "research", "topic": "status"}
-{"type": "audit"}
-{"type": "synthesize", "phase": 1}
-```
-
-**Key concepts:**
-- Unlike operational PM agents, this one **orchestrates research toward a business case** through a structured 5-phase playbook.
-- Phase 1: Market & Competitive Analysis. Phase 2: Internal Capability Audit. Phases 3-5: Gap Analysis, Business Case, Stakeholder Alignment.
-- The agent does NOT do research itself — it identifies knowledge gaps, creates tasks for competitive-analysis/domain-expertise agents and `needs-human` tasks for Yonatan, then tracks progress.
-- Three moat hypotheses under validation: brand, high-risk country expertise, manual operations fallback.
-- Existing enterprise customers: eBay, Best Buy, Etsy.
-- Target value proposition: 95%+ decision rate, 99-99.5% accuracy, automated + manual full stack.
-- Playbook config (phases, workstreams, data requirements) is in `pm_team/kyc-product/lib/playbook-config.ts`.
-
-See `agents/kyc-product-pm.md` for the full agent definition.
+**PM Team knowledge model:** `pm_team/clm-context.md` (business context) → `pm_team/workflows.md` (process) → `pm_team/playbook.md` (shared learnings) → `{agent}/memory.md` (individual memory).
 
 ### Shared Utilities
 
 `lib/tasks.ts` consolidates the task pickup/claim/complete pattern used by agent task runners. Functions: `createTask()`, `claimTask()`, `completeTask()`, `failTask()`, `getPendingTasks()`. Uses lazy Supabase import.
 
 `lib/research.ts` provides shared research storage and versioning for any research agent. Functions: `storeResearch()` (auto-supersedes existing entries), `getExistingResearch()`, `markStale()`. Uses lazy Supabase import.
+
+`lib/embeddings.ts` provides embedding generation and semantic search utilities. Functions: `generateEmbeddingVector()`, `upsertEmbedding()`, `batchEmbed()`, `deleteEmbeddings()`, `deterministicUuid()`, `searchByType()`. Uses lazy Supabase import + raw fetch to OpenAI.
+
+### Key Files
+
+| Need to... | Look in |
+|------------|---------|
+| Initialize Supabase client | `lib/supabase.ts` |
+| Create/claim/complete agent tasks | `lib/tasks.ts` |
+| Store/version research results | `lib/research.ts` |
+| Generate/search embeddings | `lib/embeddings.ts` |
+| Batch-embed agent_log + playbooks | `scripts/generate-embeddings.ts` |
+| Brand colors, fonts, table styles (docx) | `lib/doc-style.ts` |
+| Embed charts in docx | `lib/chart-embed.ts` |
+| Agent logging helpers | `lib/logging.ts` |
+| TypeScript types | `lib/types.ts` |
+| Agent definition docs | `agents/*.md` |
+| Edge function source | `supabase/functions/{name}/` |
+| Standalone scripts | `scripts/` |
+
+Full file tree: [docs/project-structure.md](docs/project-structure.md)
+
+---
 
 ## Supabase Connection
 
@@ -254,332 +149,16 @@ Use `@supabase/supabase-js` with the service role key for all DB access. Never h
 
 ---
 
-## Database Schema
+## Database Overview
 
-### Table Groups
+The database has 24 tables organized into four domains. For full column definitions, see [docs/schema.md](docs/schema.md).
 
-The database has 24 tables organized into four domains:
+1. **Core Entities** — `people`, `teams`, `team_members`, `initiatives`, `initiative_stakeholders`, `tasks`, `task_dependencies`, `products`
+2. **Meetings & Notes** — `meetings`, `meeting_attendees`, `meeting_action_items`, `content_sections`, `performance_reviews`
+3. **PPP (Weekly Status)** — `ppp_reports`, `ppp_sections`
+4. **Agent Infrastructure** — `agent_log`, `agent_tasks`, `agent_registry`, `research_results`, `project_decisions`, `agent_coordination`
 
-1. **Core Entities** — People, teams, initiatives, tasks, products
-2. **Meetings & Notes** — Meeting records, attendees, action items, content sections
-3. **PPP (Weekly Status)** — Reports and swimlane sections
-4. **Agent Infrastructure** — Agent log, tasks, registry, project decisions
-
-Plus: context_store (key-value working memory), embeddings (vector search), performance_reviews, tags.
-
----
-
-### Core Entity Tables
-
-#### `people` (34 active rows)
-The central entity. Everyone Yonatan works with.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid PK | Auto-generated |
-| `slug` | text UNIQUE | Identifier, e.g. `elad-schnarch` |
-| `name` | text | Full name |
-| `type` | text | `direct-report` · `skip-level` · `internal` · `external` · `leadership` |
-| `role` | text | Job title |
-| `team_id` | uuid FK → teams | Primary team assignment |
-| `reports_to_id` | uuid FK → people | Manager (self-referential) |
-| `status` | text | `active` (default). Filter on this — inactive people exist. |
-| `working_style` | text | How they operate, communication preferences |
-| `strengths` | text[] | Array of strength areas |
-| `growth_areas` | text[] | Array of development areas |
-| `relationship_notes` | text | Yonatan's notes on the working relationship |
-| `current_focus` | text | What they're currently working on |
-| `email` | text | |
-| `slack` | text | |
-| `started_date` | date | When they joined |
-
-**Relationships:** Referenced by nearly every other table. Has FK to self (reports_to_id) and teams (team_id).
-
-#### `teams` (6 active rows)
-Product teams in the CLM org.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid PK | |
-| `slug` | text UNIQUE | e.g. `kyc-service` |
-| `name` | text | |
-| `mission` | text | Team's mission statement |
-| `north_star_metric` | text | Primary success metric |
-| `scope` | text[] | What the team owns |
-| `leader_id` | uuid FK → people | Team lead |
-| `status` | text | `active` (default) |
-
-#### `team_members` (17 rows)
-Many-to-many mapping of people to teams. A person can be on multiple teams.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `team_id` | uuid FK → teams | |
-| `person_id` | uuid FK → people | |
-| `role` | text | `lead` or `member` (convention, not enforced) |
-
-#### `initiatives` (3 rows)
-Strategic initiatives tracked across the org.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `slug` | text UNIQUE | |
-| `title` | text | |
-| `status` | text | `planned` · `active` · `exploration` · `blocked` · `completed` · `abandoned` |
-| `priority` | text | `P0` · `P1` · `P2` |
-| `owner_id` | uuid FK → people | |
-| `objective` | text | What it aims to achieve |
-| `why_it_matters` | text | Strategic rationale |
-| `start_date` / `target_date` | date | Timeline |
-
-#### `initiative_stakeholders` (13 rows)
-Links people to initiatives with their role in that initiative.
-
-#### `tasks` (17 rows)
-Specific deliverables, optionally linked to initiatives.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `slug` | text UNIQUE | |
-| `title` | text | |
-| `status` | text | `todo` · `in-progress` · `blocked` · `done` |
-| `priority` | text | `P0` · `P1` · `P2` |
-| `owner_id` | uuid FK → people | |
-| `initiative_id` | uuid FK → initiatives | Optional link |
-| `parent_task_id` | uuid FK → tasks | Optional, for sub-task hierarchy |
-| `due_date` | date | |
-
-**Note:** These are HUMAN tasks — things Yonatan's team is working on. Agent work items go in `agent_tasks`.
-
-#### `task_dependencies` (0 rows)
-Tracks blocking relationships between tasks. `task_id` is blocked by `blocked_by_task_id`.
-
-#### `products` (0 rows — placeholder)
-Product entities. Schema exists but not yet populated.
-
----
-
-### Meetings & Notes
-
-#### `meetings` (22 rows)
-Meeting records with notes.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `meeting_type` | text | `1on1` · `team` · `leadership` · `external` · `project` |
-| `date` | date | |
-| `topic` | text | |
-| `purpose` | text | |
-| `discussion_notes` | text | What was discussed |
-| `private_notes` | text | ⚠️ SENSITIVE — Yonatan's private observations. Never surface casually. |
-
-#### `meeting_attendees` (26 rows)
-Links people to meetings. Many-to-many.
-
-#### `meeting_action_items` (13 rows)
-Follow-ups from meetings.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `meeting_id` | uuid FK → meetings | |
-| `owner_id` | uuid FK → people | Who's responsible |
-| `description` | text | |
-| `status` | text | `open` · `done` |
-| `due_date` | date | |
-
-#### `content_sections` (9 rows)
-Rich content attached to any entity — coaching logs, development plans, notes.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `entity_type` | text | `person`, `initiative`, etc. |
-| `entity_id` | uuid | FK to the parent entity |
-| `section_type` | text | e.g. `coaching-log`, `dev-plan`, `note` |
-| `content` | text | The actual content |
-| `is_private` | boolean | ⚠️ If true, never embed or surface without explicit request |
-| `date` | date | |
-
-#### `performance_reviews` (2 rows)
-Annual/periodic performance reviews. ⚠️ **SENSITIVE** — Performance data requires discretion.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `person_id` | uuid FK → people | |
-| `reviewer_id` | uuid FK → people | |
-| `review_period` | text | e.g. "H2-2025" |
-| `rating_score` | numeric | |
-| `accomplishments`, `strengths`, `growth_areas`, `challenges` | text | Review content |
-| `development_goals` | text | |
-
----
-
-### PPP (Weekly Status Reports)
-
-The PPP (Progress, Problems, Plans) is a weekly deck from the CLM org. It's processed at the **swimlane level** — each workstream gets a summary, not individual items. This was a deliberate architectural decision to keep DB operations manageable (~10 per report vs ~150 for item-level).
-
-#### `ppp_reports` (3 rows)
-One row per weekly report.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `week_date` | date UNIQUE | The Monday of the reporting week |
-| `overall_summary` | text | 3-5 sentence executive summary |
-| `private_notes` | text | ⚠️ SENSITIVE |
-
-#### `ppp_sections` (30 rows)
-One row per workstream/swimlane per week.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `report_id` | uuid FK → ppp_reports | |
-| `workstream_name` | text | e.g. "KYC New Flow", "Vendor Optimization" |
-| `lead_id` | uuid FK → people | Workstream lead |
-| `status` | text | `on-track` · `potential-issues` · `at-risk` · `na` |
-| `quality_score` | smallint | 1-5, on specificity/metrics/actionability |
-| `quality_notes` | text | Why that score |
-| `summary` | text | Claude-generated 2-4 sentence synthesis |
-| `raw_text` | text | Full original slide text (preserved for drill-down) |
-| `contributors` | text[] | People who contributed (slugs or names) |
-| `tags` | text[] | Searchable tags (countries, vendors, themes) |
-
----
-
-### Agent Infrastructure
-
-These tables are the shared workspace for Claude Code agents. Separate from human-facing tables by design.
-
-#### `agent_log`
-Agent shared memory. Only log **substantial** observations, findings, errors, and recommendations. Not for routine run tracking.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `agent_slug` | text | Which agent wrote this |
-| `category` | text | `observation` · `finding` · `error` · `recommendation` · `decision` |
-| `summary` | text | Human-readable description |
-| `details` | jsonb | Structured data if needed (query results, analysis) |
-| `related_entity_type` | text | Optional: `person`, `initiative`, `ppp_report`, etc. |
-| `related_entity_id` | uuid | Optional: links to the entity |
-| `tags` | text[] | For cross-agent discovery |
-
-**Logging threshold:** Before writing, ask: "Would another agent or human benefit from knowing this?" If no, don't log.
-
-#### `agent_tasks`
-Work items for and between agents.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `title` | text | What needs to be done |
-| `description` | text | Details |
-| `target_agent` | text | Which agent should pick this up (slug, or null for any) |
-| `status` | text | `pending` · `picked-up` · `done` · `failed` |
-| `priority` | text | `low` · `normal` · `high` |
-| `created_by` | text | `human`, `agent:ppp-ingest`, `claude-chat`, etc. |
-| `picked_up_by` | text | Which agent actually took it |
-| `result_summary` | text | Outcome when completed |
-| `result_details` | jsonb | Structured results for downstream consumption |
-| `due_date` | date | When this should be completed by |
-| `parent_task_id` | uuid FK → agent_tasks | For workflow chaining (follow-up tasks) |
-| `updated_at` | timestamptz | Auto-updated on modification |
-| `related_entity_type` / `related_entity_id` | text / uuid | Optional entity link |
-| `tags` | text[] | |
-| `completed_at` | timestamptz | When finished |
-
-**Pattern for agents checking for work:**
-```sql
-SELECT * FROM agent_tasks
-WHERE (target_agent = 'my-slug' OR target_agent IS NULL)
-  AND status = 'pending'
-ORDER BY priority DESC, created_at ASC;
-```
-
-#### `agent_registry`
-Lightweight, optional self-registration. Agents can register when they first run to make themselves discoverable. The codebase is the source of truth for agent definitions.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `slug` | text UNIQUE | Agent identifier |
-| `name` | text | Human-readable name |
-| `description` | text | What this agent does |
-| `agent_type` | text | `script` · `edge-function` · `scheduled` · `sub-agent` |
-| `status` | text | `active` · `development` · `deprecated` · `disabled` |
-| `config` | jsonb | Agent-specific configuration |
-
-#### `research_results`
-Domain expertise, competitive analysis, market research, and regulatory knowledge produced by research agents.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `topic` | text | What was researched (e.g. "KYC verification market landscape") |
-| `research_type` | text | `domain` · `competitive` · `market` · `regulatory` |
-| `agent_slug` | text | Which agent produced this research |
-| `summary` | text | 2-3 sentence executive summary |
-| `content` | text | Full research content (markdown) |
-| `source_urls` | text[] | URLs consulted during research |
-| `status` | text | `current` · `stale` · `superseded` |
-| `freshness_date` | date | When the research was last verified as current |
-| `superseded_by` | uuid FK → research_results | Points to newer version |
-| `tags` | text[] | For discovery (country names, vendor names, domains) |
-
-**Versioning:** When research is updated, the old row gets `status = 'superseded'` + `superseded_by` pointing to the new row. This preserves history.
-
-**Embedding pipeline:** Current research (`status = 'current'`) is embedded via the `generate-embeddings` edge function with `entity_type = 'research'`. PMs can semantically search their domain knowledge.
-
-#### `project_decisions`
-Architectural and convention decisions that all agents (and Claude.ai) should follow.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `category` | text | `architecture` · `convention` · `schema` · `workflow` · `integration` · `deprecation` |
-| `title` | text | Short description |
-| `description` | text | Full context and rationale |
-| `status` | text | `active` · `superseded` · `proposed` · `rejected` |
-| `supersedes_id` | uuid FK → project_decisions | Links to decision this replaces |
-| `tags` | text[] | |
-
-**Currently active decisions.** Always check before making architectural choices:
-```sql
-SELECT title, description FROM project_decisions WHERE status = 'active' ORDER BY category;
-```
-
----
-
-### Supporting Tables
-
-#### `context_store` (12 rows)
-Key-value store for working memory. Used primarily by Claude.ai for session context and workflow definitions.
-
-| Key | Purpose |
-|-----|---------|
-| `current_focus` | Yonatan's priorities, waiting-on items, blockers |
-| `me` | Yonatan's management philosophy and values |
-| `org_structure` | Org overview |
-| `preferences` | Communication and output preferences |
-| `quarterly_goals` | Current quarter objectives |
-| `workflow_*` | Workflow definitions (7 workflows stored as JSON) |
-
-**For agents:** Read `current_focus` when you need to understand what matters right now. Read `workflow_*` keys if you're implementing or extending a workflow.
-
-#### `conversations_log` (41 rows)
-Human-side conversation log. Key decisions, insights, context from Yonatan's interactions with Claude.ai.
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `summary` | text | What was decided/learned |
-| `category` | text | `decision` · `insight` · `context` · `action` · `reflection` · `system` |
-| `related_entity_type` / `related_entity_id` | text / uuid | Optional entity link |
-| `tags` | text[] | |
-
-**For agents:** Read this for human context when relevant. Write to `agent_log` instead — keep the namespaces separate.
-
-#### `embeddings` (115 rows)
-Vector embeddings for semantic search. Uses OpenAI `text-embedding-3-small` with IVFFlat cosine index.
-
-What's embedded: people profiles, non-private content sections, initiatives, current research results. **Private content is never embedded.**
-
-#### `tags` / `entity_tags`
-Flexible tagging system. Currently unused (0 rows) — tags are stored as text[] arrays on entities directly.
-
----
+Plus: `context_store` (key-value working memory), `conversations_log`, `embeddings` (vector search), `tags`/`entity_tags`.
 
 ### Database Views
 
@@ -598,25 +177,6 @@ Pre-joined queries for common lookups. **Always prefer a view over a raw multi-t
 | `v_ppp_week_comparison` | Current vs previous week per swimlane | Week-over-week diffs |
 | `v_agent_tasks_dashboard` | Agent tasks with health status + registry info | Task monitoring, hygiene |
 | `v_research_current` | Current research with agent name + freshness | Research lookup, PM onboarding |
-
-### Database Functions
-
-| Function | Purpose |
-|----------|---------|
-| `search_knowledge(embedding, threshold, count)` | Vector similarity search |
-| `get_person_context(slug)` | Person + content sections (legacy, prefer views) |
-| `get_team_with_members(slug)` | Team + members (legacy, prefer views) |
-| `update_updated_at()` | Trigger function for timestamp management |
-
----
-
-### Edge Functions (Deployed)
-
-| Function | Purpose | Auth |
-|----------|---------|------|
-| `ingest-ppp` | Accepts PPP JSON payload → writes to ppp_reports + ppp_sections | JWT required |
-| `generate-embeddings` | Chunks and embeds people, content_sections, initiatives, research_results | JWT required |
-| `semantic-search` | Natural language → embedding → ranked results | JWT required |
 
 ---
 
@@ -654,7 +214,29 @@ Three levels of sensitivity exist in the data:
 - **Task lifecycle:** Check `agent_tasks` for pending work → set status to `picked-up` → do work → set `done`/`failed` with `result_summary`
 - **Project decisions:** Always check `project_decisions WHERE status = 'active'` before making architectural choices
 - **Namespace separation:** Human data in `conversations_log`, `tasks`, `meetings`. Agent data in `agent_log`, `agent_tasks`. Don't cross-contaminate.
+- **Cross-agent discovery:** Use `searchByType(query, ['agent_log'])` from `lib/embeddings.ts` to find relevant findings/recommendations from other agents. Use `searchByType(query, ['playbook'])` for institutional knowledge.
 - **Self-registration (optional):** On first run, an agent can INSERT into `agent_registry` to make itself discoverable. Not required.
+
+### Agent Coordination Protocol
+
+The `agent_coordination` table is the async communication channel between Claude Code, Claude Chat, and Yonatan. It's a threaded message board — not a real-time chat.
+
+**When to check:** Only when Yonatan explicitly asks (e.g., "check the coordination table", "load Claude Chat's messages"). Not automatic at session start.
+
+**When to write:**
+- **After system changes:** Schema migrations, edge function deployments, bug fixes, config changes — anything that alters how the system works. Use `category = 'change-log'`.
+- **When something affects Claude Chat:** If a change impacts data Claude Chat reads, workflows it triggers, or conventions it follows, post it. Don't fix things silently if the other agent relies on them.
+- **Suggestions and questions:** Use `category = 'suggestion'` or `'question'` when proposing changes or needing input from Claude Chat or Yonatan.
+- **Context sharing:** Product decisions, priority changes, or architectural choices that emerged in a session — use `category = 'context-share'` or `'priority-shift'`.
+
+**Threading:**
+- Root messages: `parent_id IS NULL`, include a `subject`.
+- Replies: `parent_id` points to the root message's `id`. No subject needed.
+- Don't create new root messages for replies to existing threads.
+
+**Status lifecycle:** `open` → `acknowledged` → `resolved` or `wont-do`. When resolving, post a reply explaining what was done, then update the root message's status.
+
+**Source:** Always use `source = 'claude-code'`.
 
 ### PPP Conventions
 
@@ -669,117 +251,13 @@ The PPP workflow has a detailed specification stored in `context_store` key `wor
 ### Embedding Conventions
 
 - Model: OpenAI `text-embedding-3-small`
-- Embeddings are NOT auto-updated — regenerate via `generate-embeddings` edge function after significant data changes
-- Private content (`is_private = true`) is never embedded
-- Use `search_knowledge()` DB function for vector queries
-
----
-
-## Entity Relationship Summary
-
-```
-people ──┬── teams (via team_members, many-to-many)
-         ├── people (reports_to_id, self-referential)
-         ├── initiatives (via initiative_stakeholders)
-         ├── tasks (owner_id)
-         ├── meetings (via meeting_attendees)
-         ├── meeting_action_items (owner_id)
-         ├── ppp_sections (lead_id)
-         ├── performance_reviews (person_id, reviewer_id)
-         └── content_sections (entity_type='person')
-
-initiatives ── tasks (initiative_id)
-            └── initiative_stakeholders (person + role)
-
-meetings ── meeting_attendees (person_id)
-         └── meeting_action_items (owner_id)
-
-ppp_reports ── ppp_sections (report_id)
-
-tasks ── tasks (parent_task_id, self-referential)
-      └── task_dependencies (blocking relationships)
-
-agent_tasks ── agent_tasks (parent_task_id, self-referential for follow-ups)
-agent_log (standalone — references agent_slug as text, not FK)
-research_results ── research_results (superseded_by, self-referential for versioning)
-project_decisions (self-referential via supersedes_id)
-agent_registry (standalone)
-```
-
----
-
-## Project Structure
-
-```
-second-brain/
-├── CLAUDE.md              # This file — project definition for Claude Code
-├── README.md              # Setup and overview
-├── .env                   # Supabase + Looker credentials (never commit)
-├── package.json
-├── tsconfig.json
-├── scripts/               # Standalone automation scripts
-│   └── ppp-ingest.ts      # PPP processing
-├── agents/                # Agent definitions
-│   ├── research.md        # Research agent
-│   ├── competitive-analysis.md  # Competitive analysis research agent
-│   ├── domain-expertise.md     # Domain expertise research agent
-│   ├── analytics.md       # Analytics agent (CLM funnel analysis)
-│   ├── data-viz.md        # Data-viz subagent (visual storytelling)
-│   ├── team-lead.md       # Team Lead agent (hygiene, synthesis, enforcement)
-│   ├── hub-countries-pm.md # Hub Countries PM agent (UK, US, SG, UAE)
-│   └── kyc-product-pm.md  # KYC Product PM agent (0-to-1 product exploration)
-├── analytics/             # Analytics agent — Looker-based CLM analysis
-│   ├── config/            # Constants, look configs
-│   ├── knowledge/         # Country tiers, funnels, filter mappings
-│   ├── looks/             # Looker Look configurations (JSON)
-│   ├── lib/               # Looker client, data utils, formatting
-│   │   └── __tests__/     # Unit tests (node --test)
-│   ├── analyses/          # Analysis modules (scan, compare, deep-dive, diagnose)
-│   ├── agent.ts           # Task runner (picks up agent_tasks)
-│   └── run.ts             # CLI entry point
-├── data-viz/              # Data-viz rendering library
-│   ├── config/brand.ts    # Chart colors (derived from lib/doc-style.ts)
-│   ├── lib/               # Types, renderer, chart defaults
-│   ├── templates/         # Chart templates (volume-trend, etc.)
-│   ├── agent.ts           # Supabase task runner (secondary)
-│   └── run.ts             # CLI entry point
-├── pm_team/               # PM Team — autonomous AI product management
-│   ├── pmTeamContext.md   # Vision document (pre-implementation)
-│   ├── clm-context.md     # Foundational business knowledge for all PM agents
-│   ├── ARCHITECTURE.md    # What's built, how it works, key decisions
-│   ├── workflows.md       # Agent SOPs (session start, task lifecycle, etc.)
-│   ├── playbook.md        # Shared PM knowledge (patterns, gotchas, learnings)
-│   ├── team-lead/         # Team Lead agent
-│   │   ├── run.ts         # CLI entry point
-│   │   ├── agent.ts       # Task runner (picks up agent_tasks)
-│   │   ├── commands/      # hygiene.ts, synthesize.ts, enforce.ts
-│   │   └── lib/types.ts   # Result types
-│   ├── hub-countries/     # Hub Countries PM agent (first PM agent)
-│   │   ├── run.ts         # CLI entry point
-│   │   ├── agent.ts       # Task runner (picks up agent_tasks)
-│   │   ├── commands/      # check-in.ts, investigate.ts
-│   │   ├── lib/           # types.ts, country-config.ts
-│   │   └── memory.md      # Individual PM memory (baselines, history)
-│   └── kyc-product/       # KYC Product PM agent (0-to-1 exploration)
-│       ├── run.ts         # CLI entry point
-│       ├── agent.ts       # Task runner (picks up agent_tasks)
-│       ├── commands/      # research.ts, audit.ts, synthesize.ts
-│       ├── lib/           # types.ts, playbook-config.ts
-│       └── memory.md      # Thesis, moats, research tracker
-├── lib/                   # Shared utilities
-│   ├── supabase.ts        # Supabase client initialization
-│   ├── tasks.ts           # Shared task utilities (create/claim/complete/fail)
-│   ├── research.ts        # Shared research storage/versioning utilities
-│   ├── types.ts           # TypeScript types (generated or manual)
-│   ├── logging.ts         # Agent logging helpers
-│   ├── doc-style.ts       # Docx brand primitives (colors, fonts, tables)
-│   └── chart-embed.ts     # Chart → docx ImageRun helper
-└── supabase/
-    └── functions/         # Edge function source (reference)
-        ├── ingest-ppp/
-        ├── generate-embeddings/
-        └── semantic-search/
-```
+- Entity types: `person`, `initiative`, `research`, `agent_log`, `playbook`, `ppp`
+- **All entity types** are embedded via the local script: `npm run embed:all` (or individual modes: `embed:agent-log`, `embed:playbooks`, `embed:ppp`, `embed:person`, `embed:initiative`, `embed:research`)
+- `logFinding()` and `logRecommendation()` auto-embed new entries (fire-and-forget). Pass `autoEmbed: true` to `logAgent()` for other categories.
+- Private content (`is_private = true`) is never embedded. Person-related agent_log entries embed only the summary, not details. PPP `private_notes` are never embedded.
+- Use `search_knowledge()` DB function for raw vector queries
+- Use `searchByType(query, ['agent_log', 'ppp'])` from `lib/embeddings.ts` for typed semantic search across specific entity types
+- PM agent commands (check-in, investigate, research, synthesize, enrich) use `searchByType()` to augment SQL results with semantic context. Embedding failures are caught and never break agent commands.
 
 ---
 
@@ -811,3 +289,13 @@ SELECT * FROM v_open_action_items;
 -- Full context for meeting prep
 SELECT * FROM v_meetings_with_attendees WHERE '{slug}' = ANY(attendee_slugs) ORDER BY date DESC LIMIT 5;
 ```
+
+---
+
+## Deep-Dive References
+
+| Doc | What's in it | When to read |
+|-----|-------------|--------------|
+| [docs/schema.md](docs/schema.md) | Full table definitions, column types, views, functions, edge functions, ER diagram | Writing queries, building features, schema changes |
+| [docs/agents.md](docs/agents.md) | Agent CLI commands, task formats, key concepts, environment requirements | Running or extending agents |
+| [docs/project-structure.md](docs/project-structure.md) | Full file tree | Finding files, understanding codebase layout |

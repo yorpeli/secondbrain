@@ -302,6 +302,14 @@ export async function run(opts: { country: string; topic?: string }): Promise<In
     getResearch(supabase, country, opts.topic),
   ])
 
+  // Semantic search for deeper context
+  let semanticFindings: Array<{ entity_type: string; chunk_text: string; similarity: number }> = []
+  try {
+    const { searchByType } = await import('../../../lib/embeddings.js')
+    const query = opts.topic ? `${country.name} ${opts.topic}` : `${country.name} CLM performance`
+    semanticFindings = await searchByType(query, ['agent_log', 'playbook', 'ppp', 'research'], { threshold: 0.70, limit: 8 })
+  } catch {}
+
   // Detect flags
   const flags = buildFlags(country, pppHistory, analyticsResults, agentFindings, researchResults)
 
@@ -390,6 +398,13 @@ export async function run(opts: { country: string; topic?: string }): Promise<In
     }
   }
 
+  if (semanticFindings.length > 0) {
+    summaryParts.push(`\nSemantic findings (${semanticFindings.length}):`)
+    for (const sf of semanticFindings.slice(0, 5)) {
+      summaryParts.push(`  [${sf.entity_type}] (${(sf.similarity * 100).toFixed(0)}%) ${sf.chunk_text.slice(0, 120)}...`)
+    }
+  }
+
   if (recommendedActions.length > 0) {
     summaryParts.push(`\nRecommended actions:`)
     for (const action of recommendedActions) {
@@ -408,6 +423,7 @@ export async function run(opts: { country: string; topic?: string }): Promise<In
     flags,
     openQuestions,
     recommendedActions,
+    semanticFindings,
   }
 
   // Log to agent_log

@@ -65,6 +65,7 @@ export interface SynthesizeResult {
     tasksAnalyzed: number
     agentsCovered: string[]
     periodDays: number
+    semanticThemes?: Array<{ entity_type: string; chunk_text: string; similarity: number }>
   }
 }
 

@@ -87,6 +87,16 @@ export async function run(opts: { days?: number; agents?: string[] } = {}): Prom
     .sort((a, b) => b[1] - a[1])
     .map(([tag, count]) => `${tag} (${count} mentions)`)
 
+  // Semantic search for theme-related context
+  let semanticThemes: Array<{ entity_type: string; chunk_text: string; similarity: number }> = []
+  if (themes.length > 0) {
+    try {
+      const { searchByType } = await import('../../../lib/embeddings.js')
+      const topTheme = themes[0]?.replace(/ \(\d+ mentions\)$/, '') || 'CLM performance'
+      semanticThemes = await searchByType(topTheme, ['agent_log', 'playbook', 'ppp'], { threshold: 0.70, limit: 5 })
+    } catch {}
+  }
+
   // Check for registered agents with no recent activity
   const { data: registryData } = await supabase
     .from('agent_registry' as any)
@@ -135,6 +145,12 @@ export async function run(opts: { days?: number; agents?: string[] } = {}): Prom
   if (themes.length > 0) {
     summaryParts.push(`\nTop themes: ${themes.slice(0, 5).join(', ')}`)
   }
+  if (semanticThemes.length > 0) {
+    summaryParts.push(`\nSemantic context for top theme:`)
+    for (const st of semanticThemes.slice(0, 3)) {
+      summaryParts.push(`  [${st.entity_type}] (${(st.similarity * 100).toFixed(0)}%) ${st.chunk_text.slice(0, 120)}...`)
+    }
+  }
   if (gaps.length > 0) {
     summaryParts.push(`\nGaps: ${gaps.length} agent(s) with no recent activity`)
   }
@@ -155,6 +171,7 @@ export async function run(opts: { days?: number; agents?: string[] } = {}): Prom
       tasksAnalyzed: completedTasks.length,
       agentsCovered,
       periodDays: days,
+      semanticThemes,
     },
   }
 

@@ -51,6 +51,12 @@ export interface CoachingNote {
   date: string | null
 }
 
+export interface RelatedFinding {
+  entity_type: string
+  chunk_text: string
+  similarity: number
+}
+
 export interface MeetingBriefInput {
   person: PersonContext
   date?: string
@@ -58,6 +64,7 @@ export interface MeetingBriefInput {
   openActions: ActionItem[]
   coachingNotes: CoachingNote[]
   suggestedTopics?: string[]
+  relatedFindings?: RelatedFinding[]
 }
 
 // ---------------------------------------------------------------------------
@@ -204,6 +211,42 @@ export function generateMeetingBrief(input: MeetingBriefInput): Document {
         )
       }
       children.push(body(note.content))
+    }
+
+    children.push(divider())
+  }
+
+  // Related findings (from semantic search)
+  if (input.relatedFindings?.length) {
+    children.push(h1('Related Findings'))
+
+    for (const finding of input.relatedFindings) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `[${finding.entity_type}]`,
+              font: Fonts.primary,
+              size: Sizes.body,
+              color: Colors.midnightBlue,
+              bold: true,
+            }),
+            new TextRun({
+              text: ` (${(finding.similarity * 100).toFixed(0)}%) `,
+              font: Fonts.primary,
+              size: Sizes.small,
+              color: Colors.darkGray,
+            }),
+            new TextRun({
+              text: finding.chunk_text.length > 200 ? finding.chunk_text.slice(0, 200) + '...' : finding.chunk_text,
+              font: Fonts.primary,
+              size: Sizes.body,
+              color: Colors.charcoal,
+            }),
+          ],
+          spacing: { after: 120 },
+        }),
+      )
     }
 
     children.push(divider())

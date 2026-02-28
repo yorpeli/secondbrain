@@ -263,6 +263,15 @@ export async function run(opts: { days?: number } = {}): Promise<CheckInResult> 
       getRecentActivity(supabase, country),
     ])
 
+    // Semantic search for additional context
+    let semanticContext: Array<{ entity_type: string; chunk_text: string; similarity: number }> = []
+    try {
+      const { searchByType } = await import('../../../lib/embeddings.js')
+      semanticContext = await searchByType(
+        `${country.name} CLM performance issues blockers`,
+        ['agent_log', 'playbook'], { threshold: 0.72, limit: 5 })
+    } catch {}
+
     // Determine if analytics data is stale
     const lastAnalysisDate = analyticsTasks.length > 0 ? analyticsTasks[0].completed_at : null
     const dataStale = !lastAnalysisDate || new Date(lastAnalysisDate) < fourteenDaysAgo
@@ -289,6 +298,7 @@ export async function run(opts: { days?: number } = {}): Promise<CheckInResult> 
       },
       research: { entries: research },
       recentActivity,
+      semanticContext,
     }
 
     const flags = detectFlags(country, snapshotData)
@@ -346,6 +356,12 @@ export async function run(opts: { days?: number } = {}): Promise<CheckInResult> 
     summaryParts.push(`  PPP: ${snapshot.ppp.statusSummary}`)
     summaryParts.push(`  Analytics: ${snapshot.analytics.dataStale ? 'STALE' : 'recent'} (last: ${snapshot.analytics.lastAnalysis?.slice(0, 10) ?? 'never'})`)
     summaryParts.push(`  Research: ${snapshot.research.entries.length} current entries`)
+    if (snapshot.semanticContext && snapshot.semanticContext.length > 0) {
+      summaryParts.push(`  Semantic context: ${snapshot.semanticContext.length} related findings`)
+      for (const ctx of snapshot.semanticContext.slice(0, 3)) {
+        summaryParts.push(`    [${ctx.entity_type}] ${ctx.chunk_text.slice(0, 120)}...`)
+      }
+    }
   }
 
   if (allFlags.length > 0) {

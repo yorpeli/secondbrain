@@ -106,8 +106,31 @@ export async function storeResearch(input: StoreResearchInput): Promise<string |
       // Non-fatal — the new entry was still created
     } else {
       console.log(`[research] Superseded ${oldIds.length} previous entries`)
+
+      // Remove embeddings for superseded entries (fire-and-forget)
+      try {
+        const { deleteEmbeddings } = await import('./embeddings.js')
+        for (const oldId of oldIds) {
+          deleteEmbeddings('research', oldId).catch(() => {})
+        }
+      } catch {}
     }
   }
+
+  // Auto-embed the new research entry (fire-and-forget)
+  try {
+    const { upsertEmbedding } = await import('./embeddings.js')
+    const tags = (input.tags ?? []).join(', ')
+    const chunkText = `[Research: ${input.topic} | ${input.researchType} | ${input.agentSlug}]\n${input.summary}\nTags: ${tags}`
+    upsertEmbedding({
+      entityType: 'research',
+      entityId: newId,
+      chunkText,
+      chunkIndex: 0,
+    }).then(() =>
+      console.log(`[research] Auto-embedded research ${newId}`)
+    ).catch(() => {})
+  } catch {}
 
   return newId
 }
