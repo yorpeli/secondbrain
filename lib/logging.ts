@@ -11,6 +11,7 @@ interface LogEntry {
   relatedEntityType?: string
   relatedEntityId?: string
   tags?: string[]
+  autoEmbed?: boolean
 }
 
 /**
@@ -48,6 +49,28 @@ export async function logAgent(entry: LogEntry): Promise<string | null> {
   if (error) {
     console.error('[agent_log] Failed to write:', error.message)
     return null
+  }
+
+  // Fire-and-forget embedding for high-value log entries
+  if (entry.autoEmbed && entry.category !== 'error') {
+    import('./embeddings.js').then(({ upsertEmbedding }) => {
+      const tags = entry.tags?.join(', ') || ''
+      const prefix = `[${entry.agentSlug} | ${entry.category}${tags ? ` | ${tags}` : ''}]`
+      const isPersonRelated = entry.relatedEntityType === 'person'
+      const detailsStr = !isPersonRelated && entry.details ? `\n${JSON.stringify(entry.details)}` : ''
+      const chunkText = `${prefix} ${entry.summary}${detailsStr}`
+
+      upsertEmbedding({
+        entityType: 'agent_log',
+        entityId: data.id,
+        chunkText,
+        chunkIndex: 0,
+      }).catch(err => {
+        console.error('[agent_log] autoEmbed failed (non-blocking):', (err as Error).message)
+      })
+    }).catch(() => {
+      // Embedding module load failure — non-blocking
+    })
   }
 
   return data.id
@@ -91,6 +114,7 @@ export async function logFinding(
     summary,
     details,
     tags: ['finding', ...(tags ?? [])],
+    autoEmbed: true,
   })
 }
 
@@ -109,5 +133,6 @@ export async function logRecommendation(
     summary,
     details,
     tags: ['recommendation', ...(tags ?? [])],
+    autoEmbed: true,
   })
 }

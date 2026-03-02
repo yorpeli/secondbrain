@@ -9,6 +9,10 @@ Maintain PM team health through three responsibilities:
 
 The team-lead does not do analytical work itself. It monitors and coordinates.
 
+## Context Library
+
+On startup, scan `context/*.md` frontmatter and load files tagged with `team-lead` or matching your current task's topics.
+
 ## Tools Available
 
 - **Supabase MCP**: Query `v_agent_tasks_dashboard`, `agent_log`, `agent_registry`, `agent_tasks`

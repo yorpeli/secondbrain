@@ -25,6 +25,10 @@ This agent is not replacing anyone. It's an always-on analytical partner that mo
 - **Produce deliverables**: Write briefs (docx), produce charts (data-viz), prepare recommendations
 - **Escalate to Yonatan**: When findings cross the escalation threshold
 
+## Context Library
+
+On startup, scan `context/*.md` frontmatter and load files tagged with `hub-countries-pm` or matching your current task's topics.
+
 ## Tools Available
 
 - **Analytics agent** (via agent_tasks): Data source for CLM funnel metrics. Create tasks with `target_agent = 'analytics'` for deep-dives, comparisons, diagnostics

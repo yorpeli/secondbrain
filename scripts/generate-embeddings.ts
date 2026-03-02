@@ -304,7 +304,8 @@ async function embedPerson(): Promise<void> {
     return
   }
 
-  const result = await batchEmbed(inputs, { force: FORCE })
+  // Always force-refresh — person profiles change often and re-embedding 40 records costs <$0.001
+  const result = await batchEmbed(inputs, { force: true })
   console.log(`Person embedding complete: ${result.success} succeeded, ${result.failed} failed, ${result.skipped} skipped`)
 }
 
@@ -347,6 +348,87 @@ async function embedInitiative(): Promise<void> {
 
   const result = await batchEmbed(inputs, { force: FORCE })
   console.log(`Initiative embedding complete: ${result.success} succeeded, ${result.failed} failed, ${result.skipped} skipped`)
+}
+
+// ─── Initiative Memory Embedding ─────────────────────────────
+
+async function embedInitiativeMemory(): Promise<void> {
+  console.log('\n--- Embedding initiative memories ---')
+
+  const { getSupabase } = await import('../lib/supabase.js')
+  const supabase = getSupabase()
+
+  // Fetch all initiative memory docs joined with initiative metadata
+  const { data: memories, error } = await supabase
+    .from('content_sections')
+    .select('id, entity_id, content, updated_at')
+    .eq('entity_type', 'initiative')
+    .eq('section_type', 'memory')
+
+  if (error) {
+    console.error('Failed to fetch initiative memories:', error.message)
+    return
+  }
+
+  if (!memories || memories.length === 0) {
+    console.log('No initiative memory docs to embed.')
+    return
+  }
+
+  // Get initiative titles for context
+  const { data: initiatives } = await supabase
+    .from('initiatives')
+    .select('id, title, slug')
+
+  const initiativeMap = new Map((initiatives as any[] || []).map(i => [i.id, i]))
+
+  console.log(`Found ${memories.length} initiative memories to embed`)
+
+  // Check which memory IDs already have embeddings
+  const { getExistingEmbeddingIds } = await import('../lib/embeddings.js')
+  const existingIds = FORCE ? new Set<string>() : await getExistingEmbeddingIds('initiative_memory')
+
+  const allInputs: EmbeddingInput[] = []
+  let memoriesSkipped = 0
+
+  for (const mem of memories as any[]) {
+    if (!FORCE && existingIds.has(mem.id)) {
+      memoriesSkipped++
+      continue
+    }
+
+    // Pre-delete existing chunks before re-embedding
+    await deleteEmbeddings('initiative_memory', mem.id)
+
+    const initiative = initiativeMap.get(mem.entity_id)
+    const title = initiative?.title ?? 'Unknown Initiative'
+    const slug = initiative?.slug ?? 'unknown'
+
+    // Chunk by ## headings (same approach as playbooks)
+    const chunks = chunkMarkdownByHeadings(`initiative-memory:${slug}`, mem.content)
+
+    for (const chunk of chunks) {
+      allInputs.push({
+        entityType: 'initiative_memory',
+        entityId: mem.id,
+        chunkText: `[Initiative Memory: ${title}] ## ${chunk.heading}\n${chunk.content}`,
+        chunkIndex: chunk.index,
+      })
+    }
+  }
+
+  if (memoriesSkipped > 0) {
+    console.log(`  Skipped ${memoriesSkipped} already-embedded memories`)
+  }
+
+  if (allInputs.length === 0) {
+    console.log('No initiative memory chunks to embed (all already embedded).')
+    return
+  }
+
+  // Force=true here because we already handled skip logic above
+  const result = await batchEmbed(allInputs, { force: true })
+  console.log(`Initiative memory embedding complete: ${result.success} succeeded, ${result.failed} failed`)
 }
 
 // ─── Research Embedding ─────────────────────────────────────
@@ -421,7 +503,7 @@ async function embedResearch(): Promise<void> {
 
 // ─── Main ────────────────────────────────────────────────────
 
-const VALID_MODES = ['agent-log', 'playbooks', 'ppp', 'person', 'initiative', 'research', 'all']
+const VALID_MODES = ['agent-log', 'playbooks', 'ppp', 'person', 'initiative', 'initiative-memory', 'research', 'all']
 
 async function main() {
   const mode = process.argv[2]
@@ -451,6 +533,10 @@ async function main() {
 
   if (mode === 'initiative' || mode === 'all') {
     await embedInitiative()
+  }
+
+  if (mode === 'initiative-memory' || mode === 'all') {
+    await embedInitiativeMemory()
   }
 
   if (mode === 'research' || mode === 'all') {

@@ -8,6 +8,10 @@ Analyze CLM (Customer Lifecycle Management) funnel performance using Payoneer's 
 - Deep-diving into specific country metrics with volume trends and funnel health
 - Diagnosing issues by AH type, device, and segment combinations
 
+## Context Library
+
+On startup, scan `context/*.md` frontmatter and load files tagged with `analytics` or matching your current task's topics.
+
 ## Tools Available
 
 - **Looker API**: Query the `clm_population_main_dashboard` view in the `product` model

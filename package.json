@@ -16,7 +16,9 @@
     "embed:ppp": "tsx scripts/generate-embeddings.ts ppp",
     "embed:person": "tsx scripts/generate-embeddings.ts person",
     "embed:initiative": "tsx scripts/generate-embeddings.ts initiative",
-    "embed:research": "tsx scripts/generate-embeddings.ts research"
+    "embed:initiative-memory": "tsx scripts/generate-embeddings.ts initiative-memory",
+    "embed:research": "tsx scripts/generate-embeddings.ts research",
+    "ab-testing:run": "tsx ab-testing/run.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

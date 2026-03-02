@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "asana": {
+      "type": "http",
+      "url": "https://mcp.asana.com/mcp",
+      "headers": {
+        "Authorization": "Bearer $ASANA_ACCESS_TOKEN"
+      }
+    }
+  }
+}

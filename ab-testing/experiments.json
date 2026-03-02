@@ -1,0 +1,508 @@
+{
+  "version": 1,
+  "updated_at": "2026-03-01T18:22:55.011Z",
+  "experiments": [
+    {
+      "slug": "full-address-experiment",
+      "name": "FullAddressExperiment",
+      "expid": "EXPID-140",
+      "asana_task_id": "1212268779060116",
+      "experiment_id": "davs-enable-persona-fulladdress-validate-ab-testing",
+      "lifecycle": "live",
+      "hypothesis": "Using full address from Persona, we can increase automation rate for POR docs (increase approval, reduce reopen, and improve TP rate). The test purpose is to take 50-50 of the population to verify we reach this expected outcome.",
+      "objective": "approval/submitted 5% uplift",
+      "main_kpis": [
+        "Auto approval rate (36% → 50%)",
+        "Reopen rate (reduce by 7%)",
+        "Persona experiment impact on CLM uplift"
+      ],
+      "success_criteria": null,
+      "owner": "Yarden",
+      "audience": "All POR in selected countries (9 Persona countries)",
+      "start_date": "2026-01-12",
+      "estimated_end_date": null,
+      "end_date": null,
+      "result": null,
+      "decision": null,
+      "quarter": "Q4-25",
+      "winning_variant": null,
+      "looker_filter": {
+        "field": "experiments_dimension_selector",
+        "field_value": "full address persona experiment group",
+        "values": [
+          "Control - Split Address",
+          "Test - Full Address"
+        ],
+        "variant_field": "experiments_dynamic_dimension",
+        "date_filter": "2026/01/11 to 2026/02/08",
+        "filter_overrides": {
+          "clm_population_main_dashboard.is_clm_registration": "CLM",
+          "clm_population_main_dashboard.map_payments": "Exclude",
+          "clm_population_main_dashboard.registration_program_calc": "Payoneer D2P",
+          "clm_population_main_dashboard.gated_access_experiment_group": "-Free trial",
+          "clm_population_main_dashboard.gated_access_credit_card_experiment_group": "-Gated Access with Credit Card - Test Group,-Gated Access with Credit Card - Control Group",
+          "clm_population_main_dashboard.accounts_created_clm": ">=1"
+        }
+      },
+      "link_to_analysis": null,
+      "link_to_measurement": null,
+      "link_to_design": null,
+      "tags": [
+        "kyc",
+        "persona",
+        "por",
+        "address-verification",
+        "clm"
+      ],
+      "analysis_history": [
+        {
+          "date": "2026-03-01T17:38:37.474Z",
+          "query_id": "yX45FbvhrJsxhcJQyFRJW8kr4jfZ85kS",
+          "verdict": "treatment-wins",
+          "metrics": [
+            {
+              "metric": "mfa_approved",
+              "control_rate": 0.9999448975093674,
+              "treatment_rate": 1,
+              "lift_pct": 0.005510552708435364,
+              "p_value": 0.686207973023288,
+              "significant": false
+            },
+            {
+              "metric": "clm_completed_signup",
+              "control_rate": 1,
+              "treatment_rate": 0.99966239027684,
+              "lift_pct": -0.03376097231599928,
+              "p_value": 0.013311534418944948,
+              "significant": true
+            },
+            {
+              "metric": "clm_finished_segmentation",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "provided_information",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "requests_created_step",
+              "control_rate": 0.9991183601498788,
+              "treatment_rate": 0.9993247805536799,
+              "lift_pct": 0.020660255284486895,
+              "p_value": 0.7211901842383674,
+              "significant": false
+            },
+            {
+              "metric": "requests_submitted_step",
+              "control_rate": 0.9987326427154507,
+              "treatment_rate": 0.9993247805536799,
+              "lift_pct": 0.05928892407273676,
+              "p_value": 0.3849594813024577,
+              "significant": false
+            },
+            {
+              "metric": "submitted_all_docs_step",
+              "control_rate": 0.9534383954154728,
+              "treatment_rate": 0.949696151249156,
+              "lift_pct": -0.3924998389315048,
+              "p_value": 0.37266334370654297,
+              "significant": false
+            },
+            {
+              "metric": "accounts_approved",
+              "control_rate": 0.5736169274851223,
+              "treatment_rate": 0.5675219446320054,
+              "lift_pct": -1.0625528224626721,
+              "p_value": 0.5341085777091883,
+              "significant": false
+            },
+            {
+              "metric": "fft_dynamic_measure",
+              "control_rate": 0.0779149217544633,
+              "treatment_rate": 0.08035111411208642,
+              "lift_pct": 3.126734010335541,
+              "p_value": 0.6471471409612399,
+              "significant": false
+            },
+            {
+              "metric": "icp_500",
+              "control_rate": 0.02297773859378444,
+              "treatment_rate": 0.02363268062120189,
+              "lift_pct": 2.8503328329908695,
+              "p_value": 0.8257564602239504,
+              "significant": false
+            },
+            {
+              "metric": "icp_10k",
+              "control_rate": 0.001377562265814415,
+              "treatment_rate": 0.004051316677920324,
+              "lift_pct": 194.09318028359215,
+              "p_value": 0.0012572804047463748,
+              "significant": true
+            }
+          ],
+          "sample_size": {
+            "control": 18148,
+            "treatment": 2962
+          },
+          "notes": null
+        },
+        {
+          "date": "2026-03-01T17:54:50.260Z",
+          "query_id": "Mfrn8kbH3vT4dfmwJFx4Gst8F7GHj3n4",
+          "verdict": "control-wins",
+          "metrics": [
+            {
+              "metric": "mfa_approved",
+              "control_rate": 0.9999448975093674,
+              "treatment_rate": 1,
+              "lift_pct": 0.005510552708435364,
+              "p_value": 0.6547846505101595,
+              "significant": false
+            },
+            {
+              "metric": "clm_completed_signup",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "clm_finished_segmentation",
+              "control_rate": 1,
+              "treatment_rate": 0.9997243660418964,
+              "lift_pct": -0.02756339581035938,
+              "p_value": 0.025311603461949606,
+              "significant": true
+            },
+            {
+              "metric": "provided_information",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "requests_created_step",
+              "control_rate": 0.9991183601498788,
+              "treatment_rate": 0.9994487320837927,
+              "lift_pct": 0.03306634599972547,
+              "p_value": 0.5273131398533843,
+              "significant": false
+            },
+            {
+              "metric": "requests_submitted_step",
+              "control_rate": 0.9987326427154507,
+              "treatment_rate": 0.9988974641675854,
+              "lift_pct": 0.016503060487396082,
+              "p_value": 0.7967599466132977,
+              "significant": false
+            },
+            {
+              "metric": "submitted_all_docs_step",
+              "control_rate": 0.9534383954154728,
+              "treatment_rate": 0.9660970231532525,
+              "lift_pct": 1.3276817672382017,
+              "p_value": 0.0007320927632223917,
+              "significant": true
+            },
+            {
+              "metric": "accounts_approved",
+              "control_rate": 0.5736169274851223,
+              "treatment_rate": 0.4592061742006615,
+              "lift_pct": -19.945498084595524,
+              "p_value": 0,
+              "significant": true
+            },
+            {
+              "metric": "fft_dynamic_measure",
+              "control_rate": 0.0779149217544633,
+              "treatment_rate": 0.04575523704520397,
+              "lift_pct": -41.27538600450059,
+              "p_value": 9.356737606935894e-12,
+              "significant": true
+            },
+            {
+              "metric": "icp_500",
+              "control_rate": 0.02297773859378444,
+              "treatment_rate": 0.016538037486218304,
+              "lift_pct": -28.02582630698087,
+              "p_value": 0.015556533330396194,
+              "significant": true
+            },
+            {
+              "metric": "icp_10k",
+              "control_rate": 0.001377562265814415,
+              "treatment_rate": 0.0008269018743109151,
+              "lift_pct": -39.973539140022055,
+              "p_value": 0.39813731473247826,
+              "significant": false
+            }
+          ],
+          "sample_size": {
+            "control": 18148,
+            "treatment": 3628
+          },
+          "notes": "Multi-arm: Manual Review (n=3628, control-wins); Persona (n=2962, treatment-wins)"
+        },
+        {
+          "date": "2026-03-01T18:14:00.331Z",
+          "query_id": "ZTQ4BJMTBSmWHGb7fxJgRC6yffSpgyRr",
+          "verdict": "control-wins",
+          "metrics": [
+            {
+              "metric": "mfa_approved",
+              "control_rate": 0.9998987136635268,
+              "treatment_rate": 1,
+              "lift_pct": 0.010129659643436643,
+              "p_value": 0.6460662258092573,
+              "significant": false
+            },
+            {
+              "metric": "clm_completed_signup",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "clm_finished_segmentation",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "provided_information",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "requests_created_step",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "requests_submitted_step",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "submitted_all_docs_step",
+              "control_rate": 0.955130152942368,
+              "treatment_rate": 0.973583093179635,
+              "lift_pct": 1.9319817493376106,
+              "p_value": 0.00012838916940260958,
+              "significant": true
+            },
+            {
+              "metric": "accounts_approved",
+              "control_rate": 0.611769472298187,
+              "treatment_rate": 0.5509125840537944,
+              "lift_pct": -9.947683073458414,
+              "p_value": 2.5605181708243663e-7,
+              "significant": true
+            },
+            {
+              "metric": "fft_dynamic_measure",
+              "control_rate": 0.0882203990681657,
+              "treatment_rate": 0.05235350624399616,
+              "lift_pct": -40.656008364296895,
+              "p_value": 5.924298496218228e-8,
+              "significant": true
+            },
+            {
+              "metric": "icp_500",
+              "control_rate": 0.0332219183632128,
+              "treatment_rate": 0.024495677233429394,
+              "lift_pct": -26.26651788852183,
+              "p_value": 0.03890127131970078,
+              "significant": true
+            },
+            {
+              "metric": "icp_10k",
+              "control_rate": 0.001721867720044566,
+              "treatment_rate": 0.001440922190201729,
+              "lift_pct": -16.316324800813707,
+              "p_value": 0.7755986219693414,
+              "significant": false
+            }
+          ],
+          "sample_size": {
+            "control": 9873,
+            "treatment": 2082
+          },
+          "notes": "Multi-arm: Manual Review (n=2082, control-wins); Persona (n=1448, no-difference)"
+        },
+        {
+          "date": "2026-03-01T18:22:55.010Z",
+          "query_id": "FsZRfT8YNBvg4t8PwNq2TpYz56hbcMBq",
+          "verdict": "no-difference",
+          "metrics": [
+            {
+              "metric": "mfa_approved",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "clm_completed_signup",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "clm_finished_segmentation",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "provided_information",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "requests_created_step",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "requests_submitted_step",
+              "control_rate": 1,
+              "treatment_rate": 1,
+              "lift_pct": 0,
+              "p_value": 1,
+              "significant": false
+            },
+            {
+              "metric": "submitted_all_docs_step",
+              "control_rate": 0.9618874773139746,
+              "treatment_rate": 0.9703557312252964,
+              "lift_pct": 0.8803788500260942,
+              "p_value": 0.28356653113861396,
+              "significant": false
+            },
+            {
+              "metric": "accounts_approved",
+              "control_rate": 0.588021778584392,
+              "treatment_rate": 0.607707509881423,
+              "lift_pct": 3.3477894890938518,
+              "p_value": 0.35654212173092104,
+              "significant": false
+            },
+            {
+              "metric": "fft_dynamic_measure",
+              "control_rate": 0.09074410163339383,
+              "treatment_rate": 0.07312252964426877,
+              "lift_pct": -19.41897233201582,
+              "p_value": 0.1408426119552364,
+              "significant": false
+            },
+            {
+              "metric": "icp_500",
+              "control_rate": 0.03357531760435572,
+              "treatment_rate": 0.029644268774703556,
+              "lift_pct": -11.70815083858563,
+              "p_value": 0.6062724694673491,
+              "significant": false
+            },
+            {
+              "metric": "icp_10k",
+              "control_rate": 0.0054446460980036296,
+              "treatment_rate": 0.001976284584980237,
+              "lift_pct": -63.70223978919631,
+              "p_value": 0.19448362069031777,
+              "significant": false
+            }
+          ],
+          "sample_size": {
+            "control": 1102,
+            "treatment": 1012
+          },
+          "notes": null
+        }
+      ],
+      "notes": "Uses experiments_dynamic_dimension via experiments_dimension_selector parameter. Clean data window: Jan 11 - Feb 8 (new rollout contaminates post-Feb-8). Traffic slower than expected (~400/variant/week). Started 90/10 then 50/50. BQ also available: payoneer-sb-eu-svc-data-1528.Sources_Events.Documentunderstanding_Experiments."
+    },
+    {
+      "slug": "real-time-quality-fdc-v2",
+      "name": "Real Time Quality - FDC V2",
+      "expid": "EXPID-227",
+      "asana_task_id": "1213328279682397",
+      "experiment_id": null,
+      "lifecycle": "live",
+      "hypothesis": "Real Time Quality feature will improve approval rates by giving the user real time feedback in the quality of their document",
+      "objective": "POR approval/submission rate - uplift 5%",
+      "main_kpis": [
+        "Submission %",
+        "Approval %",
+        "1st time approval %"
+      ],
+      "success_criteria": null,
+      "owner": "Amit Lipschitz",
+      "audience": "CLM",
+      "start_date": "2026-01-27",
+      "estimated_end_date": null,
+      "end_date": null,
+      "result": null,
+      "decision": null,
+      "quarter": "Q1-26",
+      "winning_variant": null,
+      "looker_filter": {
+        "field": "rtq_experiment_group",
+        "field_value": "RTQ - Control Group,RTQ - Test Group",
+        "values": [
+          "RTQ - Control Group",
+          "RTQ - Test Group"
+        ],
+        "variant_field": "rtq_experiment_group",
+        "date_filter": "after 2026/01/27"
+      },
+      "link_to_analysis": null,
+      "link_to_measurement": null,
+      "link_to_design": null,
+      "tags": [
+        "fdc",
+        "real-time-quality",
+        "document-quality",
+        "clm"
+      ],
+      "analysis_history": [],
+      "notes": "V2 — duplicated from completed 'Real Time Quality - FDC' test. Went live Feb 24. No analysis yet."
+    }
+  ]
+}

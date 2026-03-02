@@ -85,7 +85,7 @@ Two entry points share one Supabase Postgres database:
 
 ## Agents
 
-Eight agents, each with a CLI entry point or definition doc. For full details (commands, task formats, key concepts), see [docs/agents.md](docs/agents.md).
+Nine agents, each with a CLI entry point or definition doc. For full details (commands, task formats, key concepts), see [docs/agents.md](docs/agents.md).
 
 | Agent | `target_agent` slug | Directory | Purpose |
 |-------|---------------------|-----------|---------|
@@ -97,6 +97,8 @@ Eight agents, each with a CLI entry point or definition doc. For full details (c
 | KYC Product PM | `kyc-product-pm` | `pm_team/kyc-product/` | 0-to-1 KYC-as-a-Service exploration |
 | Competitive Analysis | `competitive-analysis` | `agents/competitive-analysis.md` | Definition-only research agent (no CLI) |
 | Domain Expertise | `domain-expertise` | `agents/domain-expertise.md` | Definition-only research agent (no CLI) |
+| Initiative Tracker | `initiative-tracker` | `agents/initiative-tracker.md` | Keeps initiative memory docs current from PPP, meetings, decisions (no CLI yet) |
+| AB Testing | `ab-testing` | `ab-testing/` | CLM experiment registry, Looker-based statistical analysis, Asana lifecycle tracking |
 
 **CLI pattern:** All TypeScript agents use `npx tsx {dir}/run.ts <command>`. Task runners are `{dir}/agent.ts`.
 
@@ -208,8 +210,23 @@ Three levels of sensitivity exist in the data:
 - Use `execute_sql` for data operations (INSERT/UPDATE/DELETE)
 - Use `apply_migration` only for DDL (schema changes)
 
+### Context Library
+
+The `context/` directory contains domain reference documents (CLM funnel, data models, Looker guides, etc.) contributed by subject-matter experts. Each file has YAML frontmatter:
+
+```yaml
+---
+summary: One-line description of what's in the file
+topics: [clm-funnel, data-analysis, onboarding]
+agents: [analytics, hub-countries-pm]
+---
+```
+
+**Agent startup convention:** Before running a command, scan frontmatter of all `context/**/*.md` files (organized by contributor subfolder). Load any file where your agent slug appears in `agents` or where `topics` overlap with your current task. This is cheap (read ~6 lines per file) and ensures agents pick up new context docs automatically.
+
 ### Agent Behavior
 
+- **Context library:** On startup, scan `context/**/*.md` frontmatter and load matching files (see Context Library section above)
 - **Log threshold:** Only log to `agent_log` when something is substantial enough that another agent or human would benefit from knowing it
 - **Task lifecycle:** Check `agent_tasks` for pending work → set status to `picked-up` → do work → set `done`/`failed` with `result_summary`
 - **Project decisions:** Always check `project_decisions WHERE status = 'active'` before making architectural choices
@@ -248,11 +265,59 @@ The PPP workflow has a detailed specification stored in `context_store` key `wor
 - Raw text preserved alongside Claude-generated summaries
 - Week-over-week comparison via `v_ppp_week_comparison` view
 
+### Initiative Memory
+
+Each initiative has a **living memory document** stored as a `content_sections` row with `entity_type = 'initiative'`, `section_type = 'memory'`, and `entity_id` pointing to the initiative. This is the single source of truth for accumulated context on an initiative — decisions, blockers, stakeholders, timeline, and signals.
+
+**Structure:** Every initiative memory follows this template:
+
+```markdown
+## Status
+Current state, owner, escalation path
+
+## Hard Deadlines
+Date-driven commitments (regulatory, contractual, org)
+
+## Key Decisions
+[date] Decision and rationale — append-only log
+
+## Open Questions
+Unresolved items that need answers
+
+## Blockers & Risks
+Active blockers with owners and mitigation status
+
+## Stakeholders
+People involved and their roles in this initiative
+
+## Timeline of Key Events
+[date] What happened — append-only log
+
+## PPP Signals (week-over-week)
+Weekly status summary from PPP reports
+```
+
+**Reading:** `SELECT content FROM content_sections WHERE entity_id = '{initiative_id}' AND section_type = 'memory'`
+
+**Updating:** When new information arrives (PPP ingestion, meeting notes, decisions, escalations), UPDATE the memory doc — don't create a new row. Append to the relevant section. Always update the `date` field to today and `updated_at = now()`.
+
+**Separate artifacts:** Point-in-time documents (meeting notes, escalation memos, handover plans) are stored as separate `content_sections` rows linked to the same `entity_id`. The memory doc references them but doesn't duplicate their content.
+
+**Privacy:** If an initiative has private context, use `is_private = true` on the specific content_section. The memory doc itself should remain non-private and contain only shareable content.
+
+**PM Agent Assignment:** Every initiative has an `assigned_agent` field (text, nullable) that links it to a PM agent from the PM team (`hub-countries-pm`, `kyc-product-pm`, `team-lead`). The assigned agent is responsible for tracking the initiative — using the memory doc for check-ins, investigations, and synthesis. Initiatives with `assigned_agent = NULL` are flagged as **needs-to-assign**. Query unassigned initiatives:
+
+```sql
+SELECT slug, title, priority FROM initiatives WHERE status = 'active' AND assigned_agent IS NULL;
+```
+
+The Initiative Tracker agent (`agents/initiative-tracker.md`) keeps memory docs current and notifies the assigned PM agent when status changes, new blockers appear, or deadlines approach.
+
 ### Embedding Conventions
 
 - Model: OpenAI `text-embedding-3-small`
-- Entity types: `person`, `initiative`, `research`, `agent_log`, `playbook`, `ppp`
-- **All entity types** are embedded via the local script: `npm run embed:all` (or individual modes: `embed:agent-log`, `embed:playbooks`, `embed:ppp`, `embed:person`, `embed:initiative`, `embed:research`)
+- Entity types: `person`, `initiative`, `initiative_memory`, `research`, `agent_log`, `playbook`, `ppp`
+- **All entity types** are embedded via the local script: `npm run embed:all` (or individual modes: `embed:agent-log`, `embed:playbooks`, `embed:ppp`, `embed:person`, `embed:initiative`, `embed:initiative-memory`, `embed:research`)
 - `logFinding()` and `logRecommendation()` auto-embed new entries (fire-and-forget). Pass `autoEmbed: true` to `logAgent()` for other categories.
 - Private content (`is_private = true`) is never embedded. Person-related agent_log entries embed only the summary, not details. PPP `private_notes` are never embedded.
 - Use `search_knowledge()` DB function for raw vector queries
@@ -288,6 +353,17 @@ SELECT * FROM v_open_action_items;
 
 -- Full context for meeting prep
 SELECT * FROM v_meetings_with_attendees WHERE '{slug}' = ANY(attendee_slugs) ORDER BY date DESC LIMIT 5;
+
+-- Initiative memory (living doc for a specific initiative)
+SELECT cs.content FROM content_sections cs
+JOIN initiatives i ON cs.entity_id = i.id
+WHERE i.slug = '{initiative-slug}' AND cs.section_type = 'memory';
+
+-- All initiative memories overview
+SELECT i.title, i.slug, i.status, i.priority, cs.updated_at as memory_last_updated
+FROM initiatives i
+LEFT JOIN content_sections cs ON cs.entity_id = i.id AND cs.section_type = 'memory'
+ORDER BY i.priority, i.title;
 ```
 
 ---

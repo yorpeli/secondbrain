@@ -13,6 +13,10 @@ Covers three research types:
 
 This is a **definition-only agent** — no TypeScript CLI. The work IS Claude doing research + reasoning. Results are stored in `research_results` via `lib/research.ts`.
 
+## Context Library
+
+On startup, scan `context/*.md` frontmatter and load files tagged with `domain-expertise` or matching your current task's topics.
+
 ## Tools Available
 
 - **WebSearch**: Regulatory databases, industry publications, vendor documentation, technical specs

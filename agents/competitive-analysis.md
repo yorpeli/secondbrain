@@ -8,6 +8,10 @@ This agent answers the PM's question: **"What are competitors doing, how does it
 
 This is a **definition-only agent** — no TypeScript CLI. The work IS Claude doing web research + reasoning. Results are stored in `research_results` via `lib/research.ts`.
 
+## Context Library
+
+On startup, scan `context/*.md` frontmatter and load files tagged with `competitive-analysis` or matching your current task's topics.
+
 ## Tools Available
 
 - **WebSearch**: Find competitors, market data, pricing, reviews, news
