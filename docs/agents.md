@@ -183,3 +183,83 @@ The KYC Product PM agent (`pm_team/kyc-product/`) is a **0-to-1 product explorat
 - Playbook config (phases, workstreams, data requirements) is in `pm_team/kyc-product/lib/playbook-config.ts`.
 
 See `agents/kyc-product-pm.md` for the full agent definition.
+
+---
+
+## Dev Team
+
+The Dev Team (`dev_team/`) is an AI engineering team that builds and maintains the Second Brain UI app. It mirrors the PM Team's patterns: database-only communication, four-layer knowledge model, CLI entry points, and task-driven coordination.
+
+**Four-layer knowledge model:**
+- `dev_team/app-context.md` — **app context**: tech stack, design principles, project structure, Supabase views
+- `dev_team/workflows.md` — **process**: planning cycle, delegation, review, task conventions
+- `dev_team/playbook.md` — **shared knowledge**: component patterns, data layer gotchas, design rules
+- `{agent}/memory.md` — **individual memory**: component inventory, query patterns, tech debt
+
+**Workflow:** Yonatan -> Team Lead (plan) -> Architect (consulted) -> Plan approved -> Team Lead (delegate) -> Engineers build -> Team Lead (review)
+
+---
+
+### Dev Team Lead Agent
+
+The dev team lead (`dev_team/team-lead/`) orchestrates all app development. It is the interface between Yonatan and the engineering agents.
+
+**Commands:** `plan "<feature>"`, `delegate --plan=<ref>`, `review [--scope=<agent>]`, `status`, `check-tasks`
+
+**CLI:** `npx tsx dev_team/team-lead/run.ts <command> [args]`
+
+**Task format:** Set `target_agent = 'dev-team-lead'` and put a JSON command in `description`:
+```json
+{"type": "plan", "feature": "initiatives dashboard"}
+{"type": "delegate", "planRef": "initiatives-dashboard-v1"}
+{"type": "review"}
+{"type": "status"}
+```
+
+**Key concepts:**
+- Plans are stored in `agent_log` with `category = 'decision'` and tag `dev-plan`
+- Nothing gets built without an approved plan
+- Delegates backend tasks first (data layer), then frontend (consumes data)
+- Reviews check convention compliance and plan adherence
+
+---
+
+### App Architect Agent
+
+The architect (`agents/app-architect.md`) is a **definition-only agent** providing technical design and architecture guidance. Consulted by the team-lead during planning.
+
+**Responsibilities:** Technology choices, component hierarchy, data flow design, responsive strategy, dark/light theme implementation, shadcn/ui patterns.
+
+**Invocation:** Team-lead reads the definition during `plan` command. No direct CLI.
+
+---
+
+### Frontend Engineer Agent
+
+The frontend engineer (`dev_team/frontend/`) implements React components, pages, styling, and layout.
+
+**Commands:** `build <component> [--spec="..."]`, `refactor <target> [--reason="..."]`, `check-tasks`
+
+**CLI:** `npx tsx dev_team/frontend/run.ts <command> [args]`
+
+**Task format:** Set `target_agent = 'dev-frontend'`:
+```json
+{"type": "build", "component": "InitiativeList", "spec": "Table showing initiatives with status badges", "plan_ref": "initiatives-dashboard-v1"}
+{"type": "refactor", "target": "sidebar", "reason": "Improve responsive behavior"}
+```
+
+---
+
+### Backend Engineer Agent
+
+The backend engineer (`dev_team/backend/`) implements Tanstack Query hooks, Supabase queries, types, and data transforms.
+
+**Commands:** `build <hook> [--spec="..."]`, `refactor <target> [--reason="..."]`, `check-tasks`
+
+**CLI:** `npx tsx dev_team/backend/run.ts <command> [args]`
+
+**Task format:** Set `target_agent = 'dev-backend'`:
+```json
+{"type": "build", "hook": "useInitiatives", "spec": "Hook for v_initiative_dashboard view", "plan_ref": "initiatives-dashboard-v1"}
+{"type": "refactor", "target": "useInitiatives", "reason": "Add filtering support"}
+```

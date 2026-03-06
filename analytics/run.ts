@@ -117,6 +117,42 @@ Examples:
         const { run } = await import('./analyses/diagnose-country.js');
         const result = await run({ country });
         console.log('\n' + result.summary);
+
+        // Print baseline
+        const b = result.data.baseline;
+        console.log(`\nBaseline: ${b.created} accounts | Seg ${(b.seg_rate*100).toFixed(1)}% | Docs ${(b.docs_rate*100).toFixed(1)}% | Approval ${(b.approval_rate*100).toFixed(1)}% | FTL ${(b.ftl_rate*100).toFixed(1)}%`);
+
+        // Print segment breakdowns
+        const printSegments = (label: string, segments: typeof result.data.by_device) => {
+          if (segments.length === 0) return;
+          console.log(`\n--- ${label} ---`);
+          for (const seg of segments) {
+            if (seg.low_volume) {
+              console.log(`  ${seg.segment}: ${seg.volume} accounts (low volume)`);
+            } else if (seg.rates) {
+              const flags = seg.issues.map(i => `${i.severity} ${i.metric} ${(i.delta*100).toFixed(1)}%`).join(', ');
+              console.log(`  ${seg.segment}: ${seg.volume} accts | Seg ${(seg.rates.seg_rate*100).toFixed(1)}% | Docs ${(seg.rates.docs_rate*100).toFixed(1)}% | Approval ${(seg.rates.approval_rate*100).toFixed(1)}% | FTL ${(seg.rates.ftl_rate*100).toFixed(1)}%${flags ? ' | ' + flags : ''}`);
+            }
+          }
+        };
+
+        printSegments('By AH Type', result.data.by_ah_type);
+        printSegments('By Device', result.data.by_device);
+        printSegments('By Combination (AH Type + Device)', result.data.by_combination);
+
+        // Print trends
+        const t = result.data.trend;
+        if (t.volume_sparkline) {
+          console.log(`\n--- Trends ---`);
+          console.log(`  Volume: ${t.volume_sparkline.join(', ')}${t.volume_date_range ? ' (' + t.volume_date_range + ')' : ''}`);
+          if (t.trends.length > 0) {
+            for (const tr of t.trends) {
+              console.log(`  ${tr.severity} ${tr.metric}: ${tr.direction} (${(tr.change*100).toFixed(1)}%)`);
+            }
+          } else {
+            console.log('  No declining trends detected.');
+          }
+        }
         break;
       }
 

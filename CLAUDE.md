@@ -85,7 +85,9 @@ Two entry points share one Supabase Postgres database:
 
 ## Agents
 
-Nine agents, each with a CLI entry point or definition doc. For full details (commands, task formats, key concepts), see [docs/agents.md](docs/agents.md).
+Fourteen agents across two teams, each with a CLI entry point or definition doc. For full details (commands, task formats, key concepts), see [docs/agents.md](docs/agents.md).
+
+### PM Team & Infrastructure Agents
 
 | Agent | `target_agent` slug | Directory | Purpose |
 |-------|---------------------|-----------|---------|
@@ -98,11 +100,24 @@ Nine agents, each with a CLI entry point or definition doc. For full details (co
 | Competitive Analysis | `competitive-analysis` | `agents/competitive-analysis.md` | Definition-only research agent (no CLI) |
 | Domain Expertise | `domain-expertise` | `agents/domain-expertise.md` | Definition-only research agent (no CLI) |
 | Initiative Tracker | `initiative-tracker` | `agents/initiative-tracker.md` | Keeps initiative memory docs current from PPP, meetings, decisions (no CLI yet) |
+| Q-Plan PM | `q-plan-pm` | `pm_team/q-plan/` | Quarterly plan ingestion, progress tracking, gap analysis, quarter reviews |
 | AB Testing | `ab-testing` | `ab-testing/` | CLM experiment registry, Looker-based statistical analysis, Asana lifecycle tracking |
+
+### Dev Team (UI App)
+
+| Agent | `target_agent` slug | Directory | Purpose |
+|-------|---------------------|-----------|---------|
+| Dev Team Lead | `dev-team-lead` | `dev_team/team-lead/` | Plans features, delegates to engineers, reviews work |
+| App Architect | `dev-architect` | `agents/app-architect.md` | Definition-only design/architecture guidance |
+| App Designer | `dev-designer` | `agents/dev-designer.md` | Definition-only UX/UI design, design system, usability |
+| Frontend Engineer | `dev-frontend` | `dev_team/frontend/` | React components, pages, styling, layout |
+| Backend Engineer | `dev-backend` | `dev_team/backend/` | Tanstack Query hooks, Supabase queries, types |
 
 **CLI pattern:** All TypeScript agents use `npx tsx {dir}/run.ts <command>`. Task runners are `{dir}/agent.ts`.
 
 **PM Team knowledge model:** `pm_team/clm-context.md` (business context) → `pm_team/workflows.md` (process) → `pm_team/playbook.md` (shared learnings) → `{agent}/memory.md` (individual memory).
+
+**Dev Team knowledge model:** `dev_team/app-context.md` (app context) → `dev_team/workflows.md` (process) → `dev_team/playbook.md` (shared learnings) → `{agent}/memory.md` (individual memory). Dev team workflow: Yonatan → Team Lead (plan) → Architect (technical design) + Designer (UX/UI design) consulted → approved → Team Lead (delegate) → Engineers build → Designer (design review) + Team Lead (code review).
 
 ### Shared Utilities
 
@@ -153,12 +168,13 @@ Use `@supabase/supabase-js` with the service role key for all DB access. Never h
 
 ## Database Overview
 
-The database has 24 tables organized into four domains. For full column definitions, see [docs/schema.md](docs/schema.md).
+The database has 27 tables organized into five domains. For full column definitions, see [docs/schema.md](docs/schema.md).
 
 1. **Core Entities** — `people`, `teams`, `team_members`, `initiatives`, `initiative_stakeholders`, `tasks`, `task_dependencies`, `products`
 2. **Meetings & Notes** — `meetings`, `meeting_attendees`, `meeting_action_items`, `content_sections`, `performance_reviews`
 3. **PPP (Weekly Status)** — `ppp_reports`, `ppp_sections`
-4. **Agent Infrastructure** — `agent_log`, `agent_tasks`, `agent_registry`, `research_results`, `project_decisions`, `agent_coordination`
+4. **Quarterly Plans** — `quarterly_plans`, `quarterly_plan_items`, `quarterly_plan_deliverables`
+5. **Agent Infrastructure** — `agent_log`, `agent_tasks`, `agent_registry`, `research_results`, `project_decisions`, `agent_coordination`
 
 Plus: `context_store` (key-value working memory), `conversations_log`, `embeddings` (vector search), `tags`/`entity_tags`.
 
@@ -179,6 +195,7 @@ Pre-joined queries for common lookups. **Always prefer a view over a raw multi-t
 | `v_ppp_week_comparison` | Current vs previous week per swimlane | Week-over-week diffs |
 | `v_agent_tasks_dashboard` | Agent tasks with health status + registry info | Task monitoring, hygiene |
 | `v_research_current` | Current research with agent name + freshness | Research lookup, PM onboarding |
+| `v_quarterly_plan_progress` | Plan items with deliverable rollup counts | Q plan tracking, progress dashboards |
 
 ---
 
