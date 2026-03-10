@@ -85,7 +85,7 @@ Two entry points share one Supabase Postgres database:
 
 ## Agents
 
-Fourteen agents across two teams, each with a CLI entry point or definition doc. For full details (commands, task formats, key concepts), see [docs/agents.md](docs/agents.md).
+Fifteen agents across two teams, each with a CLI entry point or definition doc. For full details (commands, task formats, key concepts), see [docs/agents.md](docs/agents.md).
 
 ### PM Team & Infrastructure Agents
 
@@ -101,6 +101,7 @@ Fourteen agents across two teams, each with a CLI entry point or definition doc.
 | Domain Expertise | `domain-expertise` | `agents/domain-expertise.md` | Definition-only research agent (no CLI) |
 | Initiative Tracker | `initiative-tracker` | `agents/initiative-tracker.md` | Keeps initiative memory docs current from PPP, meetings, decisions (no CLI yet) |
 | Q-Plan PM | `q-plan-pm` | `pm_team/q-plan/` | Quarterly plan ingestion, progress tracking, gap analysis, quarter reviews |
+| Vendor Optimization PM | `vendor-optimization-pm` | `pm_team/vendor-optimization/` | KYC vendor portfolio, POC lifecycle, coverage gap analysis, vendor deprecation tracking |
 | AB Testing | `ab-testing` | `ab-testing/` | CLM experiment registry, Looker-based statistical analysis, Asana lifecycle tracking |
 
 ### Dev Team (UI App)
