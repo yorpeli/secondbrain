@@ -113,12 +113,13 @@ Standard task runner. Picks up pending tasks from `agent_tasks` where `target_ag
 Per `pm_team/workflows.md`, on every session:
 
 1. **Read foundational context**: `pm_team/clm-context.md` (business context)
-2. **Read shared knowledge**: `pm_team/playbook.md` (team learnings)
-3. **Read process**: `pm_team/workflows.md` (SOPs)
-4. **Read individual memory**: `pm_team/hub-countries/memory.md` (country baselines, investigation history)
-5. **Check backlog**: Pending tasks in agent_tasks for hub-countries-pm
-6. **Read recent agent_log**: Last entries from hub-countries-pm to understand where we left off
-7. **Read current_focus**: `SELECT content FROM context_store WHERE key = 'current_focus'` — align work with Yonatan's priorities
+2. **Read domain context**: `pm_team/hub-countries/context.md` (regulatory landscape, competitive intelligence, hub dynamics, industry benchmarks). On first run, read fully. On subsequent runs, check the changelog.
+3. **Read shared knowledge**: `pm_team/playbook.md` (team learnings)
+4. **Read process**: `pm_team/workflows.md` (SOPs)
+5. **Read individual memory**: `pm_team/hub-countries/memory.md` (country baselines, investigation history, operational state)
+6. **Check backlog**: Pending tasks in agent_tasks for hub-countries-pm
+7. **Read recent agent_log**: Last entries from hub-countries-pm to understand where we left off
+8. **Read current_focus**: `SELECT content FROM context_store WHERE key = 'current_focus'` — align work with Yonatan's priorities
 
 ## How to Think About Hub Countries
 

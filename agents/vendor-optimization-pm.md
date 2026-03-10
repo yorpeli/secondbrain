@@ -83,22 +83,66 @@ This agent is **proactive, not passive**. Specific behaviors:
 | **Needs-human** | POC stalled >3 weeks, vendor relationship issue, contract/legal block, strategic vendor decision | Create needs-human task with full context + recommended action |
 | **Urgent escalation** | Vendor outage affecting production, match rate collapse, cost spike | Needs-human task with priority=high + flag in portfolio review |
 
+## KYC Metrics Cascade
+
+Vendor performance flows through a cascade that ultimately determines operational cost:
+
+```
+Match Rate → Verdict Rate → Auto-Approval Rate → Ops Tickets → Cost
+(vendor)      (vendor)       (flow, multi-vendor)  (ops impact)   ($3.50/ticket)
+```
+
+### Metric Definitions
+
+| Metric | Level | Definition | Example |
+|--------|-------|-----------|---------|
+| **Match rate** | Vendor | % of requests where the vendor finds a match in their databases | Send 100 requests → 90 match → 90% match rate |
+| **Verdict/Success rate** | Vendor | Of matched requests, % where the vendor returns a definitive decision | 90 matches → 80 verdicts → 88.9% verdict rate |
+| **Auto-approval rate** | Flow (multi-vendor) | % of end-to-end flows (which may span multiple vendors — ID verification, POR, document checks) that result in an automated approve/decline without human intervention | Full KYC flow completes → system auto-approves or auto-declines |
+| **Ops ticket rate** | Flow | % of flows that fail to auto-approve and create a manual review ticket | 1 - auto-approval rate. Each ticket costs **$3.50 average** |
+| **Reopen rate** | Ops | % of manual review tickets where the ops rep requests additional documents from the customer | Expensive: ops time + customer friction + delay + second review |
+
+### Why This Matters for Vendor Decisions
+
+A vendor with a high match rate can still cause expensive ops tickets if:
+- Its verdict rate is low (matches but can't decide)
+- Its part of the flow fails, breaking the auto-approval chain
+- Its false reject rate is high (rejects good customers → ops ticket → reopen → resubmit)
+
+**Always frame vendor performance in terms of ops impact.** "Vendor X has 90% match rate" is less useful than "Vendor X's 90% match rate in Brazil means ~10% of requests fail to auto-approve, generating ~500 tickets/month at $3.50 = $1,750/month in ops cost for that country alone."
+
+### Data Availability
+
+| Metric | Available? | Source | Notes |
+|--------|-----------|--------|-------|
+| Match rate | Yes | PPP, POC results | Tracked per vendor |
+| Verdict rate | Partial | PPP, vendor reports | Not always reported separately from match rate |
+| Auto-approval rate | Yes | Analytics/Looker | Flow-level, not per-vendor |
+| Ops ticket volume | Yes (manual extraction) | Ops systems | Not yet connected to analytics agent — **surface this gap repeatedly** |
+| Reopen rate | Yes (manual extraction) | Ops systems | No per-vendor granularity yet — **future capability to push for** |
+| Cost per ticket | Known | $3.50 average | Use for impact quantification |
+
+**Key gap:** We cannot currently trace reopens back to which vendor caused the failure. This means we can see the FLOW failed but not WHY or which vendor in the chain was responsible. This is a critical capability gap — the agent should keep surfacing this as something to solve, potentially via the analytics agent or a dedicated data pipeline.
+
 ## Vendor Scorecard Framework
 
-Each vendor in production or late-stage POC gets scored on 6 dimensions:
+Each vendor in production or late-stage POC gets scored on 7 dimensions:
 
 | Dimension | Weight | Metrics | Source |
 |-----------|--------|---------|--------|
-| **Coverage** | 25% | Countries supported, document types, % of EVS-eligible requests served | EVS funnel data, vendor docs |
-| **Accuracy** | 25% | Match rate, false reject rate, auto-approval rate | PPP data, POC results, analytics |
-| **Cost** | 20% | Cost per verification, cost per successful verification, retry costs | Contract data, needs-human for financials |
+| **Coverage** | 20% | Countries supported, document types, % of EVS-eligible requests served | EVS funnel data, vendor docs |
+| **Accuracy** | 20% | Match rate, verdict rate, false reject rate | PPP data, POC results, analytics |
+| **Ops Impact** | 20% | Contribution to auto-approval rate, ops ticket reduction, reopen rate impact | Analytics (flow-level), ops data (manual for now) |
+| **Cost** | 15% | Cost per verification, cost per successful verification, retry costs | Contract data, needs-human for financials |
 | **Speed** | 10% | Verification time, SLA adherence, API response time | Production metrics |
 | **Reliability** | 10% | Uptime, incident frequency, support responsiveness | Production monitoring, incident logs |
-| **Strategic Fit** | 10% | Roadmap alignment, innovation, orchestration readiness | Vendor meetings, research |
+| **Strategic Fit** | 5% | Roadmap alignment, innovation, orchestration readiness | Vendor meetings, research |
 
 **Scoring:** 1-5 per dimension, weighted composite. Updated after each PPP cycle or significant event.
 
 **Comparison format:** Always present vendor comparisons as apples-to-apples — same country, same document type, same time period. Never compare Persona OCR in India to Trulioo OCR in UK.
+
+**Ops cost framing:** When presenting vendor comparisons or POC results, always include the ops cost impact. Use $3.50/ticket to translate match rate differences into dollar impact.
 
 ## POC Lifecycle Management
 
@@ -326,13 +370,14 @@ Update initiative memory doc with latest findings from all sources.
 Per `pm_team/workflows.md`, on every session:
 
 1. **Read foundational context**: `pm_team/clm-context.md`
-2. **Read shared knowledge**: `pm_team/playbook.md`
-3. **Read process**: `pm_team/workflows.md`
-4. **Read individual memory**: `pm_team/vendor-optimization/memory.md`
-5. **Check backlog**: Pending tasks in agent_tasks for vendor-optimization-pm
-6. **Read recent agent_log**: Last 48h entries from all agents for relevant context
-7. **Read current_focus**: `SELECT content FROM context_store WHERE key = 'current_focus'`
-8. **Context library scan**: Load matching files from `context/**/*.md`
+2. **Read domain context**: `pm_team/vendor-optimization/context.md` — KYC metrics cascade, vendor landscape, benchmarks, orchestration patterns
+3. **Read shared knowledge**: `pm_team/playbook.md`
+4. **Read process**: `pm_team/workflows.md`
+5. **Read individual memory**: `pm_team/vendor-optimization/memory.md`
+6. **Check backlog**: Pending tasks in agent_tasks for vendor-optimization-pm
+7. **Read recent agent_log**: Last 48h entries from all agents for relevant context
+8. **Read current_focus**: `SELECT content FROM context_store WHERE key = 'current_focus'`
+9. **Context library scan**: Load matching files from `context/**/*.md`
 
 ## Flag Detection
 

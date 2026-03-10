@@ -18,11 +18,12 @@ The PM Team is an autonomous AI product management team operating inside Claude 
 When an agent starts a session (CLI run or task pickup), follow this sequence:
 
 1. **Read CLM context**: Read `pm_team/clm-context.md` — foundational business knowledge (company, domain, teams, metrics, constraints). On first run, read fully. On subsequent runs, check the `Last updated` date.
-2. **Check backlog**: Query `agent_tasks` for pending tasks assigned to you
-3. **Read recent agent_log**: Scan last 48h of entries from all agents for relevant context
-4. **Check this file**: If `workflows.md` has been updated since your last run, read the changelog (Section 9)
-5. **Check the playbook**: If `pm_team/playbook.md` has new entries since your last run, read them (check its changelog)
-6. **Semantic search for task context**: If you have a specific task, use `searchByType()` to find relevant prior findings, playbook entries, and PPP data (see Section 5.5)
+2. **Read domain context**: If your agent has a `context.md`, read it — reference knowledge (benchmarks, frameworks, competitive intel). On first run, read fully. On subsequent runs, check the changelog.
+3. **Check backlog**: Query `agent_tasks` for pending tasks assigned to you
+4. **Read recent agent_log**: Scan last 48h of entries from all agents for relevant context
+5. **Check this file**: If `workflows.md` has been updated since your last run, read the changelog (Section 9)
+6. **Check the playbook**: If `pm_team/playbook.md` has new entries since your last run, read them (check its changelog)
+7. **Semantic search for task context**: If you have a specific task, use `searchByType()` to find relevant prior findings, playbook entries, and PPP data (see Section 5.5)
 
 ```sql
 -- Check your backlog
@@ -187,21 +188,36 @@ Embedding failures (missing `OPENAI_API_KEY`, network errors) must never break a
 
 ---
 
-## 6. Three-Layer Knowledge Model
+## 6. Four-Layer Knowledge Model
 
-PM agents operate with three layers of knowledge:
+PM agents operate with four layers of knowledge:
 
-| Layer | File | Scope | Updated by |
-|-------|------|-------|------------|
-| **Process** | `pm_team/workflows.md` | How to operate (lifecycle, communication, escalation) | Team-lead (minor), Yonatan (any) |
-| **Shared knowledge** | `pm_team/playbook.md` | What the team has learned (patterns, gotchas, domain insights) | Any PM agent, team-lead synthesize |
-| **Individual memory** | `{agent}/memory.md` | Domain-specific working context (baselines, metrics, history) | The owning agent only |
+| Layer | File | Scope | Updated by | Changes |
+|-------|------|-------|------------|---------|
+| **Process** | `pm_team/workflows.md` | How to operate (lifecycle, communication, escalation) | Team-lead (minor), Yonatan (any) | Rarely |
+| **Shared knowledge** | `pm_team/playbook.md` | What the team has learned (patterns, gotchas, domain insights) | Any PM agent, team-lead synthesize | When learnings are generalizable |
+| **Domain context** | `{agent}/context.md` | Reference knowledge — industry benchmarks, competitive intel, domain frameworks, vendor landscape | Owning agent, when new research lands | Rarely (research-driven) |
+| **Individual memory** | `{agent}/memory.md` | Operational working state — current statuses, action items, investigation history, open questions | The owning agent only | Every session |
+
+### memory.md vs context.md
+
+These two files serve different purposes and should not be conflated:
+
+| | `memory.md` | `context.md` |
+|--|-------------|-------------|
+| **Contains** | What's happening NOW — vendor statuses, POC pipeline, open action items, metrics snapshots, investigation history | What the agent KNOWS — industry benchmarks, competitive intel, domain definitions, frameworks, research findings |
+| **Changes** | Every session (operational state evolves) | Rarely (only when new research or understanding arrives) |
+| **Example** | "AiPrise eKYB POC: RESULTS stage, pending Vova validation, due Mar 21" | "Industry auto-approval benchmarks: top vendors claim 90-95% for low-risk" |
+| **Analogy** | A PM's task board / status tracker | A PM's reference library / domain expertise |
+
+Not every agent needs a `context.md` — it's most valuable for agents with rich domain knowledge that changes slowly (vendor landscape, regulatory context, market benchmarks). Agents with narrow operational scope may only need `memory.md`.
 
 ### Decision rule for where to write
 
 - "This is about **how I should work**" → check `workflows.md` (probably already there)
 - "This is about **what any PM would benefit from knowing**" → add to `playbook.md`
-- "This is about **my specific domain only**" → add to my `memory.md`
+- "This is **reference knowledge for my domain** (benchmarks, frameworks, competitive intel)" → add to my `context.md`
+- "This is about **my current operational state** (statuses, action items, metrics)" → add to my `memory.md`
 - "This is a **specific finding or recommendation**" → write to `agent_log` (and to `playbook.md` if generalizable)
 
 ### Adding to the playbook
@@ -220,10 +236,12 @@ When a new agent is created, it should:
 1. [ ] Read this file (`pm_team/workflows.md`)
 2. [ ] Read `pm_team/playbook.md` for shared team knowledge
 3. [ ] Read `CLAUDE.md` for database schema and project conventions
-4. [ ] Check `agent_registry` for existing agents and their capabilities
-5. [ ] Check `agent_tasks` for any pre-assigned backlog
-6. [ ] Register in `agent_registry` (optional but recommended)
-7. [ ] Introduce self via `agent_log` (category: `observation`, summary: "Agent {slug} initialized — {purpose}")
+4. [ ] Create `{agent}/context.md` if the agent has rich domain knowledge (benchmarks, frameworks, competitive intel)
+5. [ ] Create `{agent}/memory.md` for operational working state
+6. [ ] Check `agent_registry` for existing agents and their capabilities
+7. [ ] Check `agent_tasks` for any pre-assigned backlog
+8. [ ] Register in `agent_registry` (optional but recommended)
+9. [ ] Introduce self via `agent_log` (category: `observation`, summary: "Agent {slug} initialized — {purpose}")
 
 ---
 
@@ -277,3 +295,4 @@ Tags: ['needs-human', '{domain}']
 | 2026-02-07 | Yonatan + Claude Code | v1.0 — Initial version |
 | 2026-02-07 | Yonatan + Claude Code | v1.1 — Added three-layer knowledge model (Section 6), playbook to session start and onboarding |
 | 2026-02-28 | Claude Code | v1.2 — Added Section 5.5 (Semantic Search), step 6 to Session Start Protocol |
+| 2026-03-10 | Yonatan + Claude Code | v1.3 — Upgraded to Four-Layer Knowledge Model (Section 6): added `context.md` layer for domain reference knowledge. Updated Session Start Protocol (step 2: read context.md). Updated onboarding checklist (steps 4-5: create context.md and memory.md). |

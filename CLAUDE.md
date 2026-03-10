@@ -116,7 +116,7 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 
 **CLI pattern:** All TypeScript agents use `npx tsx {dir}/run.ts <command>`. Task runners are `{dir}/agent.ts`.
 
-**PM Team knowledge model:** `pm_team/clm-context.md` (business context) → `pm_team/workflows.md` (process) → `pm_team/playbook.md` (shared learnings) → `{agent}/memory.md` (individual memory).
+**PM Team knowledge model (four layers):** `pm_team/clm-context.md` (business context) → `pm_team/workflows.md` (process) → `pm_team/playbook.md` (shared learnings) → `{agent}/context.md` (domain reference knowledge — benchmarks, frameworks, competitive intel; optional, for agents with rich domains) → `{agent}/memory.md` (operational working state).
 
 **Dev Team knowledge model:** `dev_team/app-context.md` (app context) → `dev_team/workflows.md` (process) → `dev_team/playbook.md` (shared learnings) → `{agent}/memory.md` (individual memory). Dev team workflow: Yonatan → Team Lead (plan) → Architect (technical design) + Designer (UX/UI design) consulted → approved → Team Lead (delegate) → Engineers build → Designer (design review) + Team Lead (code review).
 

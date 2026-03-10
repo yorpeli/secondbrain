@@ -102,38 +102,6 @@ UIPath POR: still active, pending sunset plan
 - AsiaVerify: HK production, APAC expansion promising (KR, TH, VN, PH)
 - BVD: special characters fix enabling additional countries
 
-## Vendor Landscape Intelligence
-
-### Regional Vendor Strengths (from market research)
-
-| Region | Strong Vendors | Notes |
-|--------|---------------|-------|
-| **LATAM** | AiPrise (POC confirms: ARG/COL 99.2%), IDMerit (MX, BR, CL, CR, EC) | AiPrise validated. IDMerit pending legal. |
-| **APAC** | AsiaVerify (already in stack), AiPrise, Signzy (India, broader APAC) | AsiaVerify HK production. AiPrise weak in PH/VN. |
-| **MENA** | Au10tix (gov-grade docs), FOCAL/Mozn (ME specialist) | AiPrise weak here (UAE no data). Au10tix POC in progress. |
-| **Europe** | Sumsub, Trulioo (broad), Ondato (cost-effective) | Trulioo primary for eKYC in Europe. |
-| **North America** | Persona (customizable), Socure (AI risk scoring), Trulioo | Persona primary. |
-| **Africa** | Smile Identity (leading Africa IDV), AiPrise | Not yet explored. |
-
-### Key Industry Metrics (benchmarks)
-
-- Auto-approval rate: Top vendors claim 90-95% for low-risk
-- Verification speed: 6 seconds (Veriff) to 60 seconds (Onfido)
-- Document type coverage: 2,500 (Onfido) to 12,000+ (Veriff, AiPrise)
-- Cost per verification: ~$0.50 (high-volume, basic) to $2+ (enterprise, complex)
-
-## Orchestration Strategy (Emerging)
-
-Current orchestration patterns already in production or testing:
-
-| Pattern | Status | Details |
-|---------|--------|---------|
-| **Authenticity fallback** | Live (50% as of Feb 26) | If Persona fails doc authenticity → fall back to Au10tix |
-| **Classification fallback** | Planned (was going live ~Feb) | RAI classification per doc type |
-| **UK ePOR A/B** | Running | Persona vs Trulioo — expanding Persona coverage |
-| **Vendor priority routing** | Planned | Trulioo/Persona priority setting in UK, CO, MX, AR |
-| **EVS-DCM mapping** | Complete (Feb 5) | Enables new orchestration/customization options during onboarding |
-
 ## PPP Status History
 
 | Week | Status | Key Theme |
