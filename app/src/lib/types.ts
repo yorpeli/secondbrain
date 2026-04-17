@@ -65,3 +65,10 @@ export interface QuarterlyPlanDeliverable {
   status: 'planned' | 'in-progress' | 'done' | 'at-risk' | 'cut' | 'blocked'
   sortOrder: number
 }
+
+export interface QuarterDeliverable extends QuarterlyPlanDeliverable {
+  initiativeSlug: string | null
+  initiativeTitle: string | null
+  initiativePriority: string | null
+  planItemTitle: string
+}

@@ -1,21 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import { CalendarRange } from "lucide-react"
-import { useQuarterlyPlan, useQuarterlyPlanQuarters } from "@/hooks/use-quarterly-plan"
+import { useQuarterlyPlan, useQuarterlyPlanQuarters, useQuarterDeliverables } from "@/hooks/use-quarterly-plan"
 import { QuarterAggregateBar } from "@/components/quarterly-plan/quarter-aggregate-bar"
-import { InitiativeScoreboard } from "@/components/quarterly-plan/initiative-scoreboard"
+import { QuarterBurndownChart } from "@/components/quarterly-plan/quarter-burndown-chart"
+import { InitiativeSummaryCards } from "@/components/quarterly-plan/initiative-summary-cards"
+import { MonthlyDeliverableTimeline } from "@/components/quarterly-plan/monthly-deliverable-timeline"
 import type { InitiativeGroup } from "@/components/quarterly-plan/initiative-scoreboard"
-import { InitiativeDetailPanel } from "@/components/quarterly-plan/initiative-detail-panel"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function QuarterlyPlanPage() {
   const { data: quarters, isLoading: quartersLoading } = useQuarterlyPlanQuarters()
   const activeQuarter = quarters?.find(q => q.status === 'active')?.quarter
   const [selectedQuarter, setSelectedQuarter] = useState<string | null>(null)
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
-  const detailRef = useRef<HTMLDivElement>(null)
 
   const quarter = selectedQuarter ?? activeQuarter ?? ''
   const { data: items, isLoading, error } = useQuarterlyPlan(quarter)
+  const { data: deliverables } = useQuarterDeliverables(quarter)
 
   // Group items by initiative
   const grouped = useMemo<InitiativeGroup[]>(() => {
@@ -39,22 +39,6 @@ export function QuarterlyPlanPage() {
     })
   }, [items])
 
-  // Auto-select first initiative on load / quarter change
-  useEffect(() => {
-    setSelectedSlug(grouped[0]?.slug ?? null)
-  }, [grouped])
-
-  // Scroll to detail panel on selection change
-  useEffect(() => {
-    if (selectedSlug && detailRef.current) {
-      setTimeout(() => {
-        detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      }, 50)
-    }
-  }, [selectedSlug])
-
-  const selectedGroup = grouped.find(g => g.slug === selectedSlug) ?? null
-
   if (error) {
     return (
       <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
@@ -74,6 +58,7 @@ export function QuarterlyPlanPage() {
             {!isLoading && items && (
               <p className="text-sm text-muted-foreground">
                 {grouped.length} initiative{grouped.length !== 1 ? 's' : ''} · {items.length} plan items
+                {deliverables && ` · ${deliverables.length} deliverables`}
               </p>
             )}
           </div>
@@ -97,6 +82,7 @@ export function QuarterlyPlanPage() {
       {isLoading ? (
         <div className="space-y-4">
           <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-[250px] w-full rounded-lg" />
           <Skeleton className="h-32 w-full rounded-lg" />
           <Skeleton className="h-48 w-full rounded-lg" />
         </div>
@@ -109,20 +95,20 @@ export function QuarterlyPlanPage() {
           {/* Aggregate bar */}
           <QuarterAggregateBar items={items} />
 
-          {/* Initiative scoreboard */}
-          <InitiativeScoreboard
-            groups={grouped}
-            selectedSlug={selectedSlug}
-            onSelect={setSelectedSlug}
-          />
+          {/* Burndown chart */}
+          {deliverables && deliverables.length > 0 && (
+            <QuarterBurndownChart deliverables={deliverables} quarter={quarter} />
+          )}
 
-          {/* Detail panel */}
-          <div ref={detailRef}>
-            <InitiativeDetailPanel
-              group={selectedGroup}
-              onClose={() => setSelectedSlug(null)}
-            />
-          </div>
+          {/* Initiative summary cards */}
+          {deliverables && (
+            <InitiativeSummaryCards groups={grouped} deliverables={deliverables} />
+          )}
+
+          {/* Monthly timeline */}
+          {deliverables && deliverables.length > 0 && (
+            <MonthlyDeliverableTimeline deliverables={deliverables} quarter={quarter} />
+          )}
         </>
       )}
     </div>

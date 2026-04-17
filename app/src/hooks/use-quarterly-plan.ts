@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { QuarterlyPlanItem, QuarterlyPlanDeliverable } from '@/lib/types'
+import type { QuarterlyPlanItem, QuarterlyPlanDeliverable, QuarterDeliverable } from '@/lib/types'
 
 interface PlanProgressRow {
   quarter: string
@@ -104,6 +104,120 @@ export function useQuarterlyPlanQuarters() {
       return (data ?? []) as unknown as Array<{ quarter: string; status: string }>
     },
     staleTime: 10 * 60 * 1000,
+  })
+}
+
+interface QuarterDeliverableRow {
+  id: string
+  title: string
+  description: string | null
+  theme: string | null
+  timing: string | null
+  target_date: string | null
+  completed_date: string | null
+  expected_impact: string | null
+  actual_outcome: string | null
+  status: string
+  sort_order: number
+  initiative_slug: string | null
+  initiative_title: string | null
+  initiative_priority: string | null
+  plan_item_title: string
+}
+
+export function useQuarterDeliverables(quarter: string) {
+  return useQuery({
+    queryKey: ['quarter-deliverables', quarter],
+    queryFn: async (): Promise<QuarterDeliverable[]> => {
+      const { data, error } = await supabase.rpc('get_quarter_deliverables' as never, { q: quarter })
+      if (error) {
+        // Fallback: manual join query
+        const { data: items, error: itemsErr } = await supabase
+          .from('quarterly_plan_items' as never)
+          .select('id, title, plan_id, initiative_id')
+          .order('sort_order')
+        if (itemsErr) throw itemsErr
+
+        // Get plan IDs for this quarter
+        const { data: plans, error: plansErr } = await supabase
+          .from('quarterly_plans' as never)
+          .select('id')
+          .eq('quarter', quarter)
+        if (plansErr) throw plansErr
+
+        const planIds = ((plans ?? []) as any[]).map(p => p.id)
+        const matchedItems = ((items ?? []) as any[]).filter(i => planIds.includes(i.plan_id))
+        const itemIds = matchedItems.map(i => i.id)
+
+        if (itemIds.length === 0) return []
+
+        // Get initiatives for these items
+        const initIds = [...new Set(matchedItems.map(i => i.initiative_id).filter(Boolean))]
+        let initMap = new Map<string, { slug: string; title: string; priority: string }>()
+        if (initIds.length > 0) {
+          const { data: inits } = await supabase
+            .from('initiatives' as never)
+            .select('id, slug, title, priority')
+            .in('id', initIds)
+          for (const init of (inits ?? []) as any[]) {
+            initMap.set(init.id, { slug: init.slug, title: init.title, priority: init.priority })
+          }
+        }
+
+        // Get deliverables
+        const { data: delivs, error: delivsErr } = await supabase
+          .from('quarterly_plan_deliverables' as never)
+          .select('*')
+          .in('plan_item_id', itemIds)
+          .order('sort_order')
+        if (delivsErr) throw delivsErr
+
+        const itemMap = new Map(matchedItems.map((i: any) => [i.id, i]))
+
+        return ((delivs ?? []) as any[]).map((d: any) => {
+          const item = itemMap.get(d.plan_item_id)
+          const init = item?.initiative_id ? initMap.get(item.initiative_id) : null
+          return {
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            theme: d.theme,
+            timing: d.timing,
+            targetDate: d.target_date,
+            completedDate: d.completed_date,
+            expectedImpact: d.expected_impact,
+            actualOutcome: d.actual_outcome,
+            status: d.status,
+            sortOrder: d.sort_order ?? 0,
+            initiativeSlug: init?.slug ?? null,
+            initiativeTitle: init?.title ?? null,
+            initiativePriority: init?.priority ?? null,
+            planItemTitle: item?.title ?? '',
+          } satisfies QuarterDeliverable
+        })
+      }
+
+      // RPC path (if function exists)
+      return ((data ?? []) as unknown as QuarterDeliverableRow[]).map(d => ({
+        id: d.id,
+        title: d.title,
+        description: d.description,
+        theme: d.theme,
+        timing: d.timing,
+        targetDate: d.target_date,
+        completedDate: d.completed_date,
+        expectedImpact: d.expected_impact,
+        actualOutcome: d.actual_outcome,
+        status: d.status as QuarterDeliverable['status'],
+        sortOrder: d.sort_order,
+        initiativeSlug: d.initiative_slug,
+        initiativeTitle: d.initiative_title,
+        initiativePriority: d.initiative_priority,
+        planItemTitle: d.plan_item_title,
+      }))
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!quarter,
   })
 }
 
