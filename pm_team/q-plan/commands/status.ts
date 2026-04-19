@@ -133,6 +133,91 @@ export async function run(opts: { quarter?: string } = {}): Promise<StatusResult
 
   const today = new Date()
 
+  // ─── Cross-source intel: meetings, action items, initiative memories ─────
+  // Check for recent meeting notes mentioning deliverables
+  const initiativeIds = [...new Set(items.map(i => i.initiative_slug).filter(Boolean))]
+  let meetingIntel: Array<{ topic: string; date: string; snippet: string }> = []
+  let openActionItems: Array<{ description: string; owner: string; due: string | null; meeting: string }> = []
+  let initiativeMemories: Array<{ slug: string; content: string; updatedAt: string }> = []
+
+  try {
+    // Recent meetings (last 30 days) with discussion notes
+    const thirtyDaysAgo = new Date(today)
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const { data: meetings } = await supabase
+      .from('meetings' as any)
+      .select('topic, date, discussion_notes')
+      .gte('date', thirtyDaysAgo.toISOString().slice(0, 10))
+      .order('date', { ascending: false })
+
+    if (meetings) {
+      for (const m of meetings as any[]) {
+        if (!m.discussion_notes) continue
+        const notes = (m.discussion_notes as string).toLowerCase()
+        // Check if any deliverable title appears in the meeting notes
+        for (const d of allDeliverables) {
+          const keywords = d.title.toLowerCase().split(/[\s\-–]+/).filter((w: string) => w.length > 3)
+          if (keywords.some((kw: string) => notes.includes(kw))) {
+            meetingIntel.push({ topic: m.topic, date: m.date, snippet: d.title })
+            break
+          }
+        }
+      }
+    }
+
+    // Open action items related to deliverables
+    const { data: actionItems } = await supabase
+      .from('meeting_action_items' as any)
+      .select('description, status, due_date, owner_id, meeting_id')
+      .neq('status', 'done')
+
+    if (actionItems) {
+      for (const ai of actionItems as any[]) {
+        if (!ai.description) continue
+        const desc = (ai.description as string).toLowerCase()
+        for (const d of allDeliverables) {
+          const keywords = d.title.toLowerCase().split(/[\s\-–]+/).filter((w: string) => w.length > 3)
+          if (keywords.some((kw: string) => desc.includes(kw))) {
+            openActionItems.push({
+              description: ai.description,
+              owner: ai.owner_id ?? 'unknown',
+              due: ai.due_date,
+              meeting: ai.meeting_id,
+            })
+            break
+          }
+        }
+      }
+    }
+
+    // Initiative memories
+    for (const slug of initiativeIds) {
+      const { data: memData } = await supabase
+        .from('content_sections' as any)
+        .select('content, updated_at, entity_id')
+        .eq('section_type', 'memory')
+
+      if (memData) {
+        // Match by initiative slug via initiatives table
+        const { data: initData } = await supabase
+          .from('initiatives' as any)
+          .select('id')
+          .eq('slug', slug)
+          .limit(1)
+
+        if (initData && (initData as any[]).length > 0) {
+          const initId = (initData as any[])[0].id
+          const mem = (memData as any[]).find((m: any) => m.entity_id === initId)
+          if (mem) {
+            initiativeMemories.push({ slug: slug!, content: mem.content, updatedAt: mem.updated_at })
+          }
+        }
+      }
+    }
+  } catch {
+    // Non-critical — continue with DB-only data
+  }
+
   // Detect flags
   const flags = detectFlags(items, deliverablesByItem, today)
 
@@ -215,6 +300,57 @@ export async function run(opts: { quarter?: string } = {}): Promise<StatusResult
       const icon = f.severity === 'red' ? 'RED' : f.severity === 'yellow' ? 'YLW' : 'INF'
       lines.push(`  [${icon}] ${f.flag}: ${f.detail}`)
       if (f.recommendedAction) lines.push(`    → ${f.recommendedAction}`)
+    }
+  }
+
+  // ─── Cross-source intel summary ──────────────────────────────
+  if (meetingIntel.length > 0) {
+    lines.push('')
+    lines.push('Meeting Intel (last 30 days):')
+    for (const m of meetingIntel.slice(0, 10)) {
+      lines.push(`  [${m.date}] ${m.topic} — mentions: ${m.snippet}`)
+    }
+  }
+
+  if (openActionItems.length > 0) {
+    lines.push('')
+    lines.push(`Open Action Items (${openActionItems.length}):`)
+    for (const ai of openActionItems.slice(0, 10)) {
+      lines.push(`  - ${ai.description}${ai.due ? ` (due: ${ai.due})` : ''}`)
+    }
+  }
+
+  // ─── Stale data detection & outreach suggestions ────────────
+  const staleDeliverables = allDeliverables.filter(d => {
+    if (d.status === 'done' || d.status === 'cut') return false
+    if (!d.target_date) return false
+    const target = new Date(d.target_date)
+    const daysPastDue = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24))
+    return daysPastDue > 14
+  })
+
+  const noRecentIntel = allDeliverables.filter(d => {
+    if (d.status === 'done' || d.status === 'cut') return false
+    const hasInMeeting = meetingIntel.some(m => m.snippet === d.title)
+    const hasAction = openActionItems.some(ai =>
+      ai.description.toLowerCase().includes(d.title.toLowerCase().split(/[\s\-–]+/).filter((w: string) => w.length > 3)[0] ?? '')
+    )
+    return !hasInMeeting && !hasAction
+  })
+
+  if (staleDeliverables.length > 0 || noRecentIntel.length > 3) {
+    lines.push('')
+    lines.push('Outreach Recommended:')
+    if (staleDeliverables.length > 0) {
+      lines.push(`  ${staleDeliverables.length} deliverable(s) are 14+ days overdue with no status change.`)
+      lines.push(`  Suggest reaching out to initiative owners for a direct update.`)
+      for (const d of staleDeliverables.slice(0, 5)) {
+        lines.push(`    - ${d.title} (target: ${d.target_date}, status: ${d.status})`)
+      }
+    }
+    if (noRecentIntel.length > 3) {
+      lines.push(`  ${noRecentIntel.length} active deliverable(s) have no recent mentions in meetings or action items.`)
+      lines.push(`  Consider requesting a structured update from the team (email or async).`)
     }
   }
 

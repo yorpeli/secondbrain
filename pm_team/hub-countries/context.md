@@ -112,6 +112,16 @@ Entity verification (hub country)     BO verification (BO's country)
 
 ## Industry Benchmarks
 
+### Payoneer T1 Localization Impact Actuals (from Eliya, Mar 10 2026)
+
+| Initiative | Expected Impact | Actual Impact | Notes |
+|-----------|----------------|---------------|-------|
+| Upfront eKYB UK | +4% (33→37%) | **51%** | Massive overperformance |
+| Upfront eKYB Brazil | +2% (36→38%) | **53%** | Massive overperformance |
+| EIN removal US | +2% (27→29%) | 28% | Full rollout Feb 9, CVR expected to increase by Apr 8 |
+
+**Key insight:** eKYB upfront flows in UK and Brazil are delivering 3-4x the expected CVR improvement. This validates the "reduce steps, prefill data" approach as a high-leverage pattern for other hub countries.
+
 ### Onboarding Speed
 
 | Context | Time | Source |
@@ -237,3 +247,4 @@ Entity verification (hub country)     BO verification (BO's country)
 |------|--------|--------|
 | 2026-03-10 | Claude Code | v1.0 — Initial version. Moved regulatory landscape and competitive intelligence from memory.md. Added incorporation hub dynamics, cross-border verification framework, open research gaps. |
 | 2026-03-10 | Claude Code | v1.1 — Added industry benchmarks (onboarding speed, abandonment rates, STP rates by hub, incorporation volume, registry data quality). Updated regulatory essentials with fresh 2025-2026 data (ECCTA timeline, CTA gutting, SG FATF eval, UAE enforcement posture). Added cross-border KYC challenges framework. 30+ sourced URLs. |
+| 2026-03-10 | Claude Code | v1.2 — Added Payoneer T1 localization impact actuals from Eliya bi-weekly (eKYB UK 51%, Brazil 53%, EIN 28%). Key insight: eKYB upfront delivering 3-4x expected impact. |

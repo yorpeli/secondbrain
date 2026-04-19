@@ -118,6 +118,8 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 
 **PM Team knowledge model (four layers):** `pm_team/clm-context.md` (business context) → `pm_team/workflows.md` (process) → `pm_team/playbook.md` (shared learnings) → `{agent}/context.md` (domain reference knowledge — benchmarks, frameworks, competitive intel; optional, for agents with rich domains) → `{agent}/memory.md` (operational working state).
 
+**Initiative-embedded agents:** Heavy initiatives (with significant local materials and docs) can embed their PM agent directly within `initiatives/{slug}/`. These agents use the same shared PM layers (clm-context, workflows, playbook) but store domain context and memory alongside initiative artifacts. See [Initiative Workspaces](#initiative-workspaces) below.
+
 **Dev Team knowledge model:** `dev_team/app-context.md` (app context) → `dev_team/workflows.md` (process) → `dev_team/playbook.md` (shared learnings) → `{agent}/memory.md` (individual memory). Dev team workflow: Yonatan → Team Lead (plan) → Architect (technical design) + Designer (UX/UI design) consulted → approved → Team Lead (delegate) → Engineers build → Designer (design review) + Team Lead (code review).
 
 ### Shared Utilities
@@ -334,13 +336,52 @@ The Initiative Tracker agent (`agents/initiative-tracker.md`) keeps memory docs 
 ### Embedding Conventions
 
 - Model: OpenAI `text-embedding-3-small`
-- Entity types: `person`, `initiative`, `initiative_memory`, `research`, `agent_log`, `playbook`, `ppp`
+- Entity types: `person`, `initiative`, `initiative_memory`, `initiative_context`, `research`, `agent_log`, `playbook`, `ppp`
 - **All entity types** are embedded via the local script: `npm run embed:all` (or individual modes: `embed:agent-log`, `embed:playbooks`, `embed:ppp`, `embed:person`, `embed:initiative`, `embed:initiative-memory`, `embed:research`)
 - `logFinding()` and `logRecommendation()` auto-embed new entries (fire-and-forget). Pass `autoEmbed: true` to `logAgent()` for other categories.
 - Private content (`is_private = true`) is never embedded. Person-related agent_log entries embed only the summary, not details. PPP `private_notes` are never embedded.
 - Use `search_knowledge()` DB function for raw vector queries
 - Use `searchByType(query, ['agent_log', 'ppp'])` from `lib/embeddings.ts` for typed semantic search across specific entity types
 - PM agent commands (check-in, investigate, research, synthesize, enrich) use `searchByType()` to augment SQL results with semantic context. Embedding failures are caught and never break agent commands.
+
+### Initiative Workspaces
+
+Initiatives with significant local materials use a self-contained workspace under `initiatives/{slug}/`. Each workspace can optionally embed its own PM agent alongside its docs and context.
+
+**Directory structure:**
+
+```
+initiatives/{slug}/
+  CLAUDE.md            # Initiative identity, IDs, stakeholders, working files index
+  memory.md            # Working memory across Claude Code sessions (synced to DB)
+  context.md           # Domain reference knowledge (benchmarks, frameworks, competitive intel)
+  agent.md             # PM agent definition — what to monitor, commands, PPP mappings
+  docs/                # All working artifacts (research, drafts, meeting notes, materials)
+```
+
+**Two types of initiatives coexist:**
+
+| Type | Where it lives | Agent location | When to use |
+|------|---------------|----------------|-------------|
+| **Workspace initiative** | `initiatives/{slug}/` with local files | `agent.md` inside the initiative dir | Heavy initiatives with lots of materials, active strategic work |
+| **DB-only initiative** | `initiatives` table + memory doc in `content_sections` | `pm_team/{agent}/` or `assigned_agent` field | Lighter initiatives tracked via PPP and meetings |
+
+Both types share the same DB backbone (initiative record, memory doc, stakeholders) and the same PM team shared layers (clm-context, workflows, playbook).
+
+**Knowledge access patterns:**
+
+- **Local agent (within its own initiative):** Reads files directly — `context.md`, `docs/*.md`, `memory.md`. No embeddings needed for self-access. `CLAUDE.md` serves as the index of what exists.
+- **External agents (discovering other initiatives):** Search Supabase embeddings via `searchByType(query, ['initiative_context'])`. Local `context.md` and `docs/*.md` files are chunked and embedded (entity type `initiative_context`) so other agents can discover relevant knowledge without reading local files.
+
+**Workspace Sync:** `memory.md` and `CLAUDE.md` are bidirectionally synced with Supabase `content_sections` (section types `workspace-memory` and `workspace-context`). This allows Claude.ai Projects to read and update the same content. See `initiatives/CLAUDE.md` for sync protocol details.
+
+**Creating a new workspace initiative:**
+1. Copy `initiatives/_template/` to `initiatives/{slug}/`
+2. Create the initiative row in DB (if it doesn't exist)
+3. Create `workspace-memory` and `workspace-context` content_section rows
+4. Populate `CLAUDE.md` with real IDs from the DB
+5. Add `context.md` and `agent.md` as domain knowledge and materials are loaded
+6. Run embedding generation for the initiative's local files
 
 ---
 

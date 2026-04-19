@@ -52,16 +52,54 @@ At $3.50/ticket, every 1% improvement in auto-approval rate across ~40K eligible
 
 ## Vendor Landscape Intelligence
 
-### Regional Vendor Strengths (from market research, Mar 2026)
+### Regional Vendor Strengths (from market research + Q1 actuals, Mar 2026)
 
 | Region | Strong Vendors | Notes |
 |--------|---------------|-------|
-| **LATAM** | AiPrise (POC confirms: ARG/COL 99.2%), IDMerit (MX, BR, CL, CR, EC) | AiPrise validated. IDMerit pending legal. |
-| **APAC** | AsiaVerify (already in stack), AiPrise, Signzy (India, broader APAC) | AsiaVerify HK production. AiPrise weak in PH/VN. |
-| **MENA** | Au10tix (gov-grade docs), FOCAL/Mozn (ME specialist) | AiPrise weak here (UAE no data). Au10tix POC in progress. |
-| **Europe** | Sumsub, Trulioo (broad), Ondato (cost-effective) | Trulioo primary for eKYC in Europe. |
-| **North America** | Persona (customizable), Socure (AI risk scoring), Trulioo | Persona primary. |
+| **LATAM** | AiPrise (POC confirms: ARG/COL 99.2%), Persona (BR, MX, CO), Trulioo (MX, CO, CL, EC), IDMerit (MX, BR, CL, CR, EC) | AiPrise POC complete → proceeding to eKYB contract. IDMerit pending legal. |
+| **APAC** | AsiaVerify (already in stack), AiPrise, Persona (TH), Trulioo (PH — strong), Signzy (India, broader APAC) | AsiaVerify HK production. AiPrise weak in PH/VN. Trulioo PH is a bright spot. |
+| **MENA** | Au10tix (gov-grade docs), Persona (AE), FOCAL/Mozn (ME specialist) | AiPrise weak here (UAE no data). Au10tix POC in progress. |
+| **Europe** | Sumsub, Trulioo (PT, RO — expanded Q1), Ondato (cost-effective) | Trulioo primary for eKYC in Europe. Low performance in new EU countries except PH. |
+| **North America** | Persona (customizable, UK expanded Q1), Socure (AI risk scoring), Trulioo | Persona primary. |
 | **Africa** | Smile Identity (leading Africa IDV), AiPrise | Not yet explored. |
+
+### Q1 Vendor Expansion Actuals (from Vova, Mar 9 2026)
+
+| Vendor | Countries Expanded To | Avg Match Rate | Notes |
+|--------|----------------------|---------------|-------|
+| **Persona** | BR, MX, AE, UK, TR, TH, CO, IL (8 countries) | ~60% | Broad expansion, moderate performance |
+| **Trulioo** | MX, CO, CL, EC, PH, PT, RO (7 countries) | Low overall | PH is the standout performer |
+| **AIPrise** | POC completed | Varies by country | Proceeding to eKYB contract. LATAM strong, MENA/SEA weak |
+
+### Active Fallback Chains (confirmed working, Mar 9 2026)
+
+| Pattern | Status | Impact |
+|---------|--------|--------|
+| Trulioo → IDentiflo | Working | Cost optimization + performance uplift |
+| Persona → Trulioo | Working | Cost optimization + performance uplift |
+| EVS ↔ AWS | Completed | Coverage expansion |
+
+### Payoneer Verdict Rate Actuals (from Yarden, Mar 10 2026)
+
+| Vendor/Category | Beginning Q1 | Current | Target |
+|----------------|-------------|---------|--------|
+| RAI + Persona (Fraud + Classification) | 84% | 86% | ~100% with auth fallback |
+| Au10tix (Fraud) | 70% | 98% | 98% |
+| Persona (Fraud, Classification, OCR) | TBM | TBM | TBM |
+| RAI Authenticity | <80% (2025) | 85.5% (Feb) | — |
+| RAI RTC | 85% | 98% | — |
+
+Target KPI: Verdict rate >90% across all vendors. Authenticity orchestration achieves ~100%.
+
+**Key fraud finding:** RAI-Persona comparison shows 21% of fraud missed by RAI but caught by Persona.
+
+### Payoneer Feature Impact Actuals (from Yarden, Mar 10 2026)
+
+| Feature | Approved Δ | Reopen Δ | CVR Δ |
+|---------|-----------|----------|-------|
+| Address validation skip | +6.3% | +1.4% | TBD |
+| Ignore country mismatch | +3.34% | -0.7% | TBD |
+| Authenticity fallback | +1.2% | — | TBD |
 
 ### Key Industry Metrics (benchmarks, from public vendor data)
 
@@ -80,11 +118,25 @@ At $3.50/ticket, every 1% improvement in auto-approval rate across ~40K eligible
 
 | Pattern | Status | Details |
 |---------|--------|---------|
-| **Authenticity fallback** | Live (50% as of Feb 26) | If Persona fails doc authenticity → fall back to Au10tix |
-| **Classification fallback** | Planned (was going live ~Feb) | RAI classification per doc type |
+| **Authenticity fallback** | Live (50% as of Feb 26) | Primary auth check returns indecisive → fall back to Persona (source: Elad Jan 29 PPP). Primary vendor unconfirmed — likely RAI based on indecisive rate tracking. |
+| **Trulioo → IDentiflo fallback** | Live (Mar 9) | Cost optimization + performance uplift |
+| **Persona → Trulioo fallback** | Live (Mar 9) | Cost optimization + performance uplift |
+| **EVS ↔ AWS integration** | Completed (Mar 9) | Full eKYX coverage enabler |
+| **Classification fallback** | Live (Mar 10) | Priority changed from UiPath → Persona (Feb). RAI classification per doc type |
 | **UK ePOR A/B** | Running | Persona vs Trulioo — expanding Persona coverage |
 | **Vendor priority routing** | Planned | Trulioo/Persona priority setting in UK, CO, MX, AR |
-| **EVS-DCM mapping** | Complete (Feb 5) | Enables new orchestration/customization options during onboarding |
+| **EVS-DCM mapping** | Complete (Feb 5) | New KYC flow completed (confirmed Mar 9) |
+
+### UiPath Sunset Timeline (from Yarden, Mar 10 2026)
+
+| Month | Action |
+|-------|--------|
+| Feb | Classification fallback priority: UiPath → Persona (done) |
+| Feb-Mar | Expand Persona country coverage |
+| Apr | Keep only high-approval countries (>50%), low reopen |
+| May | Optimize low performers, move CN CVD to AsiaVerify/Persona |
+| Jun | New docs vendor OCR + orchestration |
+| **Jul 1** | **UiPath traffic to 0** |
 
 ### Industry Orchestration Strategies
 
@@ -260,3 +312,5 @@ Payoneer's 350-person ops team is a **competitive advantage, not just a cost cen
 |------|--------|--------|
 | 2026-03-10 | Claude Code | v1.0 — Initial version. KYC metrics cascade, vendor landscape, orchestration patterns, open research gaps. |
 | 2026-03-10 | Claude Code | v1.1 — Added industry benchmarks (auto-approval, manual review costs, reopen rates, ops KPIs, false decline cost), orchestration impact evidence, automated vs hybrid analysis, Payoneer positioning. Reduced open research gaps from 5 to 4. |
+| 2026-03-10 | Claude Code | v1.2 — Updated vendor landscape with Q1 expansion actuals from Vova (Persona 8 countries, Trulioo 7 countries, AIPrise → contract). Added active fallback chains. Updated orchestration patterns to reflect confirmed-working fallbacks. |
+| 2026-03-10 | Claude Code | v1.3 — Added Payoneer verdict rate actuals, feature impact actuals, UiPath sunset timeline (Jul 1), updated classification fallback to live. From Yarden bi-weekly update. |

@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Foundry — AI Academy & Community</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --charcoal: #1E1E28;
+    --midnight: #002373;
+    --purple: #977DFF;
+    --blue: #0033FF;
+    --white: #FFFFFF;
+    --gray: #888899;
+    --off-white: #F8F9FC;
+  }
+
+  body {
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    background: var(--charcoal);
+    color: var(--white);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── Slide container ── */
+  .deck { position: relative; width: 100vw; height: 100vh; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 80px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+    overflow: hidden;
+  }
+
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  /* ── Decorative ── */
+  .circle-deco {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(151, 125, 255, 0.12);
+    pointer-events: none;
+  }
+  .circle-deco.c1 { width: 600px; height: 600px; top: -200px; right: -150px; }
+  .circle-deco.c2 { width: 400px; height: 400px; bottom: -100px; left: -100px; border-color: rgba(0, 51, 255, 0.1); }
+  .circle-deco.c3 { width: 250px; height: 250px; top: 50%; left: 50%; transform: translate(-50%, -50%); border-color: rgba(151, 125, 255, 0.06); }
+
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+  }
+  .glow-purple { background: rgba(151, 125, 255, 0.15); width: 500px; height: 500px; }
+  .glow-blue { background: rgba(0, 51, 255, 0.12); width: 400px; height: 400px; }
+
+  /* ── Typography ── */
+  .mega-title {
+    font-size: clamp(52px, 8vw, 100px);
+    font-weight: 700;
+    letter-spacing: -2px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .slide-title {
+    font-size: clamp(32px, 5vw, 60px);
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .slide-subtitle {
+    font-size: clamp(16px, 2.2vw, 24px);
+    color: var(--gray);
+    text-align: center;
+    max-width: 750px;
+    line-height: 1.5;
+  }
+
+  .accent { color: var(--purple); }
+
+  .tagline {
+    font-size: clamp(18px, 2.5vw, 28px);
+    font-weight: 500;
+    color: var(--off-white);
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--purple);
+  }
+
+  /* ── Slide 2: Why — key points ── */
+  .why-points {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 800px;
+    width: 100%;
+  }
+
+  .why-point {
+    font-size: clamp(18px, 2.2vw, 26px);
+    line-height: 1.5;
+    color: var(--off-white);
+    text-align: center;
+  }
+
+  .why-divider {
+    width: 60px;
+    height: 1px;
+    background: rgba(151, 125, 255, 0.3);
+    margin: 4px auto;
+  }
+
+  /* ── Slide 3: Academy — compact tiers + details ── */
+  .academy-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 36px;
+    width: 100%;
+    max-width: 1000px;
+  }
+
+  .tiers {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .tier-pill {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 18px 22px;
+    text-align: center;
+    flex: 1;
+    max-width: 200px;
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+
+  .tier-pill:hover {
+    transform: translateY(-3px);
+    border-color: rgba(151, 125, 255, 0.25);
+  }
+
+  .tier-pill .tier-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .tier-pill .tier-desc {
+    font-size: 13px;
+    color: var(--gray);
+    line-height: 1.4;
+  }
+
+  .tier-pill:nth-child(1) .tier-name { color: #4d9fff; }
+  .tier-pill:nth-child(3) .tier-name { color: var(--blue); }
+  .tier-pill:nth-child(5) .tier-name { color: var(--purple); }
+  .tier-pill:nth-child(7) .tier-name { color: #FFD700; }
+
+  .tier-arrow {
+    color: rgba(255, 255, 255, 0.15);
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .academy-details {
+    display: flex;
+    gap: 40px;
+    justify-content: center;
+  }
+
+  .academy-detail {
+    text-align: center;
+  }
+
+  .detail-value {
+    font-size: clamp(14px, 1.6vw, 18px);
+    color: var(--off-white);
+    font-weight: 500;
+  }
+
+  .detail-label {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Slide 4: One More Thing ── */
+  .omt-phase1, .omt-phase2 {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 80px;
+    transition: opacity 0.8s ease;
+  }
+
+  .omt-phase1 { opacity: 1; }
+  .omt-phase2 { opacity: 0; pointer-events: none; }
+
+  .slide4.revealed .omt-phase1 { opacity: 0; pointer-events: none; }
+  .slide4.revealed .omt-phase2 { opacity: 1; pointer-events: auto; }
+
+  .omt-text {
+    font-size: clamp(28px, 4.5vw, 52px);
+    font-weight: 500;
+    color: var(--gray);
+    font-style: italic;
+  }
+
+  .bloom-glow {
+    position: absolute;
+    width: 800px;
+    height: 800px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(151, 125, 255, 0.2) 0%, rgba(0, 51, 255, 0.08) 50%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0;
+    transition: opacity 1s ease, transform 1.2s ease;
+    pointer-events: none;
+  }
+
+  .slide4.revealed .bloom-glow {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .reveal-line {
+    font-size: clamp(18px, 2.2vw, 26px);
+    color: var(--gray);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .reveal-line.highlight {
+    font-size: clamp(20px, 2.5vw, 30px);
+    color: var(--off-white);
+    font-weight: 500;
+  }
+
+  /* ── Slide 5: Closing ── */
+  .closing-line {
+    font-size: clamp(20px, 3vw, 36px);
+    font-weight: 500;
+    color: var(--off-white);
+    text-align: center;
+    line-height: 1.5;
+    max-width: 800px;
+  }
+
+  .closing-brand {
+    font-size: clamp(13px, 1.4vw, 16px);
+    color: var(--gray);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ── CTA badge ── */
+  .cta-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--midnight), rgba(151, 125, 255, 0.3));
+    border: 1px solid rgba(151, 125, 255, 0.3);
+    border-radius: 100px;
+    padding: 12px 32px;
+    font-size: clamp(14px, 1.8vw, 18px);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    color: var(--white);
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(151, 125, 255, 0.15); }
+    50% { box-shadow: 0 0 40px rgba(151, 125, 255, 0.3); }
+  }
+
+  /* ── Navigation ── */
+  .nav {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+  }
+
+  .nav-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 0;
+  }
+
+  .nav-dot.active { background: var(--purple); transform: scale(1.3); }
+  .nav-dot:hover { background: rgba(151, 125, 255, 0.5); }
+
+  .slide-counter {
+    position: fixed;
+    bottom: 24px;
+    right: 40px;
+    font-size: 13px;
+    color: var(--gray);
+    z-index: 100;
+    letter-spacing: 1px;
+  }
+
+  /* ── Animations ── */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+
+  .slide.active .fade-up { opacity: 1; transform: translateY(0); }
+  .slide.active .fade-up.d1 { transition-delay: 0.15s; }
+  .slide.active .fade-up.d2 { transition-delay: 0.3s; }
+  .slide.active .fade-up.d3 { transition-delay: 0.45s; }
+  .slide.active .fade-up.d4 { transition-delay: 0.6s; }
+  .slide.active .fade-up.d5 { transition-delay: 0.75s; }
+  .slide.active .fade-up.d6 { transition-delay: 0.9s; }
+
+  .scale-in {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .slide.active .scale-in { opacity: 1; transform: scale(1); }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .slide { padding: 40px 32px; }
+    .tiers { flex-direction: column; align-items: center; gap: 8px; }
+    .tier-arrow { transform: rotate(90deg); }
+    .academy-details { flex-direction: column; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- ════════════ SLIDE 1: THE FOUNDRY — Brand Reveal ════════════ -->
+  <div class="slide active" id="slide-1">
+    <div class="circle-deco c1"></div>
+    <div class="circle-deco c2"></div>
+    <div class="circle-deco c3"></div>
+    <div class="glow glow-purple" style="top: -100px; right: -100px;"></div>
+    <div class="glow glow-blue" style="bottom: -80px; left: -80px;"></div>
+
+    <div class="label fade-up" style="margin-bottom: 28px;">Introducing</div>
+    <div class="mega-title scale-in" style="margin-bottom: 32px;">THE <span class="accent">FOUNDRY</span></div>
+    <div class="slide-subtitle fade-up d2" style="margin-bottom: 16px; font-size: clamp(20px, 2.8vw, 32px); color: var(--off-white);">AI Academy & Community</div>
+    <div class="tagline fade-up d3" style="color: var(--gray); font-weight: 400;">Built by us. For us.</div>
+  </div>
+
+  <!-- ════════════ SLIDE 2: WHY — The Change ════════════ -->
+  <div class="slide" id="slide-2">
+    <div class="circle-deco c1" style="top: -250px; right: -200px;"></div>
+    <div class="circle-deco c2" style="bottom: -150px; left: -150px;"></div>
+    <div class="glow glow-purple" style="top: 20%; right: 10%; opacity: 0.6;"></div>
+    <div class="glow glow-blue" style="bottom: 20%; left: 15%; opacity: 0.5;"></div>
+
+    <div class="slide-title fade-up" style="margin-bottom: 48px;">AI is changing <span class="accent">every role</span>.<br>Not eventually. Now.</div>
+
+    <div class="why-points">
+      <div class="why-point fade-up d1">To get this right, <span class="accent">people need to drive the change</span> —<br>from the bottom up.</div>
+      <div class="why-divider fade-up d2"></div>
+      <div class="why-point fade-up d3">We're not buying a course. We're not hiring consultants.<br>We built something <span class="accent">by Payoneer people, for Payoneer people.</span></div>
+      <div class="why-divider fade-up d4"></div>
+      <div class="why-point fade-up d5" style="color: var(--white); font-weight: 500;">We're betting on you.</div>
+    </div>
+  </div>
+
+  <!-- ════════════ SLIDE 3: THE ACADEMY ════════════ -->
+  <div class="slide" id="slide-3">
+    <div class="circle-deco c1" style="top: -180px; left: -200px;"></div>
+    <div class="glow glow-purple" style="top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.4;"></div>
+
+    <div class="label fade-up" style="margin-bottom: 12px;">The Academy</div>
+    <div class="slide-title fade-up d1" style="margin-bottom: 10px;">Four levels. Certified.</div>
+    <div class="slide-subtitle fade-up d2" style="margin-bottom: 40px;">A level for wherever you are — and wherever you want to go</div>
+
+    <div class="academy-content">
+      <div class="tiers fade-up d3">
+        <div class="tier-pill">
+          <div class="tier-name">Makers</div>
+          <div class="tier-desc">AI in your daily work</div>
+        </div>
+        <div class="tier-arrow">&rsaquo;</div>
+        <div class="tier-pill">
+          <div class="tier-name">Builders</div>
+          <div class="tier-desc">Solutions for your team</div>
+        </div>
+        <div class="tier-arrow">&rsaquo;</div>
+        <div class="tier-pill">
+          <div class="tier-name">Masters</div>
+          <div class="tier-desc">Systems & architecture</div>
+        </div>
+        <div class="tier-arrow">&rsaquo;</div>
+        <div class="tier-pill">
+          <div class="tier-name">Wizards</div>
+          <div class="tier-desc">Lead AI at Payoneer</div>
+        </div>
+      </div>
+
+      <div class="academy-details fade-up d4">
+        <div class="academy-detail">
+          <div class="detail-value">Your colleagues teach it</div>
+          <div class="detail-label">Internal faculty + external experts</div>
+        </div>
+        <div style="width: 1px; background: rgba(255,255,255,0.08); align-self: stretch;"></div>
+        <div class="academy-detail">
+          <div class="detail-value">Real work, not lectures</div>
+          <div class="detail-label">Hands-on from Session 1</div>
+        </div>
+        <div style="width: 1px; background: rgba(255,255,255,0.08); align-self: stretch;"></div>
+        <div class="academy-detail">
+          <div class="detail-value">Product & Engineering first</div>
+          <div class="detail-label">More roles coming</div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;" class="fade-up d5">
+        <div class="cta-badge">Registration opens tomorrow</div>
+        <div class="slide-subtitle" style="font-size: 16px;">First cohort &middot; April 2026 &middot; 60&ndash;80 spots</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ SLIDE 4: ONE MORE THING → AI FOR ALL ════════════ -->
+  <div class="slide slide4" id="slide-4">
+    <div class="bloom-glow"></div>
+
+    <!-- Phase 1: "One more thing..." -->
+    <div class="omt-phase1">
+      <div class="omt-text fade-up">One more thing...</div>
+    </div>
+
+    <!-- Phase 2: The emotional setup -->
+    <div class="omt-phase2">
+      <div class="glow glow-purple" style="top: 25%; right: 20%; opacity: 0.4;"></div>
+      <div class="glow glow-blue" style="bottom: 25%; left: 20%; opacity: 0.3;"></div>
+
+      <div class="closing-line scale-in" style="margin-bottom: 20px;">
+        The Academy goes deep.<br>
+        The Community goes wide.
+      </div>
+      <div class="closing-line fade-up d1" style="margin-bottom: 40px; font-size: clamp(18px, 2.4vw, 28px); color: var(--white);">
+        <span class="accent">Everyone</span> has a place in The Foundry.
+      </div>
+      <div class="closing-line fade-up d2" style="font-size: clamp(20px, 2.8vw, 34px);">
+        We're counting on <span class="accent">every one of you</span>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ SLIDE 5: AI FOR ALL ════════════ -->
+  <div class="slide" id="slide-5">
+    <div class="circle-deco c1" style="top: -200px; right: -100px; border-color: rgba(151, 125, 255, 0.15);"></div>
+    <div class="circle-deco c2" style="bottom: -100px; left: -150px; border-color: rgba(0, 51, 255, 0.12);"></div>
+    <div class="glow glow-purple" style="top: 20%; left: 30%; opacity: 0.5;"></div>
+    <div class="glow glow-blue" style="bottom: 20%; right: 25%; opacity: 0.4;"></div>
+
+    <div class="mega-title scale-in" style="margin-bottom: 44px; font-size: clamp(48px, 7vw, 88px);">AI FOR <span class="accent">ALL</span></div>
+
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 24px; max-width: 700px;">
+      <div class="reveal-line fade-up d1">Sessions. Events. Content.<br><span class="accent">For everyone.</span></div>
+      <div class="reveal-line highlight fade-up d2">No application. No prerequisites.<br>No one left behind.</div>
+      <div class="reveal-line fade-up d3" style="font-size: clamp(15px, 1.8vw, 20px); margin-top: 8px;">If you're willing to take part —<br>we'll make sure you have everything you need.</div>
+    </div>
+  </div>
+
+  <!-- ════════════ SLIDE 6: THE FOUNDRY — STARTING NOW ════════════ -->
+  <div class="slide" id="slide-6">
+    <div class="circle-deco c1"></div>
+    <div class="circle-deco c2"></div>
+    <div class="circle-deco c3"></div>
+    <div class="glow glow-purple" style="top: -80px; right: -80px;"></div>
+    <div class="glow glow-blue" style="bottom: -60px; left: -60px;"></div>
+
+    <div class="mega-title scale-in" style="margin-bottom: 24px;">THE <span class="accent">FOUNDRY</span></div>
+    <div class="closing-brand fade-up d1" style="margin-bottom: 48px;">AI Academy & Community</div>
+    <div class="tagline fade-up d2" style="font-size: clamp(24px, 3.5vw, 44px); font-weight: 700; color: var(--white);">Starting now.</div>
+  </div>
+
+</div>
+
+<!-- ── Navigation ── -->
+<nav class="nav" id="nav"></nav>
+<div class="slide-counter" id="counter"></div>
+
+<script>
+  const TOTAL = 6;
+  let current = 0;
+  let slide4Revealed = false;
+
+  // Build nav dots
+  const nav = document.getElementById('nav');
+  for (let i = 0; i < TOTAL; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', 'Slide ' + (i + 1));
+    dot.addEventListener('click', () => goTo(i));
+    nav.appendChild(dot);
+  }
+
+  function updateCounter() {
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + TOTAL;
+  }
+  updateCounter();
+
+  function goTo(n) {
+    if (n < 0 || n >= TOTAL || n === current) return;
+
+    document.querySelectorAll('.slide').forEach((s, i) => {
+      s.classList.toggle('active', i === n);
+    });
+    document.querySelectorAll('.nav-dot').forEach((d, i) => {
+      d.classList.toggle('active', i === n);
+    });
+
+    current = n;
+    updateCounter();
+
+    // Reset slide 4 state when navigating away
+    if (n !== 3) {
+      slide4Revealed = false;
+      document.querySelector('.slide4').classList.remove('revealed');
+    }
+  }
+
+  function next() {
+    // Special handling for slide 4: first press reveals, second advances
+    if (current === 3) {
+      if (!slide4Revealed) {
+        slide4Revealed = true;
+        document.querySelector('.slide4').classList.add('revealed');
+        return;
+      }
+    }
+    if (current >= TOTAL - 1) return;
+    goTo(current + 1);
+  }
+
+  function prev() {
+    // On slide 4, if revealed, first go back to "one more thing"
+    if (current === 3 && slide4Revealed) {
+      slide4Revealed = false;
+      document.querySelector('.slide4').classList.remove('revealed');
+      return;
+    }
+    goTo(current - 1);
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+    if (e.key >= '1' && e.key <= '6') goTo(parseInt(e.key) - 1);
+  });
+
+  // Click left/right halves
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.nav') || e.target.closest('button')) return;
+    if (e.clientX > window.innerWidth / 2) next();
+    else prev();
+  });
+
+  // Touch swipe
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) { diff > 0 ? next() : prev(); }
+  });
+</script>
+
+</body>
+</html>
