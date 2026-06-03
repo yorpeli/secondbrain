@@ -44,6 +44,33 @@ Follow the spec's instructions step by step.
 Summarize in chat what the spec told you to do and what you found.
 ```
 
+## Outlook-side skill #2 — push to brain (created once, then frozen)
+
+```markdown
+---
+name: second-brain-push-to-brain
+description: Use when Yonatan says "push this to the brain", "send this thread to
+  Supabase", "log this thread", or similar while viewing an email thread. Captures
+  the current thread to the Second Brain board for Claude Code to triage.
+---
+
+# Second Brain — Push to Brain
+
+You push the CURRENT Outlook thread into the Second Brain. Your behavior is
+defined by the database spec, not hardcoded here.
+
+## 1. Load the operating spec FIRST
+Query Supabase: `SELECT content FROM context_store WHERE key = 'outlook_agent_spec';`
+Follow its `push` section exactly. The spec wins over this skill.
+
+## 2. Capture and queue (per the spec's push.steps)
+Summarize the current thread under the privacy allowlist, capture an inline note
+if Yonatan gave one (never ask for one), and INSERT one inbound-capture task.
+
+## 3. Report to Yonatan
+Confirm the subject captured and that it is queued for Claude Code triage.
+```
+
 ## Operating spec (source of truth → synced to context_store.outlook_agent_spec)
 
 <!-- spec:outlook_agent_spec -->
@@ -51,8 +78,8 @@ Summarize in chat what the spec told you to do and what you found.
 {
   "mode": "production",
   "name": "Outlook Agent — Operating Spec",
-  "purpose": "Process email-lookup tasks queued by other Second Brain agents. Read the mailbox, extract requested information under a strict privacy allowlist, and write structured results back to agent_tasks. Pull-only: never act unless a task asks you to.",
-  "version": "1.0-thread-lookup",
+  "purpose": "Two modes on the same board. PULL: process email-lookup tasks queued by other agents (run_loop + thread_lookup). PUSH: when Yonatan explicitly triggers it, capture the current thread and queue an inbound-capture task for Claude Code to triage (push). Read the mailbox only to satisfy a queued task or an explicit Yonatan push; extract under a strict privacy allowlist; write only to agent_tasks.",
+  "version": "1.1-push",
   "run_loop": [
     "1. Read this spec (you just did). State its version in your report.",
     "2. Get pending tasks: SELECT id, title, description, created_by FROM agent_tasks WHERE target_agent = 'outlook-agent' AND status = 'pending' ORDER BY created_at;",
@@ -63,7 +90,7 @@ Summarize in chat what the spec told you to do and what you found.
     "7. After all tasks, report to Yonatan in chat: count processed, one line per task, and explicitly flag any thread marked sensitive."
   ],
   "hard_rules": [
-    "PULL-ONLY: never read or summarize email except to satisfy an explicit task.",
+    "ACT ONLY ON DEMAND: read or summarize email only to satisfy (a) a task queued for you, or (b) an explicit Yonatan trigger to push the current thread. Never proactively scan the mailbox.",
     "WRITE SCOPE: only ever write to the agent_tasks table. NEVER write to people, meetings, meeting_action_items, content_sections, initiatives, or any other human table. Claude Code promotes results into those after Yonatan confirms.",
     "Only touch threads the task explicitly targets.",
     "Apply the privacy allowlist to everything you persist. When in doubt about sensitivity, treat as sensitive.",
@@ -133,6 +160,23 @@ Summarize in chat what the spec told you to do and what you found.
       "Comp, personnel, legal, or anything that reads as sensitive"
     ],
     "sensitive_rule": "If a thread contains compensation, personnel/HR, legal, or otherwise sensitive content, DO NOT extract its details. Instead persist only: {\"subject_topic\": \"<short topic>\", \"sensitive\": true, \"note\": \"review in Outlook directly\"} and set result_summary to flag it. Never copy sensitive specifics into the database."
+  },
+  "push": {
+    "description": "Yonatan-triggered inbound capture. When Yonatan asks to push the CURRENT thread to the brain, summarize it under the privacy allowlist and INSERT ONE inbound-capture task for Claude Code to triage. Do NOT route it — Claude Code decides where it belongs.",
+    "trigger": "Yonatan says 'push this to the brain', 'send this thread to Supabase', 'log this thread', or similar, while viewing a thread.",
+    "note_rule": "If Yonatan's trigger message includes a free-text hint (e.g. 'push this — relevant to the vendor POC'), capture it as 'note'. NEVER ask a follow-up question for a note; if none is given, set note to null.",
+    "steps": [
+      "Extract the CURRENT thread under privacy_allowlist, using the same fields as result_format.result_details_jsonb.threads (subject, participants, last_message_date, outlook_thread_id, and any decisions/action_items/deadlines present).",
+      "If the thread is sensitive, capture only {subject_topic, sensitive:true} per sensitive_rule — no specifics.",
+      "Build the capture_payload below and INSERT one task: INSERT INTO agent_tasks (title, description, target_agent, status, priority, created_by, tags) VALUES ('Inbound: <subject>', '<capture_payload as JSON text>', 'claude-code', 'pending', 'normal', 'claude-outlook', ARRAY['outlook-agent','inbound-capture']);",
+      "Confirm to Yonatan in chat: the subject captured and that it is queued for Claude Code triage. Do not claim to have filed it anywhere — Claude Code routes it later."
+    ],
+    "capture_payload": {
+      "type": "inbound-capture",
+      "note": "free-text hint from Yonatan, or null",
+      "captured_at": "YYYY-MM-DD",
+      "threads": "array, same shape as result_format.result_details_jsonb.threads"
+    }
   }
 }
 ```
@@ -140,7 +184,10 @@ Summarize in chat what the spec told you to do and what you found.
 ## Claude Code side
 
 Use `lib/outlook.ts` / `npm run outlook:run`:
-- `request` — queue a thread-lookup
-- `results` / `result <id>` — read what came back
-- promote results into initiative memory via `promoteToInitiativeMemory()` (with
-  confirmation + `[via email: …]` provenance) — never auto-promote sensitive threads
+- `request` — queue a thread-lookup (pull)
+- `results` / `result <id>` — read pull results
+- `inbox` — list inbound captures pushed from Outlook (`listInboundCaptures()`)
+- triage an inbound capture: reason over initiatives/people/current_focus, suggest
+  a destination, and on Yonatan's confirm promote via `promoteToInitiativeMemory()`
+  (with `[via email: …]` provenance), then mark the capture done with `completeTask()`
+- never auto-promote sensitive threads
