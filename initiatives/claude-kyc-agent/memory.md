@@ -11,7 +11,7 @@
 - **Screening/compliance vendor** — name uncertain from the transcript (AML/screening data provider; UK free API, US aggregator/paid). Verify the name; decide connect-direct vs collect-ourselves.
 - **Reproduce the official audit** — run on Yaniv's set, match the audited output (credibility benchmark).
 - **US vs UK path** — US gated (nothing deployed); does ADK's out-of-box screening clear the US path or only UK?
-- **People** — Shilhav (`shilhav-ben-david`, PM, reports to Yonatan) is in the DB and linked as **Lead** on this initiative. Yaniv, Sivan, Omer not in the people table yet.
+- **People** — all in the DB and linked as stakeholders: Shilhav Ben David (`shilhav-ben-david`, Lead), Yaniv Oved (`yaniv-oved`, back-office/doc source), Sivan Teplitz (`sivan-teplitz`, KYC Ops/validation), Omer Shnhar (`omer-shnhar`, new KYC eng team lead / doc-access service).
 
 ## Context to Remember
 - **Framing:** agnostic layer on provider KYC agents (Anthropic KYC Screener / Google ADK), use-not-compete. ADK is itself model-agnostic — a candidate shell to build on.

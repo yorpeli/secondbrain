@@ -34,10 +34,14 @@ Help develop, track, and synthesize this initiative. Specifically:
 
 ## Stakeholders
 
-- **Yonatan Orpeli** — Owner / driver of the validation and the agnostic-layer design.
-- **Bea Ordonez** — Senior stakeholder; offered Finance's support for testing and surfacing friction.
+- **Yonatan Orpeli** — Owner / sponsor.
+- **Shilhav Ben David** (`shilhav-ben-david`) — **Lead** (day-to-day driver).
+- **Yaniv Oved** (`yaniv-oved`) — Back-office / document source (points to where docs live).
+- **Sivan Teplitz** (`sivan-teplitz`) — KYC Operations Lead; supplies validators.
+- **Omer Shnhar** (`omer-shnhar`) — Engineering Team Lead (KYC); owns the doc-access service.
+- **Bea Ordonez** — Senior stakeholder; offered Finance's support for testing.
 - **Yasue Or** — Native-speaker validation (Japanese documents).
-- **Sivan Teplitz, Derek Green, Yaron Zakai-Or** — Involved in the initial validation thread.
+- Derek Green, Yaron Zakai-Or — involved in the initial validation thread.
 
 ## Related Initiatives
 
