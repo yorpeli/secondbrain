@@ -72,7 +72,8 @@ Examples:
       }
 
       case 'results': {
-        const limit = getFlag('limit') ? parseInt(getFlag('limit')!, 10) : 10
+        const limitRaw = getFlag('limit')
+        const limit = limitRaw ? (parseInt(limitRaw, 10) || 10) : 10
         const { listOutlookResults } = await import('../lib/outlook.js')
         const rows = await listOutlookResults(limit)
         if (rows.length === 0) {

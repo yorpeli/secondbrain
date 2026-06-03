@@ -26,10 +26,13 @@ export function extractSpecJson(doc: string): unknown {
     throw new Error('No ```json block after spec marker.')
   }
   const bodyStart = fenceStart + '```json'.length
-  const fenceEnd = after.indexOf('```', bodyStart)
-  if (fenceEnd === -1) {
+  // Match the closing fence only at the start of a line, so a backtick run that
+  // happens to appear inside a JSON string value can't terminate the block early.
+  const closeRel = after.slice(bodyStart).search(/\n```/)
+  if (closeRel === -1) {
     throw new Error('Unterminated ```json block after spec marker.')
   }
+  const fenceEnd = bodyStart + closeRel
   const jsonText = after.slice(bodyStart, fenceEnd).trim()
   return JSON.parse(jsonText)
 }

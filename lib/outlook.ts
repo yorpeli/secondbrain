@@ -156,7 +156,11 @@ export interface PromoteResult {
 
 /** Provenance marker appended to every promoted line. */
 function provenanceMarker(source: PromoteSource): string {
-  return ` *[via email: ${source.person}, "${source.subject}", ${source.date}]*`
+  // Inner double-quotes would break the italic markdown; downgrade to single.
+  const subject = source.subject.replace(/"/g, "'")
+  // Retain the Outlook thread id so promoted intel is traceable back to the source.
+  const id = source.threadId ? `, id:${source.threadId}` : ''
+  return ` *[via email: ${source.person}, "${subject}", ${source.date}${id}]*`
 }
 
 /**
@@ -192,6 +196,9 @@ export function appendUnderSection(content: string, section: string, lines: stri
  * the markdown structure. Use dryRun to preview before writing.
  */
 export async function promoteToInitiativeMemory(opts: PromoteOptions): Promise<PromoteResult> {
+  if (opts.appends.length === 0) {
+    return { ok: false, error: 'No appends provided — nothing to promote.' }
+  }
   const supabase = await getSupabase()
 
   const { data: init, error: initErr } = await supabase
