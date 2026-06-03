@@ -4,7 +4,7 @@
 
 ### Who This Serves
 
-Yonatan Orpeli — VP of Product at Payoneer, leading the CLM (Customer Lifecycle Management) domain. He manages a ~21-person product organization: 6 direct reports leading 5 product teams, plus 11 skip-level ICs. He started in August 2024, coming from 5 years as Senior Director of Product at Forter.
+Yonatan Orpeli — VP of Product at Payoneer, leading the CLM (Customer Lifecycle Management) domain. He manages a ~21-person product organization: 5 direct reports leading 5 product teams, plus 12 skip-level ICs. He started in August 2024, coming from 5 years as Senior Director of Product at Forter.
 
 CLM covers the full customer lifecycle at Payoneer: KYC (know-your-customer) verification, onboarding, compliance, localization & licensing, and policy & eligibility. This involves coordinating across a 350-person manual review operation, multiple external vendors, and country-specific regulatory requirements.
 
@@ -29,7 +29,7 @@ Yonatan's leadership philosophy shapes what the system optimizes for:
 
 ### The Org
 
-Six direct reports, five teams:
+Five direct reports, five teams:
 
 | Lead | Team | Scope |
 |------|------|-------|
@@ -38,7 +38,6 @@ Six direct reports, five teams:
 | Yael Feldhiem (Product Director) | Localization & Licensing | Country localization, licensing, India expansion |
 | Ido Seter (Senior PM) | Policy & Eligibility | Compliance policies, eligibility rules |
 | Meital Lahat Dekter (Senior Director) | Delegated Onboarding | Partner/delegated onboarding flows |
-| Yaniv Oved (Principal PSM) | Product Solutions | Cross-cutting product solutions and strategy |
 
 Yonatan reports to Yaron Zakai Or (SVP Product) who reports to Oren Ryngler (CPO).
 
