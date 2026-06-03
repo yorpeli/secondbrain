@@ -35,11 +35,15 @@ The current extraction engine is a single-pass, **standalone** global KYC docume
 
 ## Validation Results
 
-| Date | Scope | Result |
-|------|-------|--------|
-| 2026-06-03 | 45 Japanese documents, native-speaker validation (Yasue Or) | Field-extraction accuracy: **Persona 65% → Agent v1 80% → Agent v2 91%** (+26.5pp over Persona after a skill fix) |
+| Date | Scope | Metric | Result |
+|------|-------|--------|--------|
+| 2026-05-17 | 114 docs, 6 fields (Shilhav) | **Coverage** (cells filled, agent vs Persona) | Near-tie overall: **Agent 87.4% vs Persona 86.8% (+4 cells)**. Agent ahead on Country (+19), City (+14), Address (+9), IssuingDate (+9); FullName tied. **Behind on Zip: 41% vs 82% (−47)**. |
+| 2026-06-03 | 45 Japanese docs, native-speaker validation (Yasue Or) | **Accuracy** (field extraction correct) | **Persona 65% → Agent v1 80% → Agent v2 91%** (+26.5pp over Persona after a skill fix). |
 
-Treated as an early positive signal, not a verdict — expand the sample and document families.
+**Read these two together — they measure different things:**
+- May 17 is **coverage** (did the agent fill the cell?), not correctness. The agent's conservative "never guess → null" rule *lowers* coverage where a value is ambiguous — most visibly **Zip (41%)**, where it leaves uncertain postcodes null while Persona fills them. That is the precision/recall tradeoff by design: lower coverage, higher trustworthiness of what *is* filled.
+- June 3 is **accuracy** on filled cells — where the agent clearly leads (91% vs 65%).
+- **Known weakness to track: Zip coverage.** Decide whether to enrich Zip (the `EnrichedAddress` mirror exists for exactly this) or accept low coverage as a safety feature. Treated as early signal, not verdict — expand sample + document families.
 
 ## Provider Landscape
 
