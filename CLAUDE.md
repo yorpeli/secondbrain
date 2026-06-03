@@ -123,6 +123,15 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 
 **Dev Team knowledge model:** `dev_team/app-context.md` (app context) → `dev_team/workflows.md` (process) → `dev_team/playbook.md` (shared learnings) → `{agent}/memory.md` (individual memory). Dev team workflow: Yonatan → Team Lead (plan) → Architect (technical design) + Designer (UX/UI design) consulted → approved → Team Lead (delegate) → Engineers build → Designer (design review) + Team Lead (code review).
 
+**Outlook agent — natural-language triggers (Yonatan never runs the CLI; you do):** The `outlook-agent` bridges Claude-for-Outlook ↔ the `agent_tasks` board (see [agents/outlook-agent.md](agents/outlook-agent.md)). When Yonatan says any of the below, run the command for him and handle the rest conversationally — never make him remember a command:
+
+| Yonatan says (or similar) | You run | Then |
+|---|---|---|
+| "check Outlook", "anything from Outlook?", "what did I push?" | `npm run outlook:run check` | Triage each pending push: match to initiative/person/`current_focus`, propose a destination + action, and on his confirm promote via `promoteToInitiativeMemory()` (with `[via email: …]` provenance), then mark done with `completeTask()`. Never auto-promote `sensitive` threads. |
+| "look up X in email", "find the thread with Y about Z" | `npm run outlook:run request --query=... [--person=...] [--slug=...] [--timeframe=...]` | Tell him to run the email agent in Outlook; read the result later with `check`. |
+
+Pushed captures are unrouted by design — Claude Code suggests where they belong. Outlook only ever writes `agent_tasks`; promotion to human tables is gated on Yonatan's confirmation.
+
 ### Shared Utilities
 
 `lib/tasks.ts` consolidates the task pickup/claim/complete pattern used by agent task runners. Functions: `createTask()`, `claimTask()`, `completeTask()`, `failTask()`, `getPendingTasks()`. Uses lazy Supabase import.

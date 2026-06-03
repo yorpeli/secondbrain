@@ -31,6 +31,7 @@ async function main() {
 Outlook Agent — CLI (Claude Code side)
 
 Commands:
+  check                                                   Full sweep: pushes from Outlook + recent lookup results
   request --query=<q> [--person=<name>] [--slug=<person-slug>]
           [--timeframe=<window>] [--initiative=<slug>]   Queue a thread-lookup
   results [--limit=10]                                    List recent completed results
@@ -39,6 +40,7 @@ Commands:
   sync-spec                                               Push agents/outlook-agent.md spec → context_store
 
 Examples:
+  npx tsx outlook/run.ts check
   npx tsx outlook/run.ts request --query="payer rollout status" --person="Chen Alcalay" --slug=chen-alcalay --timeframe="last 60 days"
   npx tsx outlook/run.ts results --limit=5
   npx tsx outlook/run.ts result 257334f2-8f1f-4023-a947-1d8e603360ad
@@ -104,6 +106,29 @@ Examples:
           process.exit(1)
         }
         console.log(JSON.stringify(r, null, 2))
+        break
+      }
+
+      case 'check': {
+        const { listInboundCaptures, listOutlookResults } = await import('../lib/outlook.js')
+        const [caps, results] = await Promise.all([listInboundCaptures(), listOutlookResults(10)])
+        console.log(`Outlook sweep: ${caps.length} pending push(es), ${results.length} recent lookup result(s).`)
+        if (caps.length) {
+          console.log('\n— Pushed from Outlook (to triage):')
+          for (const c of caps) {
+            const when = c.captured_at ?? c.created_at?.slice(0, 10) ?? '????-??-??'
+            console.log(`  ${when}  ${c.id}  ${c.title}`)
+            if (c.note) console.log(`    note: ${c.note}`)
+          }
+        }
+        if (results.length) {
+          console.log('\n— Recent lookup results:')
+          for (const r of results) {
+            const threadCount = r.result_details?.threads?.length ?? 0
+            console.log(`  ${r.completed_at?.slice(0, 10) ?? '????-??-??'}  ${r.id}  ${r.title} (${threadCount} thread(s))`)
+          }
+        }
+        if (!caps.length && !results.length) console.log('Nothing waiting.')
         break
       }
 
