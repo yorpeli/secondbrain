@@ -2,17 +2,19 @@
 
 ## Last Session
 - **Date**: 2026-06-03
-- **What happened**: Initiative created (`claude-kyc-agent`, P2, owner Yonatan) and workspace stood up. Seeded from an Outlook push capture: the Japan initial-validation thread (Claude KYC OCR vs Persona — 91% vs 65% on 45 native-validated docs). Loaded the v2.2 master extraction prompt for context. Read Anthropic's finance-agents announcement (KYC Screener). **Reframed the initiative**: this is a vendor-agnostic layer built ON provider KYC agents (Anthropic/Google), not a from-scratch model and not a competitor.
-- **Next steps**: Yonatan drops materials into `docs/` (the v2.2 prompt file, Japan validation results, the deck shown to Bea). Then: flesh out `context.md` provider landscape (Google gap), and set up ongoing news-tracking for Anthropic/Google KYC.
+- **What happened**: Processed the Yonatan/Shilhav 1:1. **Shilhav Ben-David leads** this day-to-day. Reviewed Google's ADK KYC release (filled the Google gap — see `context.md`). Captured Yonatan's **roadmap ask**: a matrix of placement (pre-rep / with-rep / post-rep QA / real-time onboarding) × maturity (testing → near-real-time → real-time), each cell = what / when / requirements. Key redirect: **deployment & placement > per-language accuracy.** Full note: `docs/2026-06-03-1x1-shilhav-roadmap-ask.md`.
+- **Next steps**: Shilhav owns the roadmap matrix + reproducing Yaniv's audited set + the doc-access service (with Omer). Yonatan wants reps seeing the UI within weeks (eBay flows, pre-rep). I can draft a first-cut roadmap matrix if asked.
 
 ## Open Threads
-- **Google equivalent** — we don't yet know Google's KYC/finance-agent offering. Need to research and add to the landscape.
-- **Agnostic-layer design** — how to abstract Anthropic ↔ Google (interface, provider adapters, where Payoneer logic/compliance/audit lives).
-- **Naming** — initiative is `claude-kyc-agent` but the goal is provider-agnostic; revisit if/when it matters.
-- **News-tracking cadence** — decide how often to scan provider KYC announcements (candidate for a scheduled routine).
+- **Roadmap matrix** — Shilhav to produce; I offered to draft a first cut.
+- **Document-access service** — surface the right docs at a button press → agent → report. Omer's to enable; the real near-term bottleneck (plumbing, not accuracy).
+- **Screening/compliance vendor** — name uncertain from the transcript (AML/screening data provider; UK free API, US aggregator/paid). Verify the name; decide connect-direct vs collect-ourselves.
+- **Reproduce the official audit** — run on Yaniv's set, match the audited output (credibility benchmark).
+- **US vs UK path** — US gated (nothing deployed); does ADK's out-of-box screening clear the US path or only UK?
+- **People not in DB** — Shilhav, Yaniv, Sivan, Omer not in the people table yet.
 
 ## Context to Remember
-- **Framing (important):** use-what-they-built, not build-or-compete. Their advances are tailwinds we consume.
-- **Phase 1 = validate the Claude extraction core (v2.2 prompt).** Early signal strong (91% vs Persona 65%), treated as signal not verdict — continue on a larger sample.
-- The full structured initiative memory lives in Supabase (`content_sections`, memory doc `8b47a160-3f03-487f-bd64-e6cff71e8255`). This file is local working state.
-- Materials will be dropped into `docs/` by Yonatan — don't assume they're here yet.
+- **Framing:** agnostic layer on provider KYC agents (Anthropic KYC Screener / Google ADK), use-not-compete. ADK is itself model-agnostic — a candidate shell to build on.
+- **Yonatan's bias now:** ship/place it (post-rep QA first, then pre-rep on eBay), don't perfect per-language accuracy. Strong urgency.
+- Structured source of truth = Supabase memory doc `8b47a160-3f03-487f-bd64-e6cff71e8255`. This file is local working state.
+- Materials drop into `docs/` (Yonatan). The raw 1:1 transcript is `~/Downloads/Yonatan _ Shilhav - 1x1.vtt` (not yet copied in).

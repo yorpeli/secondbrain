@@ -51,8 +51,22 @@ Treated as an early positive signal, not a verdict — expand the sample and doc
 - **Model:** pairs with Claude Opus 4.7; heavy human-in-the-loop framing.
 - **Our read:** a candidate **shell/engine we build ON**. The opportunity is to drop our (deeper) extraction core into the Managed-Agents shell and inherit the audit/credential/permission infra. (ref: anthropic.com/news/finance-agents)
 
-### Google — equivalent (TO RESEARCH)
-- Gap in our knowledge. Need to identify Google's KYC / finance-agent offering, its document-processing capability, connectors, and compliance/audit story, then compare to Anthropic's for the agnostic-layer adapter design.
+### Google — ADK KYC agentic workflows (researched 2026-06-03)
+- **Agent Development Kit (ADK)** — a **model- and platform-agnostic** agentic orchestration framework. The KYC sample is a **root agent** orchestrating four sub-agents: **Document Checker** (consistency/validity across docs), **Resume Crosschecker** (verify vs LinkedIn/company sites), **External Search** (PEP / sanctions / adverse-media due diligence), **Wealth Calculator** (net worth / source-of-wealth).
+- **Stack:** Vertex AI **Gemini** (multimodal, multilingual reasoning), **BigQuery** (internal customer/risk data + dedup), **Search Grounding** (grounds external checks in real-time Google Search, source-cited URIs → "significantly reducing hallucinations"), Cloud Run for deploy.
+- **Auditability:** unique case IDs + grounded source attribution (cite URIs) — the audit story.
+- **vs our extraction prompt:** ADK is the **orchestration shell** (multi-agent, tool-integrated, screening + risk), not a document-extraction prompt. Our v2.2 prompt is a deeper *extraction* core; ADK is the *workflow* around it — parallels Anthropic's KYC Screener.
+- **Strategic note:** ADK being model-agnostic is directly aligned with our thesis — a candidate shell we could build on and swap models within. **UK easier than US** for the external-compliance connection (free/standard API vs aggregator/paid). Out-of-box public/screening access is the attractive part; internal Payoneer systems still need our integration.
+- Source: cloud.google.com/blog/products/ai-machine-learning/build-kyc-agentic-workflows-with-googles-adk
+
+### Provider comparison (for the agnostic adapter)
+| | Anthropic KYC Screener | Google ADK |
+|---|---|---|
+| Shape | Template/plugin + Managed Agents | Open-source agentic framework |
+| Model | Claude Opus 4.7 | Gemini (model-agnostic framework) |
+| Screening | D&B connector (verified business identity) | Search Grounding (PEP/sanctions/adverse media) |
+| Audit | Managed-Agents audit log, credential vaults | Case IDs + grounded source URIs |
+| Our use | Shell to inherit compliance infra | Model-agnostic shell to build on / swap |
 
 ## Agnostic-Layer Design (open)
 
