@@ -103,6 +103,7 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 | Q-Plan PM | `q-plan-pm` | `pm_team/q-plan/` | Quarterly plan ingestion, progress tracking, gap analysis, quarter reviews |
 | Vendor Optimization PM | `vendor-optimization-pm` | `pm_team/vendor-optimization/` | KYC vendor portfolio, POC lifecycle, coverage gap analysis, vendor deprecation tracking |
 | AB Testing | `ab-testing` | `ab-testing/` | CLM experiment registry, Looker-based statistical analysis, Asana lifecycle tracking |
+| Outlook Agent | `outlook-agent` | `outlook/` + `agents/outlook-agent.md` | Claude-for-Outlook bridge — pull-only email/calendar lookups via agent_tasks, results promoted to initiative memory with provenance |
 
 ### Dev Team (UI App)
 
