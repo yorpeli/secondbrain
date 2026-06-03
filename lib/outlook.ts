@@ -253,6 +253,122 @@ export async function promoteToInitiativeMemory(opts: PromoteOptions): Promise<P
   return { ok: true, preview: content }
 }
 
+// ─── Calendar / meeting-prep / person-digest (pull task types) ────
+
+export interface OutlookEvent {
+  subject: string
+  start: string
+  end: string
+  attendees: string[]
+  organizer?: string
+  location?: string
+  online?: boolean
+  sensitive: boolean
+  subject_topic?: string
+}
+
+export interface CalendarResultDetails {
+  events: OutlookEvent[]
+  not_found: boolean
+}
+
+export interface MeetingPrepResultDetails {
+  event: OutlookEvent | null
+  related_threads: OutlookThread[]
+  not_found: boolean
+}
+
+export type PersonDigestThread = OutlookThread & { awaiting_reply?: boolean }
+
+export interface PersonDigestResultDetails {
+  person: string
+  threads: PersonDigestThread[]
+  not_found: boolean
+}
+
+/** Shared builder: queue any pull task for the Outlook agent. Returns task id. */
+async function queueOutlookTask(
+  type: string,
+  payload: Record<string, unknown>,
+  title: string
+): Promise<string | null> {
+  return createTask({
+    title,
+    description: JSON.stringify({ type, ...payload }),
+    targetAgent: AGENT_SLUG,
+    createdBy: 'claude-code',
+    tags: ['outlook-agent', type],
+  })
+}
+
+export interface CalendarLookupInput {
+  query?: string
+  person?: string
+  personSlug?: string
+  timeframe?: string
+}
+
+/** Queue a calendar-lookup. Returns the task id. */
+export async function requestCalendarLookup(input: CalendarLookupInput): Promise<string | null> {
+  const payload = {
+    ...(input.query ? { query: input.query } : {}),
+    ...(input.person ? { person: input.person } : {}),
+    ...(input.personSlug ? { person_slug: input.personSlug } : {}),
+    timeframe: input.timeframe ?? 'next 7 days',
+  }
+  const label = input.query ?? input.person ?? payload.timeframe
+  return queueOutlookTask('calendar-lookup', payload, `Calendar: ${label}`)
+}
+
+export interface MeetingPrepInput {
+  meeting: string
+  date?: string
+}
+
+/** Queue a meeting-prep (find the event + related threads). Returns the task id. */
+export async function requestMeetingPrep(input: MeetingPrepInput): Promise<string | null> {
+  const payload = {
+    meeting: input.meeting,
+    ...(input.date ? { date: input.date } : {}),
+  }
+  return queueOutlookTask('meeting-prep', payload, `Meeting prep: ${input.meeting}`)
+}
+
+export interface PersonDigestInput {
+  person: string
+  personSlug?: string
+  timeframe?: string
+  focus?: string
+}
+
+/** Queue a person-digest. Returns the task id. */
+export async function requestPersonDigest(input: PersonDigestInput): Promise<string | null> {
+  const payload = {
+    person: input.person,
+    ...(input.personSlug ? { person_slug: input.personSlug } : {}),
+    timeframe: input.timeframe ?? 'last 14 days',
+    ...(input.focus ? { focus: input.focus } : {}),
+  }
+  return queueOutlookTask('person-digest', payload, `Digest: ${input.person}`)
+}
+
+/**
+ * Shape-aware one-line summary of a result, across all pull task types.
+ * Inspects result_details (which varies by type) defensively.
+ */
+export function summarizeResultLine(result: OutlookResult): string {
+  const d = result.result_details as any
+  if (!d) return result.result_summary ?? '(no result)'
+  if (Array.isArray(d.events)) return `${d.events.length} event(s)`
+  if (d.event !== undefined || Array.isArray(d.related_threads)) {
+    const n = Array.isArray(d.related_threads) ? d.related_threads.length : 0
+    const subj = d.event?.subject ?? 'meeting'
+    return `meeting prep: ${subj} + ${n} related thread(s)`
+  }
+  if (Array.isArray(d.threads)) return `${d.threads.length} thread(s)`
+  return result.result_summary ?? '(no result)'
+}
+
 // ─── Inbound captures (push direction: Outlook → board → triage) ────
 
 /** A captured thread is either fully extracted, or a sensitive stub (per the spec). */
