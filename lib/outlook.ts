@@ -123,3 +123,118 @@ export async function getOutlookResult(taskId: string): Promise<OutlookResult | 
   }
   return data as unknown as OutlookResult
 }
+
+// ─── Promote into initiative memory (with provenance) ────
+
+export interface MemoryAppend {
+  /** Exact heading line in the memory doc, e.g. '## Key Decisions'. */
+  section: string
+  /** Lines to append under that section (provenance is added automatically). */
+  lines: string[]
+}
+
+export interface PromoteSource {
+  person: string
+  subject: string
+  date: string // YYYY-MM-DD
+  threadId?: string
+}
+
+export interface PromoteOptions {
+  initiativeSlug: string
+  appends: MemoryAppend[]
+  source: PromoteSource
+  /** When true, returns the would-be content without writing. */
+  dryRun?: boolean
+}
+
+export interface PromoteResult {
+  ok: boolean
+  preview?: string
+  error?: string
+}
+
+/** Provenance marker appended to every promoted line. */
+function provenanceMarker(source: PromoteSource): string {
+  return ` *[via email: ${source.person}, "${source.subject}", ${source.date}]*`
+}
+
+/**
+ * Insert `lines` under a markdown `## Section` heading, before the next `## `
+ * heading (or at end of doc / end of file if it's the last section). If the
+ * section is missing, a new section is appended at the end of the document.
+ */
+export function appendUnderSection(content: string, section: string, lines: string[]): string {
+  // Anchor the heading to the start of a line (or start of doc) so a section
+  // name appearing in prose inside an earlier section is never matched.
+  const escaped = section.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const headingRe = new RegExp(`(^|\\n)(${escaped})(\\n|$)`)
+  const match = headingRe.exec(content)
+  if (!match) {
+    return `${content.trimEnd()}\n\n${section}\n${lines.join('\n')}\n`
+  }
+  const afterHeading = match.index + match[1].length + match[2].length
+  const rest = content.slice(afterHeading)
+  const nextHeadingRel = rest.search(/\n## /)
+  if (nextHeadingRel === -1) {
+    return `${content.trimEnd()}\n${lines.join('\n')}\n`
+  }
+  const insertAt = afterHeading + nextHeadingRel
+  const before = content.slice(0, insertAt).trimEnd()
+  const after = content.slice(insertAt)
+  return `${before}\n${lines.join('\n')}\n${after}`
+}
+
+/**
+ * Promote email-sourced intel into an initiative memory doc. Every appended
+ * line carries a [via email: …] provenance marker. Caller composes the exact
+ * lines (Claude does this after Yonatan confirms); this enforces provenance and
+ * the markdown structure. Use dryRun to preview before writing.
+ */
+export async function promoteToInitiativeMemory(opts: PromoteOptions): Promise<PromoteResult> {
+  const supabase = await getSupabase()
+
+  const { data: init, error: initErr } = await supabase
+    .from('initiatives' as any)
+    .select('id')
+    .eq('slug', opts.initiativeSlug)
+    .single()
+  if (initErr || !init) {
+    return { ok: false, error: `Initiative not found: ${opts.initiativeSlug}` }
+  }
+
+  const { data: mem, error: memErr } = await supabase
+    .from('content_sections' as any)
+    .select('id, content')
+    .eq('entity_id', (init as any).id)
+    .eq('section_type', 'memory')
+    .single()
+  if (memErr || !mem) {
+    return { ok: false, error: `Memory doc not found for ${opts.initiativeSlug}` }
+  }
+
+  const marker = provenanceMarker(opts.source)
+  const rawContent = (mem as any).content as string | null
+  if (!rawContent) {
+    return { ok: false, error: `Memory doc for ${opts.initiativeSlug} has empty content` }
+  }
+  let content = rawContent
+  for (const a of opts.appends) {
+    const marked = a.lines.map(l => `${l}${marker}`)
+    content = appendUnderSection(content, a.section, marked)
+  }
+
+  if (opts.dryRun) {
+    return { ok: true, preview: content }
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const { error: upErr } = await supabase
+    .from('content_sections' as any)
+    .update({ content, date: today, updated_at: new Date().toISOString() } as any)
+    .eq('id', (mem as any).id)
+  if (upErr) {
+    return { ok: false, error: upErr.message }
+  }
+  return { ok: true, preview: content }
+}
