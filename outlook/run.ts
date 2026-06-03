@@ -35,12 +35,14 @@ Commands:
           [--timeframe=<window>] [--initiative=<slug>]   Queue a thread-lookup
   results [--limit=10]                                    List recent completed results
   result <task-id>                                        Show one result in full
+  inbox                                                   List pending inbound captures pushed from Outlook
   sync-spec                                               Push agents/outlook-agent.md spec → context_store
 
 Examples:
   npx tsx outlook/run.ts request --query="payer rollout status" --person="Chen Alcalay" --slug=chen-alcalay --timeframe="last 60 days"
   npx tsx outlook/run.ts results --limit=5
   npx tsx outlook/run.ts result 257334f2-8f1f-4023-a947-1d8e603360ad
+  npx tsx outlook/run.ts inbox
   npx tsx outlook/run.ts sync-spec
 `)
     process.exit(0)
@@ -102,6 +104,24 @@ Examples:
           process.exit(1)
         }
         console.log(JSON.stringify(r, null, 2))
+        break
+      }
+
+      case 'inbox': {
+        const { listInboundCaptures } = await import('../lib/outlook.js')
+        const caps = await listInboundCaptures()
+        if (caps.length === 0) {
+          console.log('No pending inbound captures.')
+          break
+        }
+        console.log(`${caps.length} pending inbound capture(s):`)
+        for (const c of caps) {
+          const t = c.threads[0]
+          console.log(`\n${c.created_at?.slice(0, 10) ?? '????-??-??'}  ${c.id}`)
+          console.log(`  ${c.title}`)
+          if (c.note) console.log(`  note: ${c.note}`)
+          if (t) console.log(`  participants: ${(t.participants ?? []).join(', ')}`)
+        }
         break
       }
 
