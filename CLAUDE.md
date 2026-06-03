@@ -129,6 +129,9 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 |---|---|---|
 | "check Outlook", "anything from Outlook?", "what did I push?" | `npm run outlook:run check` | Triage each item: match to initiative/person/`current_focus`, propose a destination + action, and on his confirm promote it (initiative memory via `promoteToInitiativeMemory()` with `[via email: …]` provenance; or a human task/etc.). Then **tag the source task `filed`** so it drops off the sweep. Never auto-promote `sensitive` threads. |
 | "look up X in email", "find the thread with Y about Z" | `npm run outlook:run request --query=... [--person=...] [--slug=...] [--timeframe=...]` | Tell him to run the email agent in Outlook; read the result later with `check`. |
+| "prep me for the X meeting", "what do I need for my meeting with Y" | `npm run outlook:run meeting-prep "<meeting>" [--date=...]` | After he runs the email agent, read with `check`/`result <id>` and synthesize a prep brief (attendees→person slugs, initiative match, `current_focus`). |
+| "what's on my calendar about X", "my meetings this/next week" | `npm run outlook:run calendar [--query=...] [--person=...] [--timeframe=...]` | Read events with `check`/`result <id>`. |
+| "anything unanswered from Z", "digest of emails with Z" | `npm run outlook:run digest "<person>" [--focus=unanswered] [--timeframe=...]` | Read with `check`/`result <id>`; flag `awaiting_reply` threads. |
 
 Pushed captures are unrouted by design — Claude Code suggests where they belong. Outlook only ever writes `agent_tasks`; promotion to human tables is gated on Yonatan's confirmation.
 

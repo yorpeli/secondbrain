@@ -79,11 +79,11 @@ Confirm the subject captured and that it is queued for Claude Code triage.
   "mode": "production",
   "name": "Outlook Agent — Operating Spec",
   "purpose": "Two modes on the same board. PULL: process email-lookup tasks queued by other agents (run_loop + thread_lookup). PUSH: when Yonatan explicitly triggers it, capture the current thread and queue an inbound-capture task for Claude Code to triage (push). Read the mailbox only to satisfy a queued task or an explicit Yonatan push; extract under a strict privacy allowlist; write only to agent_tasks.",
-  "version": "1.1-push",
+  "version": "1.2-calendar-and-digests",
   "run_loop": [
     "1. Read this spec (you just did). State its version in your report.",
     "2. Get pending tasks: SELECT id, title, description, created_by FROM agent_tasks WHERE target_agent = 'outlook-agent' AND status = 'pending' ORDER BY created_at;",
-    "3. For EACH task, parse the JSON in description and act on its 'type'. In v1 the only supported type is 'thread-lookup'. If type is anything else, mark the task failed with result_summary = 'unsupported task type <type>' and move on.",
+    "3. For EACH task, parse the JSON in description and act on its 'type'. Supported pull types: 'thread-lookup' (thread_lookup), 'calendar-lookup' (calendar_lookup), 'meeting-prep' (meeting_research), 'person-digest' (person_digest). Use the matching spec section for input fields, steps, and result shape. If type is none of these, mark the task failed with result_summary = 'unsupported task type <type>' and move on.",
     "4. Claim before working: UPDATE agent_tasks SET status = 'picked-up', picked_up_by = 'outlook-agent', updated_at = now() WHERE id = '<id>';",
     "5. Execute the lookup against Outlook (see thread_lookup section).",
     "6. Write results back (see result_format and write_back).",
@@ -102,6 +102,16 @@ Confirm the subject captured and that it is queued for Claude Code triage.
   },
   "result_format": {
     "result_summary": "Plain-text, human-readable answer for Yonatan. Summaries only — no raw email text.",
+    "event_jsonb": {
+      "subject": "string",
+      "start": "ISO datetime",
+      "end": "ISO datetime",
+      "attendees": ["Full Name"],
+      "organizer": "Full Name",
+      "location": "string or null",
+      "online": "boolean",
+      "sensitive": false
+    },
     "result_details_jsonb": {
       "threads": [
         {
@@ -146,12 +156,51 @@ Confirm the subject captured and that it is queued for Claude Code triage.
       "initiative_slug": "optional routing hint — pass through to result_details, do not interpret"
     }
   },
+  "calendar_lookup": {
+    "description": "Read Yonatan's calendar and return matching events (no email).",
+    "input_fields": {
+      "query": "optional topic/keywords to filter events",
+      "person": "optional name/slug — restrict to events involving this person",
+      "timeframe": "window, e.g. 'next 7 days' (default if absent)"
+    },
+    "steps": [
+      "Read calendar events in the timeframe (filtered by query/person if given).",
+      "For each event, extract event_jsonb fields under the privacy allowlist. Apply sensitive_rule to events too (interviews, comp, HR, medical, personal → {subject_topic, sensitive:true} only).",
+      "Write result_details {\"events\": [...], \"not_found\": <bool>}."
+    ]
+  },
+  "meeting_research": {
+    "description": "Prep for a specific meeting: find the calendar event AND the email threads related to it.",
+    "input_fields": {
+      "meeting": "subject/keywords identifying the meeting (required)",
+      "date": "optional date/window to disambiguate"
+    },
+    "steps": [
+      "Find the calendar event matching 'meeting' (and 'date' if given).",
+      "Find email threads related to that meeting (by subject, attendees, and topic) and extract them under the privacy allowlist (same fields as result_format.result_details_jsonb.threads).",
+      "Write result_details {\"event\": <event_jsonb or null>, \"related_threads\": [...], \"not_found\": <bool>}. Claude Code builds the prep brief from this — do not editorialize."
+    ]
+  },
+  "person_digest": {
+    "description": "Summarize recent email activity with a specific person.",
+    "input_fields": {
+      "person": "name or slug (required)",
+      "timeframe": "window, e.g. 'last 14 days' (default if absent)",
+      "focus": "optional emphasis, e.g. 'unanswered' / 'needs reply'"
+    },
+    "steps": [
+      "Find threads involving the person within the timeframe.",
+      "Extract each under the privacy allowlist; set 'awaiting_reply': true on threads where Yonatan owes a response (especially when focus = unanswered).",
+      "Write result_details {\"person\": \"<name>\", \"threads\": [...], \"not_found\": <bool>}."
+    ]
+  },
   "privacy_allowlist": {
     "may_persist": [
       "Claude-generated SUMMARIES of decisions, action items, commitments, deadlines",
       "Participant NAMES (sender/recipients) and message dates",
       "Subject line and a short topic tag",
-      "Outlook thread/message ID as a pointer back (NOT content)"
+      "Outlook thread/message ID as a pointer back (NOT content)",
+      "Calendar event metadata: subject, start/end, attendee NAMES, organizer, location — same summaries-only discipline as email"
     ],
     "never_persist": [
       "Verbatim email body text — summarize only, never copy raw text",
