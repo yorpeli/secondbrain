@@ -5,7 +5,8 @@
  * here (agent_tasks, target_agent = 'outlook-agent'), executes them against the
  * mailbox/calendar, and writes results back. This module is the Claude Code
  * side: queue requests, read what came back, and promote results into human
- * tables (with provenance). Pull-only: we never act on email except via a task.
+ * tables (with provenance). Two directions: pull results from the agent, and
+ * list inbound captures the agent pushes for triage. Acts only on demand.
  */
 
 import { createTask } from './tasks.js'
@@ -248,12 +249,15 @@ export async function promoteToInitiativeMemory(opts: PromoteOptions): Promise<P
 
 // ─── Inbound captures (push direction: Outlook → board → triage) ────
 
+/** A captured thread is either fully extracted, or a sensitive stub (per the spec). */
+export type CapturedThread = OutlookThread | { subject_topic: string; sensitive: true }
+
 export interface InboundCapture {
   id: string
   title: string
   note: string | null
   captured_at: string | null
-  threads: OutlookThread[]
+  threads: CapturedThread[]
   created_at: string | null
 }
 

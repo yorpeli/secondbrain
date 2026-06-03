@@ -117,10 +117,11 @@ Examples:
         console.log(`${caps.length} pending inbound capture(s):`)
         for (const c of caps) {
           const t = c.threads[0]
-          console.log(`\n${c.created_at?.slice(0, 10) ?? '????-??-??'}  ${c.id}`)
+          const when = c.captured_at ?? c.created_at?.slice(0, 10) ?? '????-??-??'
+          console.log(`\n${when}  ${c.id}`)
           console.log(`  ${c.title}`)
           if (c.note) console.log(`  note: ${c.note}`)
-          if (t) console.log(`  participants: ${(t.participants ?? []).join(', ')}`)
+          if (t && 'participants' in t) console.log(`  participants: ${(t.participants ?? []).join(', ')}`)
         }
         break
       }
