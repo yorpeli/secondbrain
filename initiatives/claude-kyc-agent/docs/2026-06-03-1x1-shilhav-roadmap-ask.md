@@ -24,7 +24,7 @@ Yonatan asked Shilhav for a **roadmap / "word map"** — explicitly a **matrix**
 
 | Placement ↓ \\ Maturity → | Testing | Near-real-time | Real-time |
 |---|---|---|---|
-| **Pre-rep** (before agent) | | | |
+| **Pre-rep** (before the rep sees the ticket) | | | |
 | **With-rep** (assist) | | | |
 | **Post-rep** (QA) | | | |
 | **Real-time onboarding** | | | |
