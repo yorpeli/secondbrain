@@ -1,0 +1,228 @@
+{
+  "_meta": {
+    "analyzed": "2026-06-03",
+    "source": "memory doc + workspace docs + stakeholders + linked tasks + context_store.current_focus",
+    "note": "Point-in-time analysis. Regenerate when refreshing the review. P0s authored directly; P1s via parallel analysis agents."
+  },
+  "ai-native-team-structure": {
+    "tldr": "The thinking is done and genuinely strong — operating model published, hiring process designed, recruitment opened. But execution has stalled: no one is hired (lead PM candidate Denis declined in April), the engineer role is still undefined, and no pod has been stood up. The risk now is the exact thing Yonatan said he didn't want — a brilliant manifesto that gets forgotten. The bias needs to shift from research to commitment.",
+    "signals": [
+      { "label": "Phase", "value": "Model defined & published; hiring designed; recruitment active — but 0 hired, 0 pods live", "tone": "warn" },
+      { "label": "Blocker", "value": "Engineer role (half the pod) undefined since March — pending Tal/Tomer", "tone": "risk" },
+      { "label": "Hiring", "value": "iTalent active on Principal PM + Director; first candidate declined Apr 2026, no successor named", "tone": "risk" },
+      { "label": "Sponsor", "value": "Liat Ashkenazi — recommendation (\"here's what we think, next is standing up the first team\") still pending", "tone": "warn" },
+      { "label": "Staleness", "value": "Workspace last touched ~47d ago (Apr 17); memory doc 75d. Dark on a P0.", "tone": "warn" },
+      { "label": "Tracking", "value": "No assigned tracking agent, no linked tasks", "tone": "info" }
+    ],
+    "recommendation": [
+      "Make the recommendation to Liat now — a concrete first-pod proposal (domain + composition + infra prerequisites + success criteria), not a perfected transition playbook. Force a go/no-go.",
+      "Unblock the engineer role this week: a 1-hour decision with Tal/Tomer. It has been \"pending\" for 3 months and it gates the whole pod.",
+      "Refresh the memory doc and confirm the live recruitment pipeline — 47 days dark on a P0 is itself the signal.",
+      "Apply the initiative's own thesis to itself: \"building the wrong thing perfectly is the new risk\" — commit to a real pod before more research."
+    ]
+  },
+  "air-squared": {
+    "tldr": "An initiative whose entire premise is speed has been static for ~70 days. It's still pre-staffing and pre-first-experiment: the core team (2 devs + 1 PM) isn't hired, no experiment has shipped, and there's no throughput target. For a \"prove by doing\" mandate, the gap between the promise (ship fast) and the reality (nothing shipped) is the headline risk — and Oren already rejected the slower infra-framing once.",
+    "signals": [
+      { "label": "Contradiction", "value": "\"Speed above all\" initiative — yet ~70d with no experiment run", "tone": "risk" },
+      { "label": "Staffing", "value": "Core team (2 devs + 1 PM) not identified; deck to Oren for headcount is the gate", "tone": "risk" },
+      { "label": "Resource lever", "value": "Gaurav's India team (~50 eng, ~2h every morning) available but unused", "tone": "info" },
+      { "label": "History", "value": "Oren rejected the prior infra/platform framing — mandate is execution, not enablement", "tone": "warn" },
+      { "label": "Framework", "value": "Discovery → MVP → Run 3wk → Keep/Toss → Scale defined; no \"Beat\" target set", "tone": "ok" },
+      { "label": "Staleness", "value": "Last update ~70d ago (Mar 25). Oldest workspace doc of the three P0s.", "tone": "warn" }
+    ],
+    "recommendation": [
+      "Run one experiment now with borrowed hands — use Gaurav's India morning capacity rather than waiting for dedicated headcount. Pick a single bounded problem and run Discovery→MVP in ~2 weeks.",
+      "Make the result, not the deck, the resourcing argument to Oren — a shipped internal experiment beats another platform pitch (which he already rejected).",
+      "Set a minimal \"Beat\" target (e.g. 1 experiment to Keep/Toss per N weeks) so throughput is measurable.",
+      "If it genuinely can't move in the next few weeks, question whether it should remain P0 — a static speed initiative is a contradiction."
+    ]
+  },
+  "yael-maternity-transition": {
+    "tldr": "A well-structured handover that is now 94 days old — every deadline in it has passed, including Nishant's May 13 India start, so the coverage gap it was created to manage should already be closed. The doc has outlived its snapshot. This P0 likely doesn't need continued tracking; it needs a \"did it hold?\" close-out and a plan for Yael's return.",
+    "signals": [
+      { "label": "Status", "value": "All dated items now in the past: Australia plan (Mar 3), India plan (Mar 12), Nishant start (May 13) — India gap should be closed", "tone": "ok" },
+      { "label": "Staleness", "value": "94d since last update (Mar 1) — oldest P0; doc no longer reflects reality", "tone": "risk" },
+      { "label": "Open forward item", "value": "India System Audit report due Jul 16, 2026", "tone": "warn" },
+      { "label": "Return plan", "value": "No recorded return date / reverse-handover plan for Yael", "tone": "warn" },
+      { "label": "Load risk", "value": "Ido absorbed Hila's license items on top of Compliance & Data Quality — verify it held", "tone": "info" }
+    ],
+    "recommendation": [
+      "Run a close-out review, not more tracking: confirm Nishant onboarded & India covered, and that the Australia/India plans landed.",
+      "Pin down Yael's return date and plan the reverse handover — the one genuinely forward-looking piece.",
+      "Keep the Jul 16 India System Audit alive as a tracked item; migrate it to the relevant licenses initiative.",
+      "If coverage held, downgrade from P0 or close — a stale P0 masks whether the transition actually worked."
+    ]
+  },
+  "vendor-optimization": {
+    "tldr": "A genuinely active, well-instrumented Q1 KYC vendor program (Au10tix fraud 70%→98%, authenticity orchestration ~100%, Persona OCR rollout underway) that has gone quiet — the memory doc hasn't been touched since 2026-03-12, ~83 days ago, and the whole framing is still 'Q1' two-plus months into Q2. Two unresolved risks were live at last update and have no recorded resolution: RAI is missing 21% of fraud caught by Persona, and the UiPath sunset (Jul 1 target, now ~4 weeks out) depended on Persona absorbing 90%+ of volume. It does not appear on Yonatan's current_focus, so despite the P1 label it is effectively un-watched at the sponsor level.",
+    "signals": [
+      { "label": "Staleness", "value": "Memory last updated 2026-03-12 — ~83 days stale; still framed as 'Q1' in June", "tone": "risk" },
+      { "label": "Deadline", "value": "UiPath sunset Jul 1 (~4 wks out); at last update only ~30-40% of traffic on Persona, no progress recorded since", "tone": "warn" },
+      { "label": "Fraud risk", "value": "RAI misses 21% of fraud caught by Persona — flagged Mar 10, no remediation plan recorded", "tone": "risk" },
+      { "label": "Owner", "value": "Elad Schnarch (lead), Yonatan sponsor; assigned_agent vendor-optimization-pm — owned but not in current_focus", "tone": "warn" },
+      { "label": "Tracking", "value": "1 linked task ('Validate AiPrise eKYB results'), P1, due 2026-03-21 — overdue ~74 days, still 'todo'", "tone": "risk" },
+      { "label": "Wins", "value": "Au10tix fraud verdict 70%→98%, auth orchestration ~100%, T1-2 match 68% (beat 67% target)", "tone": "ok" }
+    ],
+    "recommendation": [
+      "Get a fresh status from Elad on UiPath cutover — confirm whether Persona has hit 90%+ volume absorption with Jul 1 only ~4 weeks away, or reset the date.",
+      "Demand the RAI 21%-missed-fraud remediation plan; this is an unmitigated fraud-coverage gap that has sat open since March.",
+      "Close out or kill the overdue AiPrise eKYB validation task (due Mar 21, still todo) and confirm with Vova whether the cross-reference ever happened.",
+      "Direct the vendor-optimization-pm agent to refresh the memory doc into a Q2 view and decide if this P1 belongs back on current_focus."
+    ]
+  },
+  "india-license": {
+    "tldr": "P1 license implementation with a hard regulatory deadline of July 16, 2026 (and an internal June 1 SARS submission target). The memory doc was last updated 2026-03-13 — ~82 days stale as of 2026-06-03, meaning the June 1 internal SARS submission deadline has passed with NO recorded outcome and the July 16 hard deadline is ~6 weeks out with no fresh signal. Ownership churned heavily (Yael maternity → Meital → Noga bridge; Nishant due May 13) and the initiative has no assigned_agent, no stakeholders rows, and no tasks — tracking has effectively gone dark on the highest-stakes item in the portfolio (~$25M annual revenue at risk).",
+    "signals": [
+      { "label": "Staleness", "value": "Memory last updated 2026-03-13 — ~82 days dark on a P1 with regulatory deadlines", "tone": "risk" },
+      { "label": "Deadline passed", "value": "Internal June 1 SARS submission deadline elapsed with no recorded outcome", "tone": "risk" },
+      { "label": "Deadline imminent", "value": "Hard regulatory deadline July 16, 2026 (incl. cyber cert) — ~6 weeks out, no fresh status", "tone": "risk" },
+      { "label": "Ownership", "value": "Owner churn: Sitara→Meital→Noga bridge; Nishant due May 13 — no dedicated CLM migration PM ever confirmed", "tone": "warn" },
+      { "label": "Tracking gaps", "value": "No assigned_agent, zero stakeholder rows in DB, zero tasks — tracking lives only in stale memory doc", "tone": "risk" },
+      { "label": "Tech risk", "value": "Import MVP scales to only 1-5 customers; R&D (Gaurav/Michelle) flagged tech-debt — exists solely for SAR audit demo", "tone": "warn" }
+    ],
+    "recommendation": [
+      "Get an immediate live status on the June 1 SARS submission and July 16 readiness from Meital/Nishant — confirm whether the deadline was met before the regulatory window closes.",
+      "Refresh the memory doc now: ~82 days of unrecorded events (Nishant onboarding, Noga bridge, June 1 outcome) need to be captured before the July 16 deadline.",
+      "Assign a PM agent and confirm the dedicated migration-track CLM PM — the open ownership question from March is still unresolved.",
+      "Backfill stakeholder and task records in the DB so this P1 is trackable beyond a single prose memory doc."
+    ]
+  },
+  "ai-academy-product": {
+    "tldr": "The Foundry is a P1 with real momentum through Q1 — dual-track Academy (37 sessions) plus a Community pillar, a set launch path (announce Mar 22-23, lessons post-Passover ~Apr 26). But the canonical memory doc is 82 days stale (last updated Mar 13); only the workspace-memory has moved, last touched May 3 (31 days ago). All launch-gating items — entry/exit criteria, first-cohort scoping with Tal, CISO security framing — were still open in March with no recorded closure, and as of 2026-06-03 every launch date has passed with no confirmation the cohort actually started. Bottom line: either launch happened and the system never captured it, or it slipped silently — both are reasons to check now.",
+    "signals": [
+      { "label": "Staleness", "value": "Canonical memory doc 82d stale (Mar 13); workspace-memory 31d (May 3)", "tone": "risk" },
+      { "label": "Deadlines passed", "value": "Announce Mar 22-23 and lessons ~Apr 26 both past as of Jun 3 — no launch confirmation recorded", "tone": "risk" },
+      { "label": "Launch gates open", "value": "Entry/exit criteria, first-cohort scoping with Tal, CISO framing all still TBD in last notes", "tone": "warn" },
+      { "label": "Staffing gaps", "value": "16 of 37 sessions unassigned (Product 5/14, Eng 11/23); all content 'not started'", "tone": "warn" },
+      { "label": "Positioning", "value": "Sponsor is Mor Barazani (owns AI Transformation) — keep Foundry as enablement, not 'transformation'", "tone": "info" },
+      { "label": "Tracking", "value": "assigned_agent=NULL, no DB tasks, last 1:1-level signal is Yonatan self-designing Session 12", "tone": "warn" },
+      { "label": "Priority drift", "value": "current_focus (Apr 2) lists Foundry as P1 behind two P0s — attention is elsewhere", "tone": "info" }
+    ],
+    "recommendation": [
+      "Confirm whether the cohort actually launched post-Passover — if not, reset the timeline and update the memory doc, which is 82 days stale and may be hiding a silent slip.",
+      "Force-close the three launch gates with named owners: entry/exit criteria, first-cohort session subset (decide with Tal), and the CISO enablement conversation.",
+      "Drive the 16 unassigned session leads to closure and kick off content development (Omer outreach) — content is still 'not started' across both tracks.",
+      "Assign a PM agent (assigned_agent is NULL) and reconcile the diverging memory vs workspace-memory docs so tracking stops relying on Yonatan's manual notes."
+    ]
+  },
+  "clm-full-rollout": {
+    "tldr": "On-Track to the H1 finish line. The June 3 CLM H1 Strategic Roadmap (CLM Program Office, the live weekly source of truth) shows the program at 54% → 100% by a hard June 15 deadline. China D2P is 100% live (May 10); D2P+Payers has 12 countries live at 50%; HK D2P, Mobile, and ENT Partners (~85%) all converge on June 15. The earlier alarms are resolved or superseded — the real target was always June 15 (not June 1), and the Mar-era UK routing leak is now an actively-tracked 'Redirect 4-step→CLM' workstream. Risk is now concentrated in the June 8–15 window, with India formally pushed to H2.",
+    "signals": [
+      { "label": "Status", "value": "On-Track — 54% → 100% by hard deadline June 15 (~12 days out) [via CLM H1 Roadmap, Jun 3]", "tone": "ok" },
+      { "label": "China D2P", "value": "✅ 100% live since May 10 (excl. partners); CN & HK Partners + Selfie planned mid-June", "tone": "ok" },
+      { "label": "Critical risks (Jun 15)", "value": "3 critical: Banking partnerships (in testing, Jun 4), Global/HK E2E issues (Jun 11), Selfie rollout (in dev, Jun 11)", "tone": "risk" },
+      { "label": "Deadline concentration", "value": "D2P+Payers, HK D2P, and Mobile all bunch on a single Jun 15 100% date — little slack", "tone": "warn" },
+      { "label": "UK leak → tracked", "value": "Former ~40% 4-step leak is now the 'Redirect 4-step→CLM' workstream (web: Shany, mobile: Almog, Jun 11) — no longer an open HIGH blocker", "tone": "info" },
+      { "label": "Scope / hygiene", "value": "India formally deferred to H2 (Aug 2026); target_date now set to Jun 15; assigned_agent still NULL", "tone": "info" }
+    ],
+    "recommendation": [
+      "Watch the June 8–15 critical window — Banking partnerships is the tightest (in testing, due Jun 4); confirm it clears, then GBT settlement (Jun 8) and Banking 100% (Jun 15, tentative).",
+      "Pressure-test the single Jun 15 date: D2P+Payers, HK D2P, and Mobile all hit 100% that day — confirm each is validated (Mobile is gated on the May 25% check) so they don't fail together.",
+      "Treat the 'Redirect 4-step→CLM' workstream (Shany/Almog, Jun 11) as the formal closeout of the old UK leak — verify web AND mobile both land.",
+      "Close the last hygiene gap: assign a PM agent so this P1 isn't tracked only via the SharePoint roadmap + memory doc."
+    ]
+  },
+  "partners-rollout": {
+    "tldr": "Live and near the finish line — not the dark, unverified initiative the record implied. An email refresh (Mor Saar, Jun 3) closed a 71-day reporting gap: the CLM Enterprise Partner Rollout went 🔴 RED (May 18) → 🟠 Medium (Jun 3) and is tracking to a June 15 full-completion target. Most of the program landed in late May/early June (Cards live May 31, Mirakl Ulta Jun 1, China/HK ramping). The remaining real risk is narrow: Airbnb 100% and Banking Partnerships ride on the June 8 window, and Cards shipped before its legal question (company card issuance) is resolved. DB tracking hygiene is still weak — the program lives in email, not in the system.",
+    "signals": [
+      { "label": "Status", "value": "🟠 Medium (Jun 3), up from 🔴 RED (May 18); tracking to June 15 full-completion target [via email: Mor Saar, Jun 3]", "tone": "ok" },
+      { "label": "Next critical window", "value": "June 8 — Airbnb 100%, GBT Regulated Settlement (Trendyol), Banking Partnerships; slip here puts June 15 at risk", "tone": "warn" },
+      { "label": "Cards legal risk", "value": "Rolled out May 31 BUT a hard-coded company-exclusion + possible MasterCard-level restriction still pending legal opinion (Bella Glozman)", "tone": "risk" },
+      { "label": "Progress (late May–Jun)", "value": "Cards live May 31; Mirakl Ulta Jun 1; China/HK eBay + strategic partners ramped 10%→25%; CN/HK T2/T3 non-strategic at 100%", "tone": "ok" },
+      { "label": "Record gap closed", "value": "Memory was 71d stale (Mar 24); refreshed Jun 3 via Outlook — the 'dark since March' was a tracking gap, not a stall", "tone": "info" },
+      { "label": "Tracking hygiene", "value": "Still no assigned_agent / no stakeholder rows in DB; cohort-adjusted CVR (26% vs 55%) still owed by Estella", "tone": "warn" }
+    ],
+    "recommendation": [
+      "Treat June 8 as the gate: confirm Airbnb 100%, GBT Regulated Settlement (Trendyol), and Banking Partnerships land — they're what stands between Medium and the June 15 completion.",
+      "Don't call Cards done until Bella's legal opinion on company card issuance (incl. the MasterCard-level question) closes — it shipped May 31 but the legal risk is open.",
+      "Still chase the cohort-maturity-adjusted CVR from Estella (26% vs 55% gap) for exec review.",
+      "Fix tracking hygiene: set assigned_agent and add Mor Saar / Estella / Ira as stakeholders so the program stops living only in email."
+    ]
+  },
+  "t1-localization": {
+    "tldr": "A P1 multi-country localization initiative whose memory doc has gone dark for ~84 days (last update 2026-03-11) despite a churning environment — Yael's maternity-driven handover to Eliya was logged but never followed up. Q1 showed real wins (eKYB UK 51%, Brazil 53% vs 33-38% targets; UK legal text in 3 weeks) but execution was mixed: 4 of 11 items at-risk/delayed and 2 postponed. All near-term deadlines (Mar 31 Local UX, Apr 8 EIN impact) have passed with no recorded outcome, and the initiative no longer appears in Yonatan's current_focus.",
+    "signals": [
+      { "label": "Staleness", "value": "Memory last updated 2026-03-11 — ~84 days stale, no Q2 entries", "tone": "risk" },
+      { "label": "Passed deadlines, no outcome", "value": "Mar 31 Local UX (BR/UK/US) and Apr 8 EIN CVR impact both due — zero verification logged", "tone": "risk" },
+      { "label": "Impact results", "value": "eKYB UK 51% / Brazil 53% vs 33-38% targets — major overperformance", "tone": "ok" },
+      { "label": "Ownership in flux", "value": "Yael on maternity; Eliya now leads reporting to Yonatan — handover logged Mar 11, no follow-up since", "tone": "warn" },
+      { "label": "At-risk / postponed backlog", "value": "US eCollection (1 vendor→3, corp delay), POR OCR (security block), Legal Entity prefill UK/US; SG eCollection & Email Reseller US postponed", "tone": "warn" },
+      { "label": "Tracking hygiene gaps", "value": "Q2 SG/UAE solutions due this quarter; no tasks, no stakeholder rows, India in title but absent from objective", "tone": "warn" }
+    ],
+    "recommendation": [
+      "Direct hub-countries-pm to run a Q2 refresh with Eliya now: confirm Mar 31 Local UX deliveries, Apr 8 EIN CVR result, and US eCollection vendor status.",
+      "Get a status on the Q2 Singapore & UAE solutions (and India scope) — these are the only forward commitments and have no progress recorded.",
+      "Confirm the post-maternity ownership model is holding (Eliya direct-report, weekly syncs) and close the pending Sumsub POC agreement and HR coordination with Sarit.",
+      "Backfill the DB: add stakeholder rows and convert the 11 Q1 tracker items into tasks so the initiative is no longer tracked solely in free-text memory."
+    ]
+  },
+  "licenses-regulation": {
+    "tldr": "P1 multi-country regulatory initiative (Australia, Canada, Israel, Japan) that has gone quiet — memory doc last updated 2026-03-13, ~82 days stale, and absent from Yonatan's current_focus (last updated 2026-04-02). Yael Feldhiem (L&R owner) is on maternity leave; Hila Medina Kraus runs the markets and Ido Seter was asked to cover with scope/cadence still TBD. The Australia EOQ1 deadline has long passed with no recorded outcome, and all three tracked tasks are still 'todo' with due dates 70+ days overdue.",
+    "signals": [
+      { "label": "Staleness", "value": "Memory last updated 2026-03-13 (~82 days ago); no update through Q2", "tone": "risk" },
+      { "label": "Australia EOQ1 deadline", "value": "Hard EOQ1 license deadline passed (Mar 31) with regulatory-finding risk; no outcome recorded", "tone": "risk" },
+      { "label": "Overdue tasks", "value": "All 3 tracked tasks still 'todo' — AU risk assessment due 2026-03-12, IL safeguarding & Canada report due 2026-03-21", "tone": "risk" },
+      { "label": "Ownership gap", "value": "Yael on maternity leave; Hila runs markets, Ido Seter coverage scope/cadence still TBD since Mar 1", "tone": "warn" },
+      { "label": "Not in current_focus", "value": "Absent from Yonatan's priorities (current_focus last updated 2026-04-02) — no active tracking", "tone": "warn" },
+      { "label": "Canada progress", "value": "Revenue migration at 81.9% (managed 90.4%), above 80% KPI as of Mar 7 — only bright spot", "tone": "ok" }
+    ],
+    "recommendation": [
+      "Get a status update from Hila on the Australia EOQ1 outcome immediately — confirm whether the license requirements were met or onboarding had to stop, given the regulatory-finding/fines risk.",
+      "Resolve the coverage gap: lock the Ido Seter scope/cadence for Hila's items (open since Mar 1) so L&R has a clear DRI during Yael's leave.",
+      "Close out or re-date the 3 overdue tasks (AU risk assessment, IL safeguarding monitoring controls, Canada regulator-report fix + API testing) — all 70+ days past due with no recorded resolution.",
+      "Assign a PM agent (assigned_agent is NULL) and refresh the memory doc so this P1 stops drifting unmonitored through Q2."
+    ]
+  },
+  "delegated-onboarding": {
+    "tldr": "P1 initiative with $2.5M-$5M revenue upside, still in discovery phase ~62 days after its last memory update (Apr 2). A newer fragment (Apr 15, ~49d ago) shows a CSP strategy deck for Yaron was assigned and is still listed as 'waiting on' in current_focus as of Apr 2 snapshot — likely the freshest live thread. No dedicated dev team and an unvalidated CLM-bypass dependency are the two CRITICAL risks that gate everything. No deadline, no tasks, and no PPP/Q-Plan tracking exist, so this initiative has effectively gone quiet at the systems level despite high strategic stakes.",
+    "signals": [
+      { "label": "Staleness", "value": "Memory last updated Apr 2 (~62d); newest fragment Apr 15 (~49d) — no update in ~7 weeks", "tone": "warn" },
+      { "label": "Dev resourcing", "value": "CRITICAL: no dedicated dev team; progress depends on R&D goodwill (Daniel volunteered)", "tone": "risk" },
+      { "label": "Technical feasibility", "value": "CRITICAL P0 unknown: can PRM inject data and bypass CLM front-end steps? If not, delegation model breaks", "tone": "risk" },
+      { "label": "Tracking coverage", "value": "Zero tasks, no PPP swimlane, no Q-Plan items — invisible in operational tracking", "tone": "risk" },
+      { "label": "Open threads gone quiet", "value": "Yaron pressure talk, first CSP discovery interview, board comp slide all 'status unknown' since Mar 29; 5 discovery gaps still open", "tone": "warn" },
+      { "label": "Strategy state", "value": "Strategy v2 delivered Mar 31; CSP deck for Yaron assigned Apr 15 — momentum exists but no deadline or pilot date set", "tone": "info" }
+    ],
+    "recommendation": [
+      "In next Meital 1:1, get hard status on the CSP-for-Yaron deck (assigned Apr 15, still in your waiting-on list) and close the loop on whether the first CSP discovery interview happened.",
+      "Force a resolution on the two CRITICAL blockers: secure a dev allocation commitment (not goodwill) and get an explicit eng feasibility answer on CLM step-bypass before any pilot is scoped.",
+      "Set a hard date/owner — add a PPP swimlane or Q-Plan item so this P1 stops being untracked, and confirm whether you spoke to Yaron about easing short-term pressure.",
+      "Refresh the memory doc — it is ~7 weeks stale on a P1 with $2.5M-$5M upside; reconcile the Apr 15 CSP framing against the broader 'delegated onboarding' naming you've been coaching toward."
+    ]
+  },
+  "dlc-ai-era": {
+    "tldr": "v1 of the DLC framework (document + visual) was completed Mar 4, 2026, but the initiative has gone silent since — the memory doc hasn't been touched in ~91 days. The single remaining gate, review by co-owner Mor Lalush-Regev and Tal Arnon, was still pending as of the Apr 2 current_focus and has no evidence of completion. No owner_id, no assigned_agent, no target date, and no tracked tasks mean a finished v1 deliverable is effectively stalled before its Guild rollout.",
+    "signals": [
+      { "label": "Staleness", "value": "Memory last updated Mar 4, 2026 — ~91 days stale as of Jun 3", "tone": "risk" },
+      { "label": "DLC doc review", "value": "Mor Lalush-Regev / Tal Arnon review still listed as waiting_on in current_focus (Apr 2) — never marked done", "tone": "risk" },
+      { "label": "Deliverables", "value": "v1 .docx + visual .pptx complete; ready to share/present but not yet sent to reviewers", "tone": "warn" },
+      { "label": "Ownership", "value": "owner_id NULL, assigned_agent NULL; co-owned with Mor Lalush-Regev but no accountable tracker", "tone": "warn" },
+      { "label": "Operationalization", "value": "No target_date, no tasks, no Guild rollout/training date — 'when does it become operational' is an open question", "tone": "warn" },
+      { "label": "Sibling alignment", "value": "Sits under the same AI-ways-of-working theme as ai-native-team-structure (a P0 in current_focus); risk of drift if not sequenced together", "tone": "info" }
+    ],
+    "recommendation": [
+      "Send the completed v1 doc to Mor Lalush-Regev and Tal Arnon today with a hard review deadline — it has been ready since Mar 4 and is the only blocker to rollout.",
+      "Assign an owner and PM agent (owner_id/assigned_agent are NULL) so this finished deliverable doesn't keep sliding.",
+      "Set a concrete Guild presentation / training date to move from 'document done' to 'operational,' resolving the open 'when does this become operational' question.",
+      "Explicitly sequence with the P0 ai-native-team-structure initiative so the DLC framework and the team-structure/JD work tell one coherent AI-native story to Oren."
+    ]
+  },
+  "ai-powered-pm-team": {
+    "tldr": "P1 initiative to make every CLM PM fluent in AI-assisted workflows within 6 months of ~Feb 2026 (implied ~Aug 2026 target). Memory doc last touched 2026-03-02 — ~93 days stale — and has gone quiet since the strong post-workshop momentum. The current_focus (2026-04-02) shows attention has shifted to successor AI initiatives (AIR², The Foundry/AI Academy, AI-Native Team Structure), with this initiative not in top priorities, suggesting it's being subsumed rather than actively driven.",
+    "signals": [
+      { "label": "Staleness", "value": "Memory last updated 2026-03-02 — ~93 days ago; no updates since post-workshop high", "tone": "risk" },
+      { "label": "Momentum risk", "value": "Yonatan's own flag: 'biggest challenge is preventing workshop from becoming a one-time event' — no follow-up logged", "tone": "risk" },
+      { "label": "No tracking mechanism", "value": "Open since March: Cursor usage leaderboards never requested; 6-month fluency goal still has no milestones", "tone": "warn" },
+      { "label": "Uneven adoption", "value": "High: Elad, Ido. Some: 5 PMs. Not yet observed: Meital, Yaniv, Noga, Hila, Nishant — no enablement plan executed", "tone": "warn" },
+      { "label": "Attention has shifted", "value": "current_focus (Apr 2) centers on AIR², Foundry, AI-Native Team Structure; this initiative absent from top priorities", "tone": "info" },
+      { "label": "No deadline / no tasks", "value": "target_date NULL, zero tasks and zero stakeholder rows in DB despite P1 status", "tone": "warn" }
+    ],
+    "recommendation": [
+      "Decide explicitly: is this initiative still live, or has it been absorbed into AIR²/Foundry/AI-Native Team Structure? Update status and memory accordingly to stop it drifting.",
+      "Close the long-open tracking gap — request Cursor usage leaderboards now and set 2-3 concrete fluency milestones against the ~Aug 2026 goal.",
+      "Action the not-yet-observed PMs (Meital, Yaniv, Noga, Hila, Nishant): pair them with high-usage Elad/Ido or schedule targeted enablement before adoption plateaus.",
+      "Backfill the DB hygiene — add a target_date, the named stakeholders, and at least milestone tasks so a P1 has trackable structure."
+    ]
+  }
+}

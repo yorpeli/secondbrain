@@ -104,6 +104,17 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 | Vendor Optimization PM | `vendor-optimization-pm` | `pm_team/vendor-optimization/` | KYC vendor portfolio, POC lifecycle, coverage gap analysis, vendor deprecation tracking |
 | AB Testing | `ab-testing` | `ab-testing/` | CLM experiment registry, Looker-based statistical analysis, Asana lifecycle tracking |
 | Outlook Agent | `outlook-agent` | `outlook/` + `agents/outlook-agent.md` | Claude-for-Outlook bridge — pull-only email/calendar lookups via agent_tasks, results promoted to initiative memory with provenance |
+| Initiative Review | `initiative-review` | `agents/initiative-review.md` + `scripts/initiative-review/` | Visual portfolio review — gathers active initiatives + memory docs, dispatches analysis sub-agents for TL;DR/recommendation cards, renders a self-contained offline HTML review page |
+
+**Initiative Review — natural-language trigger (Yonatan never runs the CLI; you do):** When Yonatan says any of the below, run it for him and handle the rest conversationally. See [agents/initiative-review.md](agents/initiative-review.md) for the full procedure and the analysis sub-agent prompt template.
+
+| Yonatan says (or similar) | You do |
+|---|---|
+| "review the initiatives", "run an initiative review", "let's look at the open initiatives" | Decide path. If analysis is fresh → **render-only**: `npm run initiative-review`, then `open output/initiatives/initiative-review.html`. If analysis is stale/missing or he wants a fresh take → **full review**: gather, dispatch one read-only analysis sub-agent per substantive initiative (parallel), merge results into `scripts/initiative-review/highlights.json` (bump `_meta.analyzed`), then `npm run initiative-review` + open. Then walk P0→P1 and surface the cross-cutting pattern. |
+| "refresh the review", "rebuild the review page" | `npm run initiative-review` + open (render-only from current Supabase data + existing highlights). |
+| "re-analyze X", "add X to the review" | Dispatch the analysis sub-agent for that slug, merge into `highlights.json`, re-render. |
+
+Default scope: all active, tiered (full cards for substantive memory docs; a "not analyzed — too sparse" banner for thin/empty ones). `blocked` initiatives render in a greyed **"On Hold"** group at the bottom (cards kept). Closing/parking an initiative is a status change — `completed` drops it off entirely; `blocked` moves it to On Hold. The HTML + a data-layer JSON land in `output/initiatives/`.
 
 ### Dev Team (UI App)
 
