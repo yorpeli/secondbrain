@@ -359,6 +359,7 @@ export async function requestPersonDigest(input: PersonDigestInput): Promise<str
 export function summarizeResultLine(result: OutlookResult): string {
   const d = result.result_details as any
   if (!d) return result.result_summary ?? '(no result)'
+  if (d.not_found) return result.result_summary ?? 'not found'
   if (Array.isArray(d.events)) return `${d.events.length} event(s)`
   if (d.event !== undefined || Array.isArray(d.related_threads)) {
     const n = Array.isArray(d.related_threads) ? d.related_threads.length : 0

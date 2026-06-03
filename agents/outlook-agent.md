@@ -85,7 +85,7 @@ Confirm the subject captured and that it is queued for Claude Code triage.
     "2. Get pending tasks: SELECT id, title, description, created_by FROM agent_tasks WHERE target_agent = 'outlook-agent' AND status = 'pending' ORDER BY created_at;",
     "3. For EACH task, parse the JSON in description and act on its 'type'. Supported pull types: 'thread-lookup' (thread_lookup), 'calendar-lookup' (calendar_lookup), 'meeting-prep' (meeting_research), 'person-digest' (person_digest). Use the matching spec section for input fields, steps, and result shape. If type is none of these, mark the task failed with result_summary = 'unsupported task type <type>' and move on.",
     "4. Claim before working: UPDATE agent_tasks SET status = 'picked-up', picked_up_by = 'outlook-agent', updated_at = now() WHERE id = '<id>';",
-    "5. Execute the lookup against Outlook (see thread_lookup section).",
+    "5. Execute the lookup against Outlook using the spec section identified in step 3.",
     "6. Write results back (see result_format and write_back).",
     "7. After all tasks, report to Yonatan in chat: count processed, one line per task, and explicitly flag any thread marked sensitive."
   ],
@@ -161,6 +161,7 @@ Confirm the subject captured and that it is queued for Claude Code triage.
     "input_fields": {
       "query": "optional topic/keywords to filter events",
       "person": "optional name/slug — restrict to events involving this person",
+      "person_slug": "optional slug — alternative to person name",
       "timeframe": "window, e.g. 'next 7 days' (default if absent)"
     },
     "steps": [
@@ -185,6 +186,7 @@ Confirm the subject captured and that it is queued for Claude Code triage.
     "description": "Summarize recent email activity with a specific person.",
     "input_fields": {
       "person": "name or slug (required)",
+      "person_slug": "optional slug — alternative to the person name",
       "timeframe": "window, e.g. 'last 14 days' (default if absent)",
       "focus": "optional emphasis, e.g. 'unanswered' / 'needs reply'"
     },
