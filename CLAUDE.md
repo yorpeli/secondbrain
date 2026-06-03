@@ -127,10 +127,16 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 
 | Yonatan says (or similar) | You run | Then |
 |---|---|---|
-| "check Outlook", "anything from Outlook?", "what did I push?" | `npm run outlook:run check` | Triage each pending push: match to initiative/person/`current_focus`, propose a destination + action, and on his confirm promote via `promoteToInitiativeMemory()` (with `[via email: …]` provenance), then mark done with `completeTask()`. Never auto-promote `sensitive` threads. |
+| "check Outlook", "anything from Outlook?", "what did I push?" | `npm run outlook:run check` | Triage each item: match to initiative/person/`current_focus`, propose a destination + action, and on his confirm promote it (initiative memory via `promoteToInitiativeMemory()` with `[via email: …]` provenance; or a human task/etc.). Then **tag the source task `filed`** so it drops off the sweep. Never auto-promote `sensitive` threads. |
 | "look up X in email", "find the thread with Y about Z" | `npm run outlook:run request --query=... [--person=...] [--slug=...] [--timeframe=...]` | Tell him to run the email agent in Outlook; read the result later with `check`. |
 
 Pushed captures are unrouted by design — Claude Code suggests where they belong. Outlook only ever writes `agent_tasks`; promotion to human tables is gated on Yonatan's confirmation.
+
+**Status lifecycle on the board.** `agent_tasks.status` is a shared CHECK constraint (`pending | picked-up | done | failed`) — do not try to add values. "Claude Code has filed this" is tracked with a **`filed` tag**, not a status:
+- **Pull** (lookup): `pending` → `picked-up` (Outlook) → `done` (Outlook wrote the result; awaiting your promotion) → you promote, then add tag `filed`. `check`/`results` show `done` **and not `filed`**.
+- **Push** (inbound capture): `pending` (awaiting your triage) → you triage/file, set `done` + tag `filed`. `inbox` shows only `pending`.
+
+So a `done` Outlook task means "the producing agent finished," NOT "filed." The `filed` tag is the real terminal for Claude-Code processing; tag it once you've acted, or it lingers in the sweep.
 
 ### Shared Utilities
 

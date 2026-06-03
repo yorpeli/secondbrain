@@ -184,10 +184,19 @@ Confirm the subject captured and that it is queued for Claude Code triage.
 ## Claude Code side
 
 Use `lib/outlook.ts` / `npm run outlook:run`:
+- `check` — full sweep: pending pushes + lookup results awaiting promotion
 - `request` — queue a thread-lookup (pull)
-- `results` / `result <id>` — read pull results
+- `results` / `result <id>` — read pull results (excludes `filed`)
 - `inbox` — list inbound captures pushed from Outlook (`listInboundCaptures()`)
-- triage an inbound capture: reason over initiatives/people/current_focus, suggest
-  a destination, and on Yonatan's confirm promote via `promoteToInitiativeMemory()`
-  (with `[via email: …]` provenance), then mark the capture done with `completeTask()`
+- triage / promote: reason over initiatives/people/current_focus, suggest a
+  destination, and on Yonatan's confirm promote (initiative memory via
+  `promoteToInitiativeMemory()` with `[via email: …]` provenance, or a human
+  task/etc.), then **tag the source task `filed`** so it drops off the sweep
 - never auto-promote sensitive threads
+
+**Status lifecycle.** `agent_tasks.status` is a shared CHECK constraint
+(`pending|picked-up|done|failed`) — not extensible. "Claude Code filed it" is a
+`filed` **tag**, not a status. Pull: `pending`→`picked-up`→`done` (Outlook wrote
+result, awaiting promotion)→ +`filed` once promoted. Push: `pending` (awaiting
+triage)→`done` + `filed` once filed. `done` ≠ filed; the `filed` tag is the
+terminal for Claude-Code processing.

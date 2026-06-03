@@ -91,7 +91,12 @@ export async function requestThreadLookup(input: ThreadLookupInput): Promise<str
 
 // ─── Read results ────────────────────────────────────────
 
-/** List the most recent completed Outlook results. */
+/**
+ * List completed Outlook results awaiting promotion. Excludes results already
+ * filed into the brain (tagged 'filed' by Claude Code) so they drop off the
+ * sweep. 'filed' is a tag, not a status — agent_tasks.status is a shared CHECK
+ * constraint (pending|picked-up|done|failed), so we don't extend it here.
+ */
 export async function listOutlookResults(limit = 20): Promise<OutlookResult[]> {
   const supabase = await getSupabase()
   const { data, error } = await supabase
@@ -99,6 +104,7 @@ export async function listOutlookResults(limit = 20): Promise<OutlookResult[]> {
     .select('id, title, status, result_summary, result_details, completed_at')
     .eq('target_agent', AGENT_SLUG)
     .eq('status', 'done')
+    .not('tags', 'cs', '{filed}')
     .order('completed_at', { ascending: false })
     .limit(limit)
 
