@@ -245,3 +245,62 @@ export async function promoteToInitiativeMemory(opts: PromoteOptions): Promise<P
   }
   return { ok: true, preview: content }
 }
+
+// ─── Inbound captures (push direction: Outlook → board → triage) ────
+
+export interface InboundCapture {
+  id: string
+  title: string
+  note: string | null
+  captured_at: string | null
+  threads: OutlookThread[]
+  created_at: string | null
+}
+
+/**
+ * List pending inbound-capture tasks pushed from Outlook (created_by =
+ * 'claude-outlook'). Parses the JSON description payload; rows whose payload
+ * type is not 'inbound-capture' are skipped.
+ */
+export async function listInboundCaptures(limit = 20): Promise<InboundCapture[]> {
+  const supabase = await getSupabase()
+  const { data, error } = await supabase
+    .from('agent_tasks' as any)
+    .select('id, title, description, created_at')
+    .eq('created_by', 'claude-outlook')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(limit)
+
+  if (error) {
+    console.error('[outlook] Failed to read inbound captures:', error.message)
+    return []
+  }
+
+  const rows = (data || []) as unknown as Array<{
+    id: string
+    title: string
+    description: string | null
+    created_at: string | null
+  }>
+
+  const captures: InboundCapture[] = []
+  for (const row of rows) {
+    let payload: any = {}
+    try {
+      payload = row.description ? JSON.parse(row.description) : {}
+    } catch {
+      payload = {}
+    }
+    if (payload.type !== 'inbound-capture') continue
+    captures.push({
+      id: row.id,
+      title: row.title,
+      note: payload.note ?? null,
+      captured_at: payload.captured_at ?? null,
+      threads: Array.isArray(payload.threads) ? payload.threads : [],
+      created_at: row.created_at,
+    })
+  }
+  return captures
+}
