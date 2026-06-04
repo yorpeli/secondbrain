@@ -15,44 +15,58 @@ Designing and standing up the first AI-native product team at Payoneer — from 
 
 Key question: how should a team be structured from scratch when AI is a first-class capability, not a bolt-on?
 
-## Where We Are (April 2026)
+## Where We Are (May 2026)
 
-The operating model is defined and published. Hiring is active. The next phase is transition planning — what it takes to actually stand up the first pod.
+The thesis has evolved from "small team" framing (v1) to "value unit" framing (v2), informed by the Oren Elenbogen (Forter) conversation and the three harness engineering posts (Fowler, Anthropic, OpenAI). The proposal now lives inside AIR²'s experiment portfolio. Recruitment is active. Communication to leadership is in progress: one-pager to Oren Ryngler for AIR² greenlight, PM evolution deck for Orrin (CPO).
 
 ### Completed
-- **Operating model & opinion piece** — `docs/ai-native-team-article.md` (also converted to doc). Defines the thesis, team structure, workflow, human contract, enterprise lens. Submitted and shared.
-- **Research corpus** — Three rounds: landscape synthesis, GPT/Perplexity deep research on AI-native teams, and deep research on small teams from HR/org-psych/wellbeing perspectives.
-- **Hiring process design** — Both product and engineering tracks designed (2-day structure, AI-specific assessment, curated panels).
+- **Operating model & opinion piece (v1)** — `docs/ai-native-team-article.md`. The published thesis, team structure, workflow, human contract, enterprise lens. (March 2026)
+- **Thesis v2 (value unit framing)** — `docs/thesis-v2-value-unit.md`. Supersedes the size-as-organizing-principle framing. Pod lives inside AIR²; harness is residue from shipping, not prelude; "no human-authored source code" as leading indicator. (April 2026)
+- **One-pager for Oren Ryngler** — `docs/one-pager-oren-greenlight.md`. AIR² greenlight ask: one platform engineer seconded for 4–6 weeks. (April 2026)
+- **PM Evolution piece for Orrin (CPO)** — `decks/pm-evolution.pptx` and `docs/pm-evolution.md`. Applies Manual → Augmented → AI-Native to the PM role; built for board-grade reading. (May 2026)
+- **Research corpus** — Three rounds: landscape synthesis; GPT/Perplexity deep research on AI-native teams; deep research on small teams (HR, org psych, wellbeing).
+- **Hiring process design** — Product and engineering tracks (2-day structure, AI-specific assessment, curated panels).
 - **External input** — Wix (Yuval Nissan), Cellebrite (via Mor), Forter (Nir Mayyan, Oren Elenbogen) conversations logged.
 
 ### In Progress
 - **Recruitment** — iTalent active on Principal PM + Director role. First candidate (Denis) declined April 2026; pipeline continues, no named successor yet. Engineering: Tomer Zosman building AI Wizard assessment.
-- **External conversations** — Ongoing conversations with industry leaders (Wix, Cellebrite, Forter × 2) shaping transition approach and hiring philosophy.
-- **Research deepening** — Small teams research (org psych, HR, mental health) completed 2026-04-03. Open items feeding into transition playbook and role definitions.
+- **AIR² greenlight** — One-pager with Oren Ryngler; pending platform engineer secondment decision.
+- **Leadership communication** — PM evolution deck en route to Orrin (CPO); may forward to board.
+- **External conversations** — Ongoing (Wix, Cellebrite, Forter × 2) shaping transition approach and hiring philosophy.
 
 ### Next
-- **Transition playbook** — How to stand up the first pod. Infrastructure prerequisites, domain selection, team composition, onboarding, success criteria.
-- **Engineer role definition** — Pending Tomer + Tal input. Tomer's AI assessment will inform.
-- **Recommendation to Liat** — Framed as "here's what we think, next step is standing up the first team."
-- **First pod domain** — Being scoped (bounded problem space, real autonomy, real users).
+- **Stand up first pod inside AIR²** — 90-day experiment. First experiment: internal idea-collection system (solves an open AIR² thread, de-risks the operating model). Experiment 2 candidate: internal tooling for the 350-person manual review team.
+- **Engineer role definition** — Two product engineers (not a harness engineer). Pending Tomer + Tal input.
+- **Transition playbook** — Day-to-day pod operations: infrastructure prerequisites, evaluator architecture, blast-radius calibration.
 
 ## Stakeholders
 
 - **Liat Ashkenazi** — Exec sponsor, eng guild lead
 - **Tal Arnon** — VP Engineering, co-developing the framework
-- **Yonatan Orpeli** — Primary author
+- **Yonatan Orpeli** — Primary author, drives greenlight
 - **Tomer Zosman** — VP R&D, building AI assessment for engineering hiring
 - **Mor Regev Lalush** — Product guild, owns hiring playbook documentation
 - **Noa Lichtig** — Talent/recruitment
 - **Ilona** — Platform org, pre-built comp package for engineering
+- **Orrin** — CPO, audience for PM evolution deck (May 2026)
+- **Oren Ryngler** — Recipient of AIR² greenlight one-pager; original initiative sponsor
+- **Gaurav** — AIR² sponsor (host context for the first pod)
 
 ## Working Files
 
 ### Core Artifacts
 | File | What it is | Status |
 |------|-----------|--------|
-| `docs/ai-native-team-article.md` | The opinion piece — operating model, team structure, human contract | Complete (point-in-time, March 2026) |
+| `docs/ai-native-team-article.md` | The opinion piece (v1) — operating model, team structure, human contract | Complete (point-in-time, March 2026) |
+| `docs/thesis-v2-value-unit.md` | Current thesis — value unit framing, AIR² as home, harness as residue, first-team proposal | Current (April 2026) |
+| `docs/one-pager-oren-greenlight.md` | AIR² greenlight ask to Oren Ryngler — 90-day plan, one platform engineer secondment | Active (April 2026) |
+| `docs/pm-evolution.md` | Two-slide PM evolution synthesis (Manual → Augmented → AI-Native) — companion to AIR² jump deck, built for Orrin/board (May 2026) | Complete |
 | `docs/ai-native-team-operating-model-v1.md` | Original framework doc v1 (superseded by article) | Archive |
+
+### Decks
+| File | What it is | Status |
+|------|-----------|--------|
+| `decks/pm-evolution.pptx` | PowerPoint for Orrin (CPO). Editable. Siblings: `.html` source, `.pdf` export | Complete (May 2026) |
 
 ### Research
 | File | What it is |

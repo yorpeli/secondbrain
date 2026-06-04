@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI for HR — Payoneer · Yonatan Orpeli</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    /* Primary (70-90%) */
+    --charcoal: #1E1E28;
+    --white: #FFFFFF;
+    /* Secondary (10-30%) */
+    --midnight: #002373;
+    --electric: #0033FF;
+    --purple: #977DFF;
+    --pink: #FFCCF2;
+    /* Extended */
+    --offwhite: #F8F9FC;
+    --gray-light: #EEEEF2;
+    --gray-mid: #888899;
+    --text-dark: #2D2D3A;
+    --orange: #FF6B35;
+    --green: #00C875;
+
+    --gradient-title: linear-gradient(90deg, #0033FF 0%, #977DFF 50%, #FF6B35 100%);
+    --gradient-cta: linear-gradient(90deg, #0033FF 0%, #977DFF 100%);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background: #0A0A0A;
+    color: var(--text-dark);
+    -webkit-font-smoothing: antialiased;
+  }
+  .deck {
+    width: 100vw; height: 100vh;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .slide {
+    position: absolute;
+    width: min(96vw, calc(96vh * 16 / 9));
+    height: min(96vh, calc(96vw * 9 / 16));
+    background: var(--white);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    overflow: hidden;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease;
+    border-radius: 4px;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  .canvas {
+    width: 100%; height: 100%;
+    padding: 3.8% 4.8%;
+    position: relative;
+    display: flex; flex-direction: column;
+    justify-content: center;
+  }
+
+  /* THEMES */
+  .dark { background: var(--charcoal); color: var(--white); }
+  .dark .canvas { color: var(--white); }
+  .light { background: var(--white); color: var(--text-dark); }
+
+  /* DARK THEME — decorative outline circles (Halo references) */
+  .dark .canvas::before,
+  .dark .canvas::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(151,125,255,0.18);
+    pointer-events: none;
+  }
+  .dark .canvas::before {
+    width: 38vh; height: 38vh;
+    right: -10vh; top: -10vh;
+  }
+  .dark .canvas::after {
+    width: 22vh; height: 22vh;
+    left: -6vh; bottom: -6vh;
+    border-color: rgba(0,51,255,0.18);
+    border-style: dotted;
+  }
+
+  /* TYPOGRAPHY — label/eyebrow uses Space Mono */
+  .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.84rem, 1.2vw, 0.98rem);
+    letter-spacing: 0.22em;
+    font-weight: 400;
+    text-transform: uppercase;
+    color: var(--gray-mid);
+    margin-bottom: 1.2rem;
+  }
+  .dark .eyebrow { color: var(--purple); }
+
+  /* Hero title — DM Sans bold with tight letter-spacing */
+  .title {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--charcoal);
+  }
+  .dark .title { color: var(--white); }
+
+  /* Gradient title treatment (light theme only) */
+  .title.gradient {
+    background: var(--gradient-title);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .h1 { font-size: clamp(3.6rem, 6.6vw, 5.6rem); }
+  .h2 { font-size: clamp(2.5rem, 4.3vw, 3.7rem); }
+  .h3 { font-size: clamp(1.45rem, 2.4vw, 1.9rem); }
+  .body { font-size: clamp(1.15rem, 1.7vw, 1.42rem); line-height: 1.55; }
+  .small {
+    font-size: clamp(0.78rem, 1.1vw, 0.9rem);
+    color: var(--gray-mid);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  /* SLIDE 1 — TITLE */
+  .title-slide .canvas {
+    justify-content: center;
+  }
+  .title-slide .h1 {
+    font-size: clamp(3.6rem, 7vw, 5.6rem);
+    max-width: 85%;
+  }
+  .title-slide .subtitle {
+    font-size: clamp(1.4rem, 2.2vw, 1.8rem);
+    color: var(--gray-mid);
+    margin-top: 1.5rem; max-width: 65%;
+    line-height: 1.45;
+  }
+  .dark.title-slide .subtitle { color: var(--gray-light); }
+  .title-slide .meta {
+    position: absolute; bottom: 5%; left: 5.5%;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--gray-mid);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .dark.title-slide .meta { color: var(--purple); }
+
+  /* LAYOUTS */
+  .stack { display: flex; flex-direction: column; gap: 1.4rem; }
+  .row { display: flex; gap: 1.4rem; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.95rem; }
+  .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.8rem; }
+  .flex-1 { flex: 1; }
+  .header-area { margin-bottom: 1.6rem; }
+
+  /* CARDS — 12-14px rounded, Off-White fill, 1px Light Gray border */
+  .card {
+    background: var(--offwhite);
+    border-radius: 12px;
+    border: 1px solid var(--gray-light);
+    padding: 1.6rem 1.5rem;
+    display: flex; flex-direction: column; gap: 0.7rem;
+    position: relative;
+  }
+  .card-label {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.8rem, 1.1vw, 0.95rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--electric);
+    font-weight: 700;
+  }
+  .card-label.purple { color: var(--purple); }
+  .card-label.orange { color: var(--orange); }
+  .card-label.midnight { color: var(--midnight); }
+  .card-label.charcoal { color: var(--charcoal); }
+  .card h3 {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.35rem, 2.2vw, 1.8rem);
+    color: var(--charcoal);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  .card p {
+    font-size: clamp(1.1rem, 1.6vw, 1.32rem);
+    line-height: 1.5;
+    color: var(--text-dark);
+  }
+  .card .tag {
+    font-size: clamp(1rem, 1.4vw, 1.18rem);
+    color: var(--electric);
+    margin-top: auto;
+    padding-top: 0.7rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  /* CARD — featured (charcoal) variant for emphasis. Limit 1-2 per slide. */
+  .card.featured {
+    background: var(--charcoal);
+    border-color: var(--charcoal);
+    color: var(--white);
+  }
+  .card.featured h3 { color: var(--white); }
+  .card.featured p { color: var(--gray-light); }
+  .card.featured .card-label { color: var(--purple); }
+
+  /* HIGHLIGHTED card (for the recruiter card on slide 19) — accent border */
+  .card.accent {
+    border: 1.5px solid var(--electric);
+    background: var(--white);
+  }
+
+  /* PILL — light theme only. Monospace UPPERCASE, 15% tinted bg, 4px radius */
+  .pill {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 0.32rem 0.6rem;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .pill-electric { background: rgba(0,51,255,0.12); color: var(--electric); }
+  .pill-purple { background: rgba(151,125,255,0.18); color: var(--purple); }
+  .pill-orange { background: rgba(255,107,53,0.15); color: var(--orange); }
+  .pill-midnight { background: rgba(0,35,115,0.12); color: var(--midnight); }
+  .pill-charcoal { background: rgba(30,30,40,0.08); color: var(--charcoal); }
+
+  /* BIG STAT */
+  .big-stat {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(5rem, 11vw, 9rem);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--charcoal);
+  }
+  .stat-label {
+    font-size: clamp(1.2rem, 1.8vw, 1.45rem);
+    color: var(--text-dark);
+    margin-top: 0.8rem;
+    max-width: 30ch;
+    line-height: 1.5;
+  }
+
+  /* TWO-COLUMN COMPARE */
+  .compare {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .compare-col {
+    background: var(--offwhite);
+    border-radius: 12px;
+    border: 1px solid var(--gray-light);
+    padding: 1.6rem 1.8rem;
+  }
+  .compare-col h4 {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.86rem, 1.15vw, 1rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 700;
+    color: var(--electric);
+    margin-bottom: 1rem;
+  }
+  .compare-col.alt h4 { color: var(--purple); }
+  .compare-row {
+    padding: 0.8rem 0;
+    font-size: clamp(1.1rem, 1.6vw, 1.32rem);
+    line-height: 1.5;
+    color: var(--text-dark);
+    border-bottom: 1px solid var(--gray-light);
+  }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-row em { color: var(--charcoal); font-weight: 500; font-style: normal; }
+
+  /* TIMELINE STRIP */
+  .timeline {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 0.8rem; margin-top: 1.2rem; position: relative;
+  }
+  .timeline::before {
+    content: ''; position: absolute;
+    top: 0.6rem; left: 6%; right: 6%; height: 1px;
+    background: var(--gray-light); z-index: 0;
+  }
+  .timeline-step {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: 0.7rem;
+  }
+  .timeline-dot {
+    width: 0.7rem; height: 0.7rem; border-radius: 50%;
+    background: var(--electric); border: 3px solid var(--white);
+    box-shadow: 0 0 0 1px var(--gray-light);
+  }
+  .timeline-step h5 {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.15rem, 1.7vw, 1.4rem);
+    color: var(--charcoal);
+    line-height: 1.25;
+  }
+  .timeline-step p {
+    font-size: clamp(1rem, 1.35vw, 1.15rem);
+    color: var(--gray-mid);
+    line-height: 1.45;
+  }
+
+  /* CHART PANELS */
+  .chart-panel {
+    background: var(--offwhite);
+    border-radius: 12px;
+    border: 1px solid var(--gray-light);
+    padding: 1.2rem;
+    display: flex; flex-direction: column;
+  }
+  .chart-panel h4 {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.15rem, 1.7vw, 1.4rem);
+    color: var(--charcoal);
+    margin-bottom: 0.8rem;
+    letter-spacing: -0.01em;
+  }
+  .chart-box {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+  }
+  .chart-takeaway {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.92rem, 1.2vw, 1.05rem);
+    color: var(--electric);
+    margin-top: 0.8rem;
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+  }
+
+  /* DECLARATIVE / STATEMENT slides */
+  .declare {
+    display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
+    height: 100%;
+  }
+  .declare .h1 { max-width: 90%; }
+  .declare .sub {
+    font-size: clamp(1.5rem, 2.5vw, 1.95rem);
+    margin-top: 1.4rem; color: var(--gray-light);
+    max-width: 78%;
+    line-height: 1.4;
+  }
+  .light .declare .sub { color: var(--gray-mid); }
+
+  /* QUOTE BLOCK */
+  .quote {
+    background: var(--offwhite);
+    border-left: 3px solid var(--electric);
+    padding: 1.6rem 2rem;
+    border-radius: 0 12px 12px 0;
+    margin-top: 1.5rem;
+    max-width: 82%;
+  }
+  .quote p {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: clamp(1.55rem, 2.4vw, 2rem);
+    line-height: 1.35;
+    color: var(--charcoal);
+    margin-bottom: 0.8rem;
+    letter-spacing: -0.01em;
+  }
+  .quote .attr {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.78rem, 1vw, 0.88rem);
+    color: var(--gray-mid);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* FEATURED CHARCOAL BLOCK — for CTAs and emphasis within light theme */
+  .featured-block {
+    background: var(--charcoal);
+    color: var(--white);
+    border-radius: 12px;
+    padding: 1.4rem 1.8rem;
+  }
+  .featured-block .label {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.86rem, 1.15vw, 1rem);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 0.6rem;
+    font-weight: 700;
+  }
+  .featured-block p {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    font-size: clamp(1.32rem, 2vw, 1.6rem);
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+  }
+
+  /* SOFT SKILLS STRIP — featured charcoal block with white pills */
+  .skills-strip {
+    background: var(--charcoal);
+    border-radius: 12px;
+    padding: 1.2rem 1.6rem;
+    margin-top: 1rem;
+    display: flex; align-items: center; gap: 1.4rem;
+    flex-wrap: wrap;
+  }
+  .skills-strip .label {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.78rem, 1.05vw, 0.9rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--purple);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .skills-strip .pills {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+  }
+  .skills-strip .pill-dark {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(0.78rem, 1.05vw, 0.9rem);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--white);
+    padding: 0.45rem 0.9rem;
+    background: rgba(151,125,255,0.2);
+    border-radius: 4px;
+    font-weight: 700;
+  }
+
+  /* NAV */
+  .nav {
+    position: fixed; bottom: 1rem; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30,30,40,0.85);
+    color: var(--white);
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    z-index: 100;
+    display: flex; align-items: center; gap: 0.8rem;
+    user-select: none;
+    backdrop-filter: blur(8px);
+  }
+  .nav button {
+    background: none; border: none; color: var(--white);
+    cursor: pointer; padding: 0 0.3rem;
+    font-size: 1rem;
+  }
+  .nav button:hover { color: var(--purple); }
+  .progress {
+    position: fixed; top: 0; left: 0; height: 2px;
+    background: var(--gradient-cta);
+    z-index: 100;
+    transition: width 0.25s ease;
+  }
+
+  /* SPEAKER NOTES */
+  .notes {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(30,30,40,0.96);
+    color: var(--white);
+    padding: 1rem 2rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    max-height: 35vh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.25s ease;
+    z-index: 99;
+  }
+  .notes.visible { transform: translateY(0); }
+  .notes .notes-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+  }
+
+  /* HELP HINT */
+  .hint {
+    position: fixed; top: 1rem; right: 1rem;
+    background: rgba(30,30,40,0.55);
+    color: var(--white);
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.05em;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+
+  /* PAGE NUMBER */
+  .page-num {
+    position: absolute; bottom: 2%; right: 4%;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--gray-mid);
+    letter-spacing: 0.1em;
+  }
+  .dark .page-num { color: var(--purple); opacity: 0.7; }
+
+  /* PAYONEER LOGO MARK — official SVG (full Halo + wordmark) */
+  .logo-mark {
+    height: clamp(2rem, 3.2vw, 2.6rem);
+    width: auto;
+    margin-bottom: 1.6rem;
+    display: block;
+    align-self: flex-start;
+  }
+  /* Smaller corner-style logo for inside content slides */
+  .logo-corner {
+    position: absolute;
+    top: 4.5%; right: 5.5%;
+    height: clamp(1.1rem, 1.8vw, 1.4rem);
+    width: auto;
+    opacity: 0.85;
+  }
+
+  /* STAGGERED REVEAL — elements animate in one-by-one when a slide becomes active */
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.55s cubic-bezier(0.2, 0.7, 0.2, 1),
+                transform 0.55s cubic-bezier(0.2, 0.7, 0.2, 1);
+    will-change: opacity, transform;
+  }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { transition: none; opacity: 1; transform: none; }
+  }
+
+  @media print {
+    .reveal { opacity: 1 !important; transform: none !important; }
+    html, body { background: white; overflow: visible; }
+    .deck { display: block; height: auto; width: auto; }
+    .slide {
+      position: relative; opacity: 1; pointer-events: auto;
+      width: 100%; height: 100vh;
+      page-break-after: always;
+      box-shadow: none; border-radius: 0;
+    }
+    .nav, .notes, .hint, .progress { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<div class="hint">← → · N notes · F fullscreen</div>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 1 — TITLE -->
+  <section class="slide dark title-slide active" data-notes="Not a 'robots are coming' talk. Not 'everything's fine.' This is about what your job looks like in the next 12 months — and what the people you support are walking into.">
+    <div class="canvas">
+      <img class="logo-mark" src="payoneer-logo-dark.svg" alt="Payoneer">
+      <div class="eyebrow">HR · 2026</div>
+      <h1 class="title h1">The job isn't shrinking.<br><span style="color: var(--purple);">The shape of it is.</span></h1>
+      <p class="subtitle">AI, work, and what HR does next.</p>
+      <div class="meta">Yonatan Orpeli</div>
+      <div class="page-num">01 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 2 — WHY YOU'RE HERE -->
+  <section class="slide light" data-notes="Set expectations. No live coding. No model lectures. Practical lens — what changes for you and the people you support.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">Before we start</div>
+        <h2 class="title h2">You don't need to become an engineer.<br>You need to become harder to replace.</h2>
+      </div>
+      <div class="stack" style="max-width: 70%; gap: 1.4rem; margin-top: 0.5rem;">
+        <p style="font-size: clamp(1.45rem, 2.3vw, 1.85rem); color: var(--charcoal); font-weight: 500;">I'm not here to teach you tools.</p>
+        <p style="font-size: clamp(1.45rem, 2.3vw, 1.85rem); color: var(--charcoal); font-weight: 500;">I'm here to talk to you about what to <em style="color: var(--electric); font-style: normal;">notice</em>.</p>
+        <p style="font-size: clamp(1.45rem, 2.3vw, 1.85rem); color: var(--charcoal); font-weight: 500;">And to give you a vocabulary your stakeholders are already using.</p>
+      </div>
+      <div class="page-num">02 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 3 — WHY THIS TIME IS DIFFERENT (TWO CHARTS) -->
+  <section class="slide light" data-notes="This is the 'why you should care' slide. Don't over-explain — let the visuals do it. Pause for 5 seconds after each chart. The point is velocity, not the specific numbers. Two reactions you want: (1) this isn't just hype, and (2) if it's growing that fast, my job will look different in 12 months.">
+    <div class="canvas">
+      <div class="header-area" style="margin-bottom: 1.2rem;">
+        <div class="eyebrow">Why now</div>
+        <h2 class="title h2">Every wave of tech feels big. <span style="color: var(--electric);">This one actually is.</span></h2>
+      </div>
+      <div class="grid-2" style="flex: 1; gap: 1.2rem;">
+        <div class="chart-panel">
+          <h4>Years to ~100M users</h4>
+          <div class="chart-box"><canvas id="adoptionChart"></canvas></div>
+          <p class="chart-takeaway">Nothing in consumer tech history has scaled this fast.</p>
+        </div>
+        <div class="chart-panel">
+          <h4>Anthropic ARR — and Claude Code's curve</h4>
+          <div class="chart-box"><canvas id="arrChart"></canvas></div>
+          <p class="chart-takeaway">AI products crossing $1B faster than any SaaS category ever. The curve is still bending up.</p>
+        </div>
+      </div>
+      <div class="page-num">03 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 4 — MACRO FRAME -->
+  <section class="slide light" data-notes="Pause on point 4 — that's the one HR feels first in calibrations and performance.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">The macro frame</div>
+        <h2 class="title h2">Four things shifting at once.</h2>
+      </div>
+      <div class="grid-4" style="flex: 1;">
+        <div class="card">
+          <span class="card-label">01</span>
+          <h3>Models stopped being the bottleneck.</h3>
+          <p>The frontier matters less than the workflow. Companies compete on <em>who put it to work</em>.</p>
+        </div>
+        <div class="card">
+          <span class="card-label purple">02</span>
+          <h3>Agents are leaving the demo phase.</h3>
+          <p>Gartner: 40% of enterprise apps will ship task-specific agents by end of 2026.</p>
+        </div>
+        <div class="card">
+          <span class="card-label orange">03</span>
+          <h3>Output is commoditizing.</h3>
+          <p>Drafts, summaries, decks, first-pass code — all near-free. The deliverable isn't the differentiator anymore.</p>
+        </div>
+        <div class="card featured">
+          <span class="card-label">04</span>
+          <h3>The bar moved. Quietly.</h3>
+          <p>Floor went up — anyone can produce something passable. Ceiling went up more. The gap between good and great is now visible.</p>
+        </div>
+      </div>
+      <div class="page-num">04 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 — 80% STAT -->
+  <section class="slide light" data-notes="Use this to acknowledge change-fatigue inside the org. Validates what your audience is already feeling from employees.">
+    <div class="canvas" style="justify-content: center;">
+      <div class="row" style="align-items: center; gap: 4rem;">
+        <div style="flex: 0 0 auto;">
+          <div class="big-stat">~80%</div>
+          <p class="stat-label">of enterprise workplace apps will have AI copilots embedded by end of 2026.</p>
+          <p class="small" style="margin-top: 0.4rem;">Source — IDC, 2026</p>
+        </div>
+        <div class="flex-1" style="border-left: 2px solid var(--electric); padding-left: 2.2rem; max-width: 38%;">
+          <p style="font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: clamp(1.5rem, 2.4vw, 1.9rem); line-height: 1.35; color: var(--charcoal); letter-spacing: -0.01em;">"If your team complains the tools are changing weekly — that's why."</p>
+        </div>
+      </div>
+      <div class="page-num">05 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 — MOMENTUM TIMELINE -->
+  <section class="slide light" data-notes="Don't read all five. Pick two and tell a 30-sec story for each (e.g., memory → why the AI you tried 18 months ago is not the AI in your browser today).">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">Momentum</div>
+        <h2 class="title h2">What changed in the last 12 months.</h2>
+      </div>
+      <div class="timeline" style="flex: 1; align-content: start; padding-top: 1rem;">
+        <div class="timeline-step">
+          <div class="timeline-dot"></div>
+          <h5>Reasoning models</h5>
+          <p>Real planning, not just answers</p>
+        </div>
+        <div class="timeline-step">
+          <div class="timeline-dot" style="background: var(--purple);"></div>
+          <h5>Multimodal default</h5>
+          <p>Sees screenshots, files, charts</p>
+        </div>
+        <div class="timeline-step">
+          <div class="timeline-dot" style="background: var(--orange);"></div>
+          <h5>Memory &amp; context</h5>
+          <p>Agents remember across days</p>
+        </div>
+        <div class="timeline-step">
+          <div class="timeline-dot" style="background: var(--midnight);"></div>
+          <h5>Action, not advice</h5>
+          <p>Does the click, the send, the update</p>
+        </div>
+        <div class="timeline-step">
+          <div class="timeline-dot" style="background: var(--green);"></div>
+          <h5>Cost collapse</h5>
+          <p>~10× cheaper than 18 months ago</p>
+        </div>
+      </div>
+      <div class="page-num">06 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 7 — WHAT THIS ISN'T -->
+  <section class="slide light" data-notes="This slide buys you trust. Naming the hype lets you talk seriously about the real shifts.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">Let's name the hype</div>
+        <h2 class="title h2">What's actually happening — and what isn't.</h2>
+      </div>
+      <div class="compare" style="flex: 1; align-content: start; margin-top: 0.5rem;">
+        <div class="compare-col">
+          <h4>What's actually happening</h4>
+          <div class="compare-row">Roles getting re-bundled</div>
+          <div class="compare-row">Some entry-level work compressing</div>
+          <div class="compare-row">Routine tasks automated</div>
+          <div class="compare-row">30+ new HR/IT job titles appearing</div>
+        </div>
+        <div class="compare-col alt">
+          <h4>What's NOT happening</h4>
+          <div class="compare-row">Mass layoff of every white-collar job</div>
+          <div class="compare-row">Senior judgment becoming obsolete</div>
+          <div class="compare-row">Human relationships automated</div>
+          <div class="compare-row">A clean before/after moment</div>
+        </div>
+      </div>
+      <div class="page-num">07 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 8 — SECTION 1 CLOSE -->
+  <section class="slide dark" data-notes="">
+    <div class="canvas">
+      <div class="declare">
+        <div class="eyebrow">Section 1 · close</div>
+        <h2 class="title h1">This isn't a tomorrow problem.</h2>
+        <p class="sub">It's the org chart of the next quarter.</p>
+      </div>
+      <div class="page-num">08 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 9 — TWO SEATS -->
+  <section class="slide light" data-notes="Set up the structure. We'll do both, in that order.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">How to listen to this section</div>
+        <h2 class="title h2">You're sitting in two seats today.</h2>
+      </div>
+      <div class="grid-2" style="flex: 1; align-content: center; gap: 1.4rem;">
+        <div class="card" style="padding: 1.8rem 1.6rem;">
+          <span class="pill pill-electric">Seat 1</span>
+          <h3 style="font-size: clamp(1.6rem, 2.5vw, 2rem); margin-top: 0.4rem;">Your work as HR.</h3>
+          <p>Recruiting, BP work, ops, comms — all changing.</p>
+        </div>
+        <div class="card" style="padding: 1.8rem 1.6rem;">
+          <span class="pill pill-purple">Seat 2</span>
+          <h3 style="font-size: clamp(1.6rem, 2.5vw, 2rem); margin-top: 0.4rem;">The org around you.</h3>
+          <p>Engineers, PMs, finance, support — all changing differently.</p>
+        </div>
+      </div>
+      <p style="font-family: 'DM Sans', sans-serif; font-weight: 500; font-size: clamp(1.38rem, 2.1vw, 1.68rem); color: var(--gray-mid); margin-top: 1.4rem; font-style: italic;">You can't help the second seat if you haven't done the work in the first.</p>
+      <div class="page-num">09 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 10 — YOUR WORK -->
+  <section class="slide light" data-notes="Be honest: some work goes away. The work that replaces it is more strategic and more exposed. That's good news, but it's not free.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">The work itself</div>
+        <h2 class="title h2">HR work is shifting. <span style="color: var(--electric);">This is where we add value now.</span></h2>
+      </div>
+      <div class="grid-4" style="flex: 1;">
+        <div class="card">
+          <span class="card-label">Recruiting</span>
+          <p>Sourcing &amp; screening compress. Interviews stay human. Calibration gets harder — every candidate has a co-pilot.</p>
+          <div class="tag">→ Spend the freed time on signal, not throughput.</div>
+        </div>
+        <div class="card">
+          <span class="card-label purple">HRBP / PP</span>
+          <p>Faster diagnostics — sentiment, churn risk, benchmarks in minutes. The conversation with the manager is the strategic value.</p>
+          <div class="tag" style="color: var(--purple);">→ Show up with a point of view, not a deck.</div>
+        </div>
+        <div class="card">
+          <span class="card-label orange">Org excellence &amp; strategy</span>
+          <p>Execution is automated. Value shifts to insight.</p>
+          <div class="tag" style="color: var(--orange);">→ The differentiator isn't access to data — it's what you do with it.</div>
+        </div>
+        <div class="card">
+          <span class="card-label midnight">Workplace</span>
+          <p>Logistics are increasingly automated. What remains is judgment and designing the employee experience.</p>
+          <div class="tag" style="color: var(--midnight);">→ What matters, when it matters, and why — that's still human.</div>
+        </div>
+      </div>
+      <p class="small" style="margin-top: 0.9rem;">Examples, not the full map — L&amp;D, total rewards, talent and more are shifting too.</p>
+      <div class="page-num">10 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 11 — HEADCOUNT RESHAPED -->
+  <section class="slide light" data-notes="Read the room. Some people in this audience worry headcount is a euphemism for layoffs. Be direct: the composition shift is real and uncomfortable, but the headline number is more about reshaping than reducing. The work for HR is to own that reshape — not be the team it happens to.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">The headcount question</div>
+        <h2 class="title h2">It's not "fewer people." <span style="color: var(--electric);">It's "different people."</span></h2>
+      </div>
+      <div class="grid-3" style="flex: 1;">
+        <div class="card">
+          <span class="card-label">01</span>
+          <h3>Different skill mix.</h3>
+          <p>The roles that compress are the ones AI does well. The roles that grow direct AI, design workflows, and own judgment. <em>Composition</em> changes — not headcount.</p>
+        </div>
+        <div class="card">
+          <span class="card-label purple">02</span>
+          <h3>Shift, not delete.</h3>
+          <p>AI is <strong style="color: var(--electric); font-size: 1.15em;">5.7×</strong> more likely to <em>shift</em> responsibilities than to <em>eliminate</em> a role.</p>
+          <p class="small" style="margin-top: 0.4rem;">SHRM, 2026</p>
+        </div>
+        <div class="card">
+          <span class="card-label orange">03</span>
+          <h3>New roles are appearing.</h3>
+          <p><strong style="color: var(--orange); font-size: 1.15em;">30+</strong> new job titles in HR and IT alone in the last 18 months — AI enablement leads, workflow designers, automation owners.</p>
+        </div>
+      </div>
+      <div class="featured-block" style="margin-top: 0.8rem;">
+        <div class="label">The reframe</div>
+        <p>Fewer of some seats. More of others. Same total headcount — very different team.</p>
+      </div>
+      <div class="page-num">11 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 12 — ICs vs LEADERS -->
+  <section class="slide light" data-notes="This is the slide that makes the abstract concrete for HR. Stress: the same soft-skills cluster shows up in both columns. Coursera saw +120% YoY in critical-thinking enrollments — the market is already pricing this in. Slide 14 will go deeper on these skills; here just plant the flag.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">What we need from people</div>
+        <h2 class="title h2">The bar moved for everyone — but it moved differently.</h2>
+      </div>
+      <div class="compare" style="flex: 1; align-content: start; margin-top: 0.3rem;">
+        <div class="compare-col">
+          <h4>Individual Contributors</h4>
+          <div class="compare-row">From <em>executing tasks</em> → <em>directing AI to execute</em></div>
+          <div class="compare-row">From <em>deep specialty only</em> → <em>T-shaped: depth + adjacent fluency</em></div>
+          <div class="compare-row">From <em>"what should I do?"</em> → <em>"here's what I decided"</em></div>
+          <div class="compare-row">From <em>waiting for clarity</em> → <em>operating with ambiguity</em></div>
+        </div>
+        <div class="compare-col alt">
+          <h4>Leaders</h4>
+          <div class="compare-row">From <em>assigning work</em> → <em>designing the workflow AI and humans share</em></div>
+          <div class="compare-row">From <em>managing throughput</em> → <em>managing taste and standards</em></div>
+          <div class="compare-row">From <em>reviewing artifacts</em> → <em>evaluating judgment calls</em></div>
+          <div class="compare-row">From <em>team-as-pyramid</em> → <em>team-as-pod</em></div>
+        </div>
+      </div>
+      <div class="skills-strip">
+        <span class="label">What grows for both — soft skills</span>
+        <div class="pills">
+          <span class="pill-dark">Communication</span>
+          <span class="pill-dark">Judgment</span>
+          <span class="pill-dark">Curiosity</span>
+          <span class="pill-dark">Comfort with ambiguity</span>
+          <span class="pill-dark">Standards &amp; taste</span>
+        </div>
+      </div>
+      <div class="page-num">12 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 13 — TEAM SHAPES -->
+  <section class="slide light" data-notes="Connect to the ways-of-working conversations leadership is already having. This is why the squad/pod framing is showing up — it's a response to this shift, not a fad.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">Team shapes</div>
+        <h2 class="title h2">Smaller teams. Wider scope. More T-shaped people.</h2>
+      </div>
+      <div class="grid-3" style="flex: 1;">
+        <div class="card">
+          <span class="card-label">01</span>
+          <h3>The pyramid is flattening.</h3>
+          <p>Fewer entry-level "do the task" roles. More "design the workflow" roles.</p>
+        </div>
+        <div class="card">
+          <span class="card-label purple">02</span>
+          <h3>Specialists are bundling.</h3>
+          <p>A "PM" today is PM + research analyst + light designer + light data analyst. A recruiter is recruiter + market analyst + content creator + employer-brand strategist.</p>
+        </div>
+        <div class="card">
+          <span class="card-label orange">03</span>
+          <h3>Pods over departments.</h3>
+          <p>Cross-functional 3–8 person units out-shipping 30-person orgs. Seed-stage AI startups ship to millions with 3–5 engineers.</p>
+        </div>
+      </div>
+      <div class="page-num">13 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 14 — WHAT GETS MORE VALUABLE -->
+  <section class="slide light" data-notes="Don't frame these as 'consolation prizes' — frame them as the new top of the market. Gartner says 50% of orgs will require 'AI-free' skills assessments by 2026 because this stuff matters more.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">What doesn't get outsourced</div>
+        <h2 class="title h2">The skills that just appreciated.</h2>
+      </div>
+      <div class="grid-4" style="flex: 1;">
+        <div class="card">
+          <span class="card-label">01</span>
+          <h3>Judgment.</h3>
+          <p>Choosing under uncertainty. Knowing when the AI is wrong. Coursera: <strong style="color: var(--electric);">+120% YoY</strong> in critical-thinking enrollments — not a coincidence.</p>
+        </div>
+        <div class="card">
+          <span class="card-label purple">02</span>
+          <h3>Communication.</h3>
+          <p>AI writes the draft. <em>You</em> still own what's said and how it lands.</p>
+        </div>
+        <div class="card">
+          <span class="card-label orange">03</span>
+          <h3>Relationships.</h3>
+          <p>AI doesn't hear hesitation in a 1:1. It doesn't read the room. Still the job.</p>
+        </div>
+        <div class="card featured">
+          <span class="card-label">04</span>
+          <h3>Taste &amp; standards.</h3>
+          <p>When everyone can produce something passable, the people who know what <em>good</em> looks like become the constraint.</p>
+        </div>
+      </div>
+      <div class="page-num">14 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 15 — SECTION 2 CLOSE -->
+  <section class="slide dark" data-notes="">
+    <div class="canvas">
+      <div class="declare">
+        <div class="eyebrow">Section 2 · close</div>
+        <h2 class="title h1">AI didn't invent these skills.</h2>
+        <p class="sub">It removed the excuses for not practicing them.</p>
+      </div>
+      <div class="page-num">15 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 16 — ZOOM IN: PAYONEER -->
+  <section class="slide dark" data-notes="">
+    <div class="canvas">
+      <div class="declare">
+        <div class="eyebrow">Zoom in</div>
+        <h2 class="title h1">Now let's talk <span style="color: var(--purple);">about us.</span></h2>
+      </div>
+      <div class="page-num">16 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 17 — PAYONEER AI-FIRST -->
+  <section class="slide light" data-notes="Less is more here. One pillar, one quote from the CEO. The point is: this isn't a side initiative or an experiment — it's the operating posture of the company, said publicly. That sets up everything in slide 18.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">What we've said out loud</div>
+        <h2 class="title h2">AI-first.</h2>
+      </div>
+      <div class="flex-1" style="display: flex; flex-direction: column; justify-content: center; gap: 0.3rem;">
+        <div class="card" style="padding: 1.8rem 2rem; max-width: 82%;">
+          <span class="card-label">Public commitment</span>
+          <h3>AI-first product delivery.</h3>
+          <p>Ongoing investments in agentic AI capabilities in the platform.</p>
+        </div>
+        <div class="quote" style="max-width: 80%;">
+          <p>"Payoneer is now setting its sights on becoming fully AI-native."</p>
+          <div class="attr">John Caplan, CEO · post-Q1 2026 earnings</div>
+        </div>
+      </div>
+      <div class="page-num">17 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 18 — PLATFORM ORG CHANGES -->
+  <section class="slide light" data-notes="This is where the talk gets practical for HR. Don't read each card — pick the one most relevant to the audience and go deep for 60 seconds. The point: Platform isn't a team you support — it's the way the company is starting to operate, and HR has to keep up with the artifacts (JDs, ladders, rubrics) that describe it.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">Internal — what's changing in Platform</div>
+        <h2 class="title h2">Different structure. Different lifecycle. Different muscle.</h2>
+      </div>
+      <div class="grid-3" style="flex: 1;">
+        <div class="card">
+          <span class="card-label">01</span>
+          <h3>A new "Core" domain.</h3>
+          <p>A dedicated domain for the shared substrate every product team builds on — data, AI, foundational services. Stop reinventing, start composing.</p>
+          <div class="tag">→ New role archetypes need clear ladders and rubrics.</div>
+        </div>
+        <div class="card">
+          <span class="card-label purple">02</span>
+          <h3>A different dev lifecycle.</h3>
+          <p>Faster iteration. Prototype-first. AI in every step from design → spec → code → review → deploy.</p>
+          <div class="tag" style="color: var(--purple);">→ "What did they decide?" replaces "How polished was the artifact?"</div>
+        </div>
+        <div class="card">
+          <span class="card-label orange">03</span>
+          <h3>Education &amp; enablement.</h3>
+          <p>Foundry turns AI capability into shipped impact across functions. The community spreads it horizontally.</p>
+          <div class="tag" style="color: var(--orange);">→ Hiring profiles, onboarding, growth conversations should all point here.</div>
+        </div>
+      </div>
+      <div class="page-num">18 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 19 — HR PLAYBOOK -->
+  <section class="slide light" data-notes="All five are doable in the next 8–12 weeks. Pick one and commit publicly inside HR. The recruiting one (02) is the highest-leverage — if hiring managers are calibrated wrong, every other downstream HR motion compounds the error.">
+    <div class="canvas">
+      <div class="header-area">
+        <div class="eyebrow">Your playbook</div>
+        <h2 class="title h2">Five things to start this quarter.</h2>
+      </div>
+      <div class="grid-5" style="flex: 1;">
+        <div class="card">
+          <span class="card-label">01</span>
+          <h3>Re-read every JD.</h3>
+          <p>Half describe a job that's already changed shape. Start with the highest-volume reqs.</p>
+        </div>
+        <div class="card accent">
+          <span class="card-label">02 · Recruiters</span>
+          <h3>Partner earlier with hiring managers.</h3>
+          <p>Push them on the <em>right</em> skills and <em>soft</em> skills, not just titles. Most calibration problems start in debriefs that haven't caught up.</p>
+        </div>
+        <div class="card">
+          <span class="card-label purple">03</span>
+          <h3>Update calibration language.</h3>
+          <p>"What did they decide?" beats "How polished was the artifact?"</p>
+        </div>
+        <div class="card">
+          <span class="card-label orange">04</span>
+          <h3>Build AI-fluency signal into interviews.</h3>
+          <p>Not a tools test — a judgment test. <em>"Tell me about a time you overrode an AI suggestion. Why?"</em></p>
+        </div>
+        <div class="card">
+          <span class="card-label midnight">05</span>
+          <h3>Partner earlier on org design.</h3>
+          <p>Don't be the team handed the new shape. Be the team that helps draw it.</p>
+        </div>
+      </div>
+      <div class="page-num">19 / 24</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 24 — CLOSE -->
+  <section class="slide dark title-slide" data-notes="">
+    <div class="canvas">
+      <img class="logo-mark" src="payoneer-logo-dark.svg" alt="Payoneer">
+      <div class="eyebrow">Thank you</div>
+      <h1 class="title h1">The job isn't shrinking.<br><span style="color: var(--purple);">The shape of it is.</span></h1>
+      <p class="subtitle" style="font-size: clamp(1.28rem, 2vw, 1.6rem); color: var(--gray-light);">Let's draw the new one.</p>
+      <div class="meta">Questions? · Yonatan Orpeli</div>
+      <div class="page-num">24 / 24</div>
+    </div>
+  </section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" aria-label="Previous">◀</button>
+  <span id="counter">1 / 24</span>
+  <button id="next" aria-label="Next">▶</button>
+  <button id="fs" aria-label="Toggle fullscreen" title="Toggle fullscreen (F)">⛶</button>
+</div>
+
+<div class="notes" id="notes">
+  <div class="notes-label">Speaker notes</div>
+  <div id="notes-content">—</div>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+  const counter = document.getElementById('counter');
+  const notesEl = document.getElementById('notes');
+  const notesContent = document.getElementById('notes-content');
+  const progress = document.getElementById('progress');
+
+  // ===== STAGGERED REVEAL =====
+  // Resolve the ordered set of elements to animate in for a given slide.
+  function getRevealTargets(slide) {
+    const canvas = slide.querySelector('.canvas');
+    if (!canvas) return [];
+
+    // Title / closing slide — logo, eyebrow, headline, subtitle in sequence.
+    if (slide.classList.contains('title-slide')) {
+      return [...canvas.querySelectorAll('.logo-mark, .eyebrow, .title, .subtitle')];
+    }
+
+    // Declarative statement slide — eyebrow, headline, sub line in sequence.
+    const declare = canvas.querySelector('.declare');
+    if (declare) return [...declare.children];
+
+    const out = [];
+    const header = canvas.querySelector(':scope > .header-area');
+    if (header) out.push(header);
+
+    // Primary content items that should land one at a time.
+    const itemSel = '.card, .compare-col, .timeline-step, .chart-panel, .featured-block, .quote, .skills-strip';
+    let items = [...canvas.querySelectorAll(itemSel)];
+
+    // Fallback for stack/row layouts (statement & stat slides): reveal the
+    // direct children of the main content block.
+    if (items.length === 0) {
+      const main = [...canvas.children].find(c => c !== header && !c.classList.contains('page-num'));
+      if (main) items = [...main.children].filter(c => !c.classList.contains('page-num'));
+    }
+    items.forEach(el => { if (!out.includes(el)) out.push(el); });
+
+    if (out.length === 0) {
+      out.push(...[...canvas.children].filter(c => !c.classList.contains('page-num')));
+    }
+    return out;
+  }
+
+  // Pre-tag every reveal target so it starts hidden.
+  const revealMap = new Map();
+  slides.forEach(s => {
+    const targets = getRevealTargets(s);
+    targets.forEach(el => el.classList.add('reveal'));
+    revealMap.set(s, targets);
+  });
+
+  let revealTimers = [];
+  function runReveal(slide) {
+    revealTimers.forEach(clearTimeout);
+    revealTimers = [];
+    slides.forEach(s => (revealMap.get(s) || []).forEach(el => el.classList.remove('in')));
+    const targets = revealMap.get(slide) || [];
+    requestAnimationFrame(() => {
+      targets.forEach((el, idx) => {
+        revealTimers.push(setTimeout(() => el.classList.add('in'), 120 + idx * 110));
+      });
+    });
+  }
+
+  function show(i) {
+    current = (i + total) % total;
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === current));
+    counter.textContent = `${current + 1} / ${total}`;
+    progress.style.width = `${((current + 1) / total) * 100}%`;
+    const note = slides[current].dataset.notes || '';
+    notesContent.textContent = note || '(no speaker notes for this slide)';
+    runReveal(slides[current]);
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+
+  document.getElementById('prev').onclick = () => show(current - 1);
+  document.getElementById('next').onclick = () => show(current + 1);
+  document.getElementById('fs').onclick = toggleFullscreen;
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(current - 1); }
+    else if (e.key === 'n' || e.key === 'N') { notesEl.classList.toggle('visible'); }
+    else if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(total - 1); }
+  });
+
+  show(0);
+
+  // ===== CHARTS — Payoneer brand palette =====
+  Chart.defaults.font.family = "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+  Chart.defaults.color = '#2D2D3A';
+
+  // Adoption chart — bars graduate from pink → electric → midnight → charcoal
+  const adoptionCtx = document.getElementById('adoptionChart').getContext('2d');
+  new Chart(adoptionCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Electricity', 'Telephone', 'Internet', 'Smartphones', 'Instagram', 'TikTok', 'ChatGPT'],
+      datasets: [{
+        data: [46, 50, 7, 4, 2.5, 0.75, 0.17],
+        backgroundColor: [
+          '#FFCCF2',  // Hazy Pink — oldest/slowest
+          '#FFCCF2',
+          '#977DFF',  // Neon Purple
+          '#977DFF',
+          '#0033FF',  // Electric Blue
+          '#002373',  // Midnight Blue
+          '#1E1E28'   // Charcoal — newest/fastest
+        ],
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 800 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.parsed.x;
+              if (v < 1) return `${Math.round(v * 12)} months`;
+              return `${v} years`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'logarithmic',
+          min: 0.1, max: 100,
+          ticks: {
+            color: '#888899',
+            font: { size: 10, family: "'Space Mono', monospace" },
+            callback: (v) => {
+              if (v === 0.1) return '1 mo';
+              if (v === 1) return '1 yr';
+              if (v === 10) return '10 yr';
+              if (v === 100) return '100 yr';
+              return '';
+            }
+          },
+          grid: { color: 'rgba(238,238,242,0.8)' }
+        },
+        y: {
+          ticks: { color: '#1E1E28', font: { size: 11, weight: '700', family: "'DM Sans', sans-serif" } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // ARR chart — Anthropic total in midnight, Claude Code in electric → purple gradient
+  const arrCtx = document.getElementById('arrChart').getContext('2d');
+  new Chart(arrCtx, {
+    type: 'line',
+    data: {
+      labels: ['Dec 2024', 'Mar 2025', 'Jun 2025', 'Sep 2025', 'Dec 2025', 'Feb 2026', 'Apr 2026'],
+      datasets: [
+        {
+          label: 'Anthropic total ARR ($B)',
+          data: [1, 2, 4, 7, 9, 14, 30],
+          borderColor: '#1E1E28',
+          backgroundColor: 'rgba(30,30,40,0.06)',
+          borderWidth: 3,
+          tension: 0.35,
+          fill: true,
+          pointBackgroundColor: '#1E1E28',
+          pointRadius: 4
+        },
+        {
+          label: 'Claude Code ARR ($B)',
+          data: [null, null, 0, 0.3, 1, 2.5, null],
+          borderColor: '#977DFF',
+          backgroundColor: 'rgba(151,125,255,0)',
+          borderWidth: 3,
+          borderDash: [5, 4],
+          tension: 0.35,
+          pointBackgroundColor: '#977DFF',
+          pointRadius: 4,
+          spanGaps: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 1000 },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            font: { size: 10, family: "'Space Mono', monospace" },
+            boxWidth: 12, padding: 10, color: '#2D2D3A'
+          }
+        },
+        tooltip: {
+          callbacks: { label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y}B` }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: '#888899',
+            font: { size: 10, family: "'Space Mono', monospace" },
+            callback: (v) => `$${v}B`
+          },
+          grid: { color: 'rgba(238,238,242,0.8)' }
+        },
+        x: {
+          ticks: { color: '#888899', font: { size: 10, family: "'Space Mono', monospace" } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+</script>
+
+</body>
+</html>

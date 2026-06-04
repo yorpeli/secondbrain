@@ -149,6 +149,16 @@ Tensions identified when testing the article against all research. These are del
 - Tracked down three harness engineering references he cited (Martin Fowler, Anthropic, OpenAI) — verified URLs, added to reading list
 - Cleaned up residual article-centric framing in CLAUDE.md and memory.md
 
+### 2026-05-16 — PM Evolution Deck for Orrin (CPO)
+- Built two-slide PM evolution deck applying Manual / Augmented / AI-Native (AIR² deck §02 frame) to the PM role specifically
+- Synthesized from four LinkedIn posts (Feb–Apr 2026), Yonatan's internal "What Doesn't Get Outsourced" slide (four pillars: Product Sense, Judgment, Bias for Action, Customer Proximity), and AIR² deck §02–§03
+- Slide 1 matrix: primary output / where time goes / decisions / what disappears, across Manual / Augmented / AI-Native
+- Slide 2 unlocks: velocity, autonomy, bar — with payoff line "more senior · more autonomous · closer to the customer · measured by business outcomes"
+- User edits on first PPTX: "BI" → "Data" throughout; added "ship → learn → improve cycles" to AI-Native primary output; added "The ceiling is getting higher, the floor as well" to BAR description
+- Deliverables in `decks/`: `pm-evolution.pptx`, `.html`, `.pdf`. Synthesis doc at `docs/pm-evolution.md`
+- Audience: Orrin (CPO), board-grade; secondary use for PM guild and iTalent pipeline
+- Open: third slide on "what leadership has to provide" (currently sidebar — could become §03 if Orrin asks); engineer-role evolution companion piece pending Tomer's AI Wizard assessment
+
 ## User Preferences
 - Wants to be kept honest — flag when things are hand-wavy or missing
 - Final output must be grounded in current reality, not clean-sheet

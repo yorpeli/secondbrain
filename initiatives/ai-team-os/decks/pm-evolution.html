@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PM Evolution — Manual / Augmented / AI-Native</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f3ec;
+  --ink: #0a0a0a;
+  --ink-soft: #1f1f1f;
+  --gray-1: #555;
+  --gray-2: #8a8a8a;
+  --gray-3: #b8b8b8;
+  --border: #c5c0b3;
+  --border-soft: #d8d4c8;
+  --blue: #1f4eff;
+  --red: #c4252a;
+  --blue-card-bg: #f0f3ff;
+  --red-card-bg: #fdf2f2;
+  --band-bg: #0e0e0e;
+  --band-fg: #c5e860;
+  --band-label: #6e6e6e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: #d8d5ca;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0;
+  gap: 24px;
+}
+
+.slide {
+  width: 1600px;
+  height: 900px;
+  background: var(--bg);
+  position: relative;
+  padding: 48px 72px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Corner brackets */
+.bracket {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #4a4a4a;
+}
+.bracket.tl { top: 22px; left: 22px; border-right: none; border-bottom: none; }
+.bracket.tr { top: 22px; right: 22px; border-left: none; border-bottom: none; }
+.bracket.bl { bottom: 22px; left: 22px; border-right: none; border-top: none; }
+.bracket.br { bottom: 22px; right: 22px; border-left: none; border-top: none; }
+
+/* Header band */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: var(--gray-1);
+  text-transform: uppercase;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.header .section {
+  color: var(--blue);
+  font-weight: 500;
+}
+
+/* Footer band */
+.footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: var(--gray-1);
+  text-transform: uppercase;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Main content */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 36px;
+  padding-bottom: 8px;
+}
+
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--blue);
+  font-weight: 500;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: 50px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+h1 .blue { color: var(--blue); }
+h1 .red { color: var(--red); }
+
+.subtitle {
+  font-size: 18px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin-bottom: 30px;
+  max-width: 1100px;
+}
+
+/* Matrix - 3 column cards */
+.matrix {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+  flex: 1;
+}
+
+.card {
+  border: 1.5px solid #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  position: relative;
+}
+.card.augmented {
+  border-color: var(--red);
+  background: var(--red-card-bg);
+}
+.card.ai-native {
+  border-color: var(--blue);
+  background: var(--blue-card-bg);
+}
+
+.tag-letter {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #1a1a1a;
+  color: var(--bg);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  letter-spacing: 0.06em;
+  z-index: 2;
+}
+.card.augmented .tag-letter { background: var(--red); }
+.card.ai-native .tag-letter { background: var(--blue); }
+
+.card-header {
+  padding: 24px 24px 18px 24px;
+}
+
+.tag-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--gray-1);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.card.augmented .tag-label { color: var(--red); }
+.card.ai-native .tag-label { color: var(--blue); }
+
+.card-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+}
+
+.card-body {
+  padding: 8px 24px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.row-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  color: var(--gray-1);
+  text-transform: lowercase;
+  font-weight: 500;
+}
+.row-content {
+  font-size: 14.5px;
+  line-height: 1.42;
+  color: var(--ink);
+}
+.row-content.highlight {
+  font-weight: 700;
+  color: var(--blue);
+  letter-spacing: -0.005em;
+}
+.row-content em { font-style: italic; font-weight: 500; }
+.row-content .dash { color: var(--gray-2); }
+
+/* Slide 2 unlock cards */
+.unlock-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 24px;
+  flex: 1;
+}
+
+.unlock-card {
+  border: 1.5px solid var(--border);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  position: relative;
+}
+.unlock-card-inner {
+  padding: 28px 30px 24px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+.unlock-num {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #1a1a1a;
+  color: var(--bg);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  letter-spacing: 0.06em;
+}
+.unlock-card .tag-label {
+  margin-top: 6px;
+  color: var(--blue);
+  margin-bottom: 4px;
+}
+.unlock-card .title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+}
+.unlock-card .desc {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  margin-top: 4px;
+}
+
+/* Bottom band - matches §03 north-star style */
+.band {
+  background: var(--band-bg);
+  color: var(--band-fg);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-transform: lowercase;
+}
+.band .label {
+  color: var(--band-label);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  font-size: 12px;
+}
+.band .body {
+  text-align: right;
+  letter-spacing: 0.02em;
+}
+
+@media print {
+  body { background: white; padding: 0; gap: 0; }
+  .slide { box-shadow: none; page-break-after: always; margin: 0; }
+  .slide:last-child { page-break-after: auto; }
+  @page { size: 1600px 900px; margin: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============== SLIDE 1 ============== -->
+<div class="slide">
+  <div class="bracket tl"></div><div class="bracket tr"></div>
+  <div class="bracket bl"></div><div class="bracket br"></div>
+
+  <div class="header">
+    <div>FIG. 01 — PM EVOLUTION SCHEMATIC</div>
+    <div class="section">§01 — HOW THE PM ROLE EVOLVES</div>
+    <div>MAY 2026</div>
+  </div>
+
+  <div class="content">
+    <div class="section-label">THE PM ARC</div>
+    <h1>The PM role moves with the team: <span class="red">Manual</span> → <span class="red">Augmented</span> → <span class="blue">AI-Native</span>.</h1>
+    <p class="subtitle">Same shift as the team. Different surface, same arc. What the PM stops doing is as important as what the PM starts doing.</p>
+
+    <div class="matrix">
+
+      <!-- A — Manual -->
+      <div class="card manual">
+        <div class="tag-letter">A</div>
+        <div class="card-header">
+          <div style="height: 14px;"></div>
+          <div class="tag-label">WHERE WE ARE</div>
+          <div class="card-title">Manual</div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="row-label">primary output</div>
+            <div class="row-content">PRDs, decks, backlog, status updates</div>
+          </div>
+          <div class="row">
+            <div class="row-label">where time goes</div>
+            <div class="row-content">coordination, writing artifacts, waiting on BI / design / engineering</div>
+          </div>
+          <div class="row">
+            <div class="row-label">decisions</div>
+            <div class="row-content">defers to process; asks for permission; decisions held above the team</div>
+          </div>
+          <div class="row">
+            <div class="row-label">what disappears</div>
+            <div class="row-content"><span class="dash">— (status quo, nothing yet given up)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- B — Augmented -->
+      <div class="card augmented">
+        <div class="tag-letter">B</div>
+        <div class="card-header">
+          <div style="height: 14px;"></div>
+          <div class="tag-label">THE TEMPTING MIDDLE STEP</div>
+          <div class="card-title">Augmented</div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="row-label">primary output</div>
+            <div class="row-content">lighter specs, prototypes, AI-synthesized research</div>
+          </div>
+          <div class="row">
+            <div class="row-label">where time goes</div>
+            <div class="row-content">synthesis, prototyping, faster decisions — same shape</div>
+          </div>
+          <div class="row">
+            <div class="row-label">decisions</div>
+            <div class="row-content">makes the call with AI-aided context; still escalates by default</div>
+          </div>
+          <div class="row">
+            <div class="row-label">what disappears</div>
+            <div class="row-content">waiting on BI, sequential handoffs, ten-page PRDs</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- C — AI-Native -->
+      <div class="card ai-native">
+        <div class="tag-letter">C</div>
+        <div class="card-header">
+          <div style="height: 14px;"></div>
+          <div class="tag-label">WHERE WE'RE GOING</div>
+          <div class="card-title">AI-Native</div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="row-label">primary output</div>
+            <div class="row-content">executable specs, evaluator criteria, problem frames</div>
+          </div>
+          <div class="row">
+            <div class="row-label">where time goes</div>
+            <div class="row-content highlight">product sense · judgment · bias for action · customer proximity</div>
+          </div>
+          <div class="row">
+            <div class="row-label">decisions</div>
+            <div class="row-content">owns intent; agents execute within blast radius; humans at go/no-go — ideation to production in days</div>
+          </div>
+          <div class="row">
+            <div class="row-label">what disappears</div>
+            <div class="row-content">decks <em>about</em> decisions; "blocked on BI / research" as status; busy-as-productive</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>YONATAN ORPELI</div>
+    <div>RUNTIME / ~5 MIN</div>
+    <div>01 / 02</div>
+  </div>
+</div>
+
+
+<!-- ============== SLIDE 2 ============== -->
+<div class="slide">
+  <div class="bracket tl"></div><div class="bracket tr"></div>
+  <div class="bracket bl"></div><div class="bracket br"></div>
+
+  <div class="header">
+    <div>FIG. 02 — UNLOCK SCHEMATIC</div>
+    <div class="section">§02 — WHAT AI-NATIVE UNLOCKS</div>
+    <div>MAY 2026</div>
+  </div>
+
+  <div class="content">
+    <div class="section-label">THE UNLOCK</div>
+    <h1>When the PM operates AI-Native, the team's <span class="blue">clock changes</span>.</h1>
+    <p class="subtitle">Speed, autonomy, and a higher bar — earned by what the role gives up, not just by what it adds.</p>
+
+    <div class="unlock-grid">
+
+      <div class="unlock-card">
+        <div class="unlock-num">01</div>
+        <div class="unlock-card-inner">
+          <div style="height: 12px;"></div>
+          <div class="tag-label">VELOCITY</div>
+          <div class="title">Ideation to production in days, not quarters.</div>
+          <div class="desc">Co-solve replaces hand-off. The PM specifies intent upstream rather than approving drafts downstream. Cycle compression is structural, not cultural.</div>
+        </div>
+      </div>
+
+      <div class="unlock-card">
+        <div class="unlock-num">02</div>
+        <div class="unlock-card-inner">
+          <div style="height: 12px;"></div>
+          <div class="tag-label">AUTONOMY</div>
+          <div class="title">Decisions live in the team.</div>
+          <div class="desc">Blast-radius framework defaults L0 / L1 to the pod. Leadership asks for the decision and the reasoning — not the deck summarizing the research.</div>
+        </div>
+      </div>
+
+      <div class="unlock-card">
+        <div class="unlock-num">03</div>
+        <div class="unlock-card-inner">
+          <div style="height: 12px;"></div>
+          <div class="tag-label">BAR</div>
+          <div class="title">A more senior PM. Business acumen. Bias for action.</div>
+          <div class="desc">AI fluency is table stakes, not a differentiator. Hiring, review, and what "good" means all move with the role.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="band">
+      <span class="label">THE AI-NATIVE PM</span>
+      <span class="body">more senior · more autonomous · closer to the customer · measured by business outcomes</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>YONATAN ORPELI</div>
+    <div>RUNTIME / ~5 MIN</div>
+    <div>02 / 02</div>
+  </div>
+</div>
+
+</body>
+</html>

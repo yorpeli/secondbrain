@@ -4,7 +4,7 @@
 
 ### Who This Serves
 
-Yonatan Orpeli — VP of Product at Payoneer, leading the CLM (Customer Lifecycle Management) domain. He manages a ~21-person product organization: 6 direct reports leading 5 product teams, plus 11 skip-level ICs. He started in August 2024, coming from 5 years as Senior Director of Product at Forter.
+Yonatan Orpeli — VP of Product at Payoneer, leading the CLM (Customer Lifecycle Management) domain. He manages a ~21-person product organization: 5 direct reports leading 5 product teams, plus 12 skip-level ICs. He started in August 2024, coming from 5 years as Senior Director of Product at Forter.
 
 CLM covers the full customer lifecycle at Payoneer: KYC (know-your-customer) verification, onboarding, compliance, localization & licensing, and policy & eligibility. This involves coordinating across a 350-person manual review operation, multiple external vendors, and country-specific regulatory requirements.
 
@@ -29,7 +29,7 @@ Yonatan's leadership philosophy shapes what the system optimizes for:
 
 ### The Org
 
-Six direct reports, five teams:
+Five direct reports, five teams:
 
 | Lead | Team | Scope |
 |------|------|-------|
@@ -38,7 +38,6 @@ Six direct reports, five teams:
 | Yael Feldhiem (Product Director) | Localization & Licensing | Country localization, licensing, India expansion |
 | Ido Seter (Senior PM) | Policy & Eligibility | Compliance policies, eligibility rules |
 | Meital Lahat Dekter (Senior Director) | Delegated Onboarding | Partner/delegated onboarding flows |
-| Yaniv Oved (Principal PSM) | Product Solutions | Cross-cutting product solutions and strategy |
 
 Yonatan reports to Yaron Zakai Or (SVP Product) who reports to Oren Ryngler (CPO).
 
@@ -104,6 +103,17 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 | Vendor Optimization PM | `vendor-optimization-pm` | `pm_team/vendor-optimization/` | KYC vendor portfolio, POC lifecycle, coverage gap analysis, vendor deprecation tracking |
 | AB Testing | `ab-testing` | `ab-testing/` | CLM experiment registry, Looker-based statistical analysis, Asana lifecycle tracking |
 | Outlook Agent | `outlook-agent` | `outlook/` + `agents/outlook-agent.md` | Claude-for-Outlook bridge — pull-only email/calendar lookups via agent_tasks, results promoted to initiative memory with provenance |
+| Initiative Review | `initiative-review` | `agents/initiative-review.md` + `scripts/initiative-review/` | Visual portfolio review — gathers active initiatives + memory docs, dispatches analysis sub-agents for TL;DR/recommendation cards, renders a self-contained offline HTML review page |
+
+**Initiative Review — natural-language trigger (Yonatan never runs the CLI; you do):** When Yonatan says any of the below, run it for him and handle the rest conversationally. See [agents/initiative-review.md](agents/initiative-review.md) for the full procedure and the analysis sub-agent prompt template.
+
+| Yonatan says (or similar) | You do |
+|---|---|
+| "review the initiatives", "run an initiative review", "let's look at the open initiatives" | Decide path. If analysis is fresh → **render-only**: `npm run initiative-review`, then `open output/initiatives/initiative-review.html`. If analysis is stale/missing or he wants a fresh take → **full review**: gather, dispatch one read-only analysis sub-agent per substantive initiative (parallel), merge results into `scripts/initiative-review/highlights.json` (bump `_meta.analyzed`), then `npm run initiative-review` + open. Then walk P0→P1 and surface the cross-cutting pattern. |
+| "refresh the review", "rebuild the review page" | `npm run initiative-review` + open (render-only from current Supabase data + existing highlights). |
+| "re-analyze X", "add X to the review" | Dispatch the analysis sub-agent for that slug, merge into `highlights.json`, re-render. |
+
+Default scope: all active, tiered (full cards for substantive memory docs; a "not analyzed — too sparse" banner for thin/empty ones). `blocked` initiatives render in a greyed **"On Hold"** group at the bottom (cards kept). Closing/parking an initiative is a status change — `completed` drops it off entirely; `blocked` moves it to On Hold. The HTML + a data-layer JSON land in `output/initiatives/`.
 
 ### Dev Team (UI App)
 
@@ -185,6 +195,22 @@ OPENAI_API_KEY=<for-embeddings-only>
 ```
 
 Use `@supabase/supabase-js` with the service role key for all DB access. Never hardcode keys or UUIDs.
+
+---
+
+## External Data Sources
+
+Beyond the Supabase backbone, the system has **read-only** access to external knowledge stores. These are live sources (no local copy) — read on demand, never the source of truth for our own data.
+
+### KYC Team Repo (Azure DevOps) — read-only
+
+Elad Schnarch's KYC/KYB team maintains a shared context repo on Azure DevOps (`Product KYC Team`, branch `KYC_Team_Branch`). We have a **read-only** live connection to it via the `kyc-team-repo` skill (`.claude/skills/kyc-team-repo/SKILL.md`), backed by a Code:Read PAT in `AZURE_DEVOPS_PAT` (`.env`, gitignored).
+
+- **What's in it:** KYC/KYB PRDs, competitive research (Stripe/Wise/Airwallex), vendor & competitor analyses, EVS architecture/metrics/providers, DU (document-understanding) core context + vendor docs + monthly vendor reports, the canonical glossary, vendor QA framework, and dashboard links.
+- **Who benefits:** `vendor-optimization-pm`, `kyc-product-pm`, `competitive-analysis`, and EVS/eCollection initiative work — this is external corroboration for our own CLM vendor/KYC intel.
+- **How to use:** The skill auto-triggers on mentions of the KYC team repo, their glossary, competitive research, vendor/EVS/DU references, etc. It reads files and lists folders live; it **never writes** (Yonatan is a consumer of this repo, not an author).
+- **Bridge convention:** Azure DevOps stays the source of truth (read live); the Second Brain is the index. When carrying repo content into our DB (e.g. an initiative memory doc), cite provenance as `[KYC team repo: /path/to/file @ KYC_Team_Branch]` — summarize and link, don't bulk-copy.
+- **Full procedure & repo layout:** see the skill file.
 
 ---
 
