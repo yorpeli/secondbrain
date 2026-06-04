@@ -4,6 +4,23 @@
     "source": "memory doc + workspace docs + stakeholders + linked tasks + context_store.current_focus",
     "note": "Point-in-time analysis. Regenerate when refreshing the review. P0s authored directly; P1s via parallel analysis agents."
   },
+  "claude-kyc-agent": {
+    "tldr": "A 0-to-1 strategic bet, just promoted to P0. It's a vendor-agnostic KYC orchestration layer built ON TOP of foundation-model KYC agents (Anthropic KYC Screener / Google ADK) — 'use what they built, don't rebuild or compete' — so Payoneer can swap providers while owning extraction logic, compliance, and audit. The early signal is strong: Claude-based extraction hit 91% field accuracy vs Persona's 65% on 45 native-validated Japanese docs. Yonatan's Jun 3 call is decisive: stop perfecting per-language accuracy and ship it — the bottleneck is plumbing (a doc-access service), not extraction quality. Shilhav Ben-David now leads day-to-day; near-term play is Post-rep QA on eBay flows, in front of reps within weeks.",
+    "signals": [
+      { "label": "Early result", "value": "Claude extraction 91% vs Persona 65% on 45 native-validated Japanese docs (v2 prompt, +26.5pp)", "tone": "ok" },
+      { "label": "Strategic framing", "value": "Agnostic layer over Anthropic KYC Screener / Google ADK — swap providers, own extraction/compliance/audit. Not a model, not a competitor.", "tone": "info" },
+      { "label": "Decisive redirect", "value": "Yonatan (Jun 3): deployment & placement > per-language accuracy — the bottleneck is plumbing, not %", "tone": "ok" },
+      { "label": "Near-term bottleneck", "value": "Doc-access service (Omer): surface docs → agent → report in <3 min. Post-rep QA is the fastest first cell (~nothing required)", "tone": "warn" },
+      { "label": "Team / hygiene gaps", "value": "Shilhav leads but no assigned_agent; Shilhav/Yaniv/Sivan/Omer not in people table; no target_date", "tone": "warn" },
+      { "label": "Open risks", "value": "Sample still small (45 JP docs); US path gated (UK easier); screening vendor TBC; reproduce Yaniv's audited set as credibility benchmark", "tone": "warn" }
+    ],
+    "recommendation": [
+      "Hold the deployment-first line: get Post-rep QA in front of reps on eBay flows within the upcoming office weeks — a rep seeing the UI beats another accuracy point.",
+      "Unblock the doc-access service with Omer now; it's the real bottleneck. The <3-min case→report is the demo that sells the whole thing — escalate if Omer is blocked.",
+      "Reproduce Yaniv's official audited set as the credibility benchmark before broadening — 45 Japanese docs is a signal, not proof.",
+      "Connect this explicitly to the vendor-optimization portfolio decision: 91% vs 65% directly pressures Persona OCR spend — these two threads should inform each other."
+    ]
+  },
   "ai-native-team-structure": {
     "tldr": "The thinking is done and genuinely strong — operating model published, hiring process designed, recruitment opened. But execution has stalled: no one is hired (lead PM candidate Denis declined in April), the engineer role is still undefined, and no pod has been stood up. The risk now is the exact thing Yonatan said he didn't want — a brilliant manifesto that gets forgotten. The bias needs to shift from research to commitment.",
     "signals": [
@@ -123,6 +140,23 @@
       "Close the last hygiene gap: assign a PM agent so this P1 isn't tracked only via the SharePoint roadmap + memory doc."
     ]
   },
+  "compliance-data-quality": {
+    "tldr": "The standout of the portfolio — and a rare initiative that's ahead of its record, not behind it. Ido Seter's Q1 announcement (Apr 29) shows Compliance × Product delivered +6.6% CVR, +19% auto-approvals, and 9% fewer manual reviews from six policy/config/process changes with ZERO engineering. Several beat their targets. The Q2 set is already in motion. The only watch-items are tracking hygiene (no assigned agent, PPP oscillated in Q1) and the still-open ORN incident follow-ups — not delivery.",
+    "signals": [
+      { "label": "Q1 impact", "value": "+6.6% CVR · +19% auto-approvals · 9% fewer manual reviews — six changes, zero engineering [Ido Seter, Apr 29]", "tone": "ok" },
+      { "label": "Biggest driver", "value": "CVD/POCA document removal → eVerification ≈ +6% CVR (largest single contributor)", "tone": "ok" },
+      { "label": "Beat targets", "value": "House-number removal 13–15% vs ~6% target; EIN 3–4% vs ~2%; manual-review −9% and still growing", "tone": "ok" },
+      { "label": "Q2 pipeline (in motion)", "value": "Weighted Data Points Scoring, Relax DOI matching, Remove EU Bank Verification, Fuzzy CVD matching, POCA automation", "tone": "info" },
+      { "label": "Open risk", "value": "ORN production-incident follow-ups still open; Weighted-Scoring iteration depends on Compliance review", "tone": "warn" },
+      { "label": "Hygiene", "value": "assigned_agent NULL; PPP oscillated 'potential-issues' through Q1 despite the strong outcome", "tone": "warn" }
+    ],
+    "recommendation": [
+      "Bank the Q1 model as repeatable: Compliance-as-partner-throughout + define-expected-impact-then-measure. Apply it explicitly to the Q2 set.",
+      "Make sure each Q2 item has an owner and an upfront expected-impact target (the discipline that made Q1 work) — especially the long-running Weighted Data Points Scoring and Remove EU Bank Verification.",
+      "Close the lingering ORN production-incident follow-ups — the one open risk that isn't about delivery.",
+      "Assign a PM agent so this P1's wins and Q2 pipeline are tracked beyond a one-time announcement."
+    ]
+  },
   "partners-rollout": {
     "tldr": "Live and near the finish line — not the dark, unverified initiative the record implied. An email refresh (Mor Saar, Jun 3) closed a 71-day reporting gap: the CLM Enterprise Partner Rollout went 🔴 RED (May 18) → 🟠 Medium (Jun 3) and is tracking to a June 15 full-completion target. Most of the program landed in late May/early June (Cards live May 31, Mirakl Ulta Jun 1, China/HK ramping). The remaining real risk is narrow: Airbnb 100% and Banking Partnerships ride on the June 8 window, and Cards shipped before its legal question (company card issuance) is resolved. DB tracking hygiene is still weak — the program lives in email, not in the system.",
     "signals": [
@@ -141,20 +175,20 @@
     ]
   },
   "t1-localization": {
-    "tldr": "A P1 multi-country localization initiative whose memory doc has gone dark for ~84 days (last update 2026-03-11) despite a churning environment — Yael's maternity-driven handover to Eliya was logged but never followed up. Q1 showed real wins (eKYB UK 51%, Brazil 53% vs 33-38% targets; UK legal text in 3 weeks) but execution was mixed: 4 of 11 items at-risk/delayed and 2 postponed. All near-term deadlines (Mar 31 Local UX, Apr 8 EIN impact) have passed with no recorded outcome, and the initiative no longer appears in Yonatan's current_focus.",
+    "tldr": "A second standout — the record has caught up and it's a blowout. Eliya's May 11 announcement shows localized onboarding delivered 4–5× its planned impact: +18pp CVR in the UK and +16pp in Brazil (vs a +4/+2pp plan), with 70–90% of companies onboarding with NO documents, ~2× faster approvals, and reopens cut ~50%. The earlier 'mixed / at-risk' March picture is fully superseded. The standout enabler: platform modernization (AWS + AI) cut new-vendor integration from 12 weeks to 2 — which is what makes the next phase (US → UAE, Singapore, India) credible at scale.",
     "signals": [
-      { "label": "Staleness", "value": "Memory last updated 2026-03-11 — ~84 days stale, no Q2 entries", "tone": "risk" },
-      { "label": "Passed deadlines, no outcome", "value": "Mar 31 Local UX (BR/UK/US) and Apr 8 EIN CVR impact both due — zero verification logged", "tone": "risk" },
-      { "label": "Impact results", "value": "eKYB UK 51% / Brazil 53% vs 33-38% targets — major overperformance", "tone": "ok" },
-      { "label": "Ownership in flux", "value": "Yael on maternity; Eliya now leads reporting to Yonatan — handover logged Mar 11, no follow-up since", "tone": "warn" },
-      { "label": "At-risk / postponed backlog", "value": "US eCollection (1 vendor→3, corp delay), POR OCR (security block), Legal Entity prefill UK/US; SG eCollection & Email Reseller US postponed", "tone": "warn" },
-      { "label": "Tracking hygiene gaps", "value": "Q2 SG/UAE solutions due this quarter; no tasks, no stakeholder rows, India in title but absent from objective", "tone": "warn" }
+      { "label": "Q1 impact", "value": "+18pp CVR UK / +16pp Brazil — 4–5× the +4/+2pp plan [Eliya, May 11]", "tone": "ok" },
+      { "label": "No-doc onboarding", "value": "70–90% of companies onboarded with NO core documents; +15–23% registration completion; 12% faster", "tone": "ok" },
+      { "label": "Operational gains", "value": "First-time approval +40–153%; end-to-end approval time −52–61%; document reopens −36–78%", "tone": "ok" },
+      { "label": "Scalability enabler", "value": "Platform modernization — AWS migration + AI cut new-vendor integration from 12 weeks → 2 weeks", "tone": "info" },
+      { "label": "US validation", "value": "EIN → eMethods: +50% approval rate, 23.4% faster, +2pp CVR (US) — corroborates the compliance Q1 story", "tone": "ok" },
+      { "label": "Next / watch", "value": "Scaling US → UAE, Singapore, India; Yael on maternity, Eliya leading; SG/UAE/India need owners + dates", "tone": "warn" }
     ],
     "recommendation": [
-      "Direct hub-countries-pm to run a Q2 refresh with Eliya now: confirm Mar 31 Local UX deliveries, Apr 8 EIN CVR result, and US eCollection vendor status.",
-      "Get a status on the Q2 Singapore & UAE solutions (and India scope) — these are the only forward commitments and have no progress recorded.",
-      "Confirm the post-maternity ownership model is holding (Eliya direct-report, weekly syncs) and close the pending Sumsub POC agreement and HR coordination with Sarit.",
-      "Backfill the DB: add stakeholder rows and convert the 11 Q1 tracker items into tasks so the initiative is no longer tracked solely in free-text memory."
+      "Treat the US rollout as the scalability proof point — confirm the UK/Brazil gains replicate before locking UAE/Singapore/India timelines.",
+      "Bank the 12→2-week integration capability (AWS + AI) as reusable platform infrastructure, not a one-off — it's what makes multi-market expansion credible.",
+      "Feed this into the folded 'What Went Right' retro task (now under T1) — it's the quantified proof; templatize per the retro's four open questions.",
+      "Give the SG/UAE/India expansion explicit owners and target dates (the old SG eCollection postponement and the India H2 deferral are the loose threads)."
     ]
   },
   "licenses-regulation": {

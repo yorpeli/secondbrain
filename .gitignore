@@ -7,6 +7,9 @@ dist/
 # Generated documents
 output/
 
+# War-room working artifacts (large local sources; content synced to Supabase memory instead)
+initiatives/clm-war-room/docs/
+
 # Environment (never commit secrets)
 .env
 .env.local
