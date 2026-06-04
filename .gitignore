@@ -34,3 +34,6 @@ npm-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Microsoft Office lock/temp files
+~$*
