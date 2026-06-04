@@ -198,6 +198,22 @@ Use `@supabase/supabase-js` with the service role key for all DB access. Never h
 
 ---
 
+## External Data Sources
+
+Beyond the Supabase backbone, the system has **read-only** access to external knowledge stores. These are live sources (no local copy) — read on demand, never the source of truth for our own data.
+
+### KYC Team Repo (Azure DevOps) — read-only
+
+Elad Schnarch's KYC/KYB team maintains a shared context repo on Azure DevOps (`Product KYC Team`, branch `KYC_Team_Branch`). We have a **read-only** live connection to it via the `kyc-team-repo` skill (`.claude/skills/kyc-team-repo/SKILL.md`), backed by a Code:Read PAT in `AZURE_DEVOPS_PAT` (`.env`, gitignored).
+
+- **What's in it:** KYC/KYB PRDs, competitive research (Stripe/Wise/Airwallex), vendor & competitor analyses, EVS architecture/metrics/providers, DU (document-understanding) core context + vendor docs + monthly vendor reports, the canonical glossary, vendor QA framework, and dashboard links.
+- **Who benefits:** `vendor-optimization-pm`, `kyc-product-pm`, `competitive-analysis`, and EVS/eCollection initiative work — this is external corroboration for our own CLM vendor/KYC intel.
+- **How to use:** The skill auto-triggers on mentions of the KYC team repo, their glossary, competitive research, vendor/EVS/DU references, etc. It reads files and lists folders live; it **never writes** (Yonatan is a consumer of this repo, not an author).
+- **Bridge convention:** Azure DevOps stays the source of truth (read live); the Second Brain is the index. When carrying repo content into our DB (e.g. an initiative memory doc), cite provenance as `[KYC team repo: /path/to/file @ KYC_Team_Branch]` — summarize and link, don't bulk-copy.
+- **Full procedure & repo layout:** see the skill file.
+
+---
+
 ## Database Overview
 
 The database has 27 tables organized into five domains. For full column definitions, see [docs/schema.md](docs/schema.md).
