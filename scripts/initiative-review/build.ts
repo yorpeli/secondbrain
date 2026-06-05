@@ -3,6 +3,7 @@ import { writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getSupabase } from '../../lib/supabase.js'
+import { renderMarkdown, escapeHtml } from '../../lib/md-to-html.js'
 
 /**
  * Initiative Review builder — gather + render.
@@ -47,152 +48,6 @@ interface ReviewItem extends InitiativeRow {
 }
 
 // ----------------------------------------------------------------------------
-// Minimal, self-contained markdown -> HTML renderer.
-// Memory docs follow a known template (## headings, bullet lists, [date]
-// append-only logs, **bold**). This covers headings, lists, hr, bold/italic,
-// inline code, and links. Source is HTML-escaped first.
-// ----------------------------------------------------------------------------
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
-function inline(text: string): string {
-  let t = escapeHtml(text)
-  // inline code
-  t = t.replace(/`([^`]+)`/g, '<code>$1</code>')
-  // bold
-  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  // italic (avoid matching ** already consumed)
-  t = t.replace(/(^|[^*])\*([^*\s][^*]*?)\*/g, '$1<em>$2</em>')
-  t = t.replace(/(^|[^_])_([^_\s][^_]*?)_/g, '$1<em>$2</em>')
-  // links [text](url)
-  t = t.replace(
-    /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
-    (_m, label, url) => `<a href="${url}" target="_blank" rel="noopener">${label}</a>`
-  )
-  // highlight leading [date] tokens in log lines
-  t = t.replace(/^\[(\d{4}-\d{2}-\d{2})\]/, '<span class="logdate">[$1]</span>')
-  return t
-}
-
-function isTableRow(line: string): boolean {
-  return /^\s*\|.*\|\s*$/.test(line)
-}
-
-function isTableSeparator(line: string): boolean {
-  return /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/.test(line) && line.includes('-')
-}
-
-function splitRow(line: string): string[] {
-  let s = line.trim()
-  if (s.startsWith('|')) s = s.slice(1)
-  if (s.endsWith('|')) s = s.slice(0, -1)
-  return s.split('|').map((c) => c.trim())
-}
-
-function renderMarkdown(md: string): string {
-  const lines = md.replace(/\r\n/g, '\n').split('\n')
-  const out: string[] = []
-  let listType: 'ul' | 'ol' | null = null
-
-  const closeList = () => {
-    if (listType) {
-      out.push(`</${listType}>`)
-      listType = null
-    }
-  }
-
-  for (let li = 0; li < lines.length; li++) {
-    const raw = lines[li]
-    const line = raw.trimEnd()
-
-    // GitHub-style table: a pipe row followed by a separator row
-    if (isTableRow(line) && li + 1 < lines.length && isTableSeparator(lines[li + 1])) {
-      closeList()
-      const header = splitRow(line)
-      const rows: string[][] = []
-      li += 2 // skip header + separator
-      while (li < lines.length && isTableRow(lines[li])) {
-        rows.push(splitRow(lines[li]))
-        li++
-      }
-      li-- // step back; loop will increment
-      const thead =
-        '<thead><tr>' +
-        header.map((h) => `<th>${inline(h)}</th>`).join('') +
-        '</tr></thead>'
-      const tbody =
-        '<tbody>' +
-        rows
-          .map(
-            (r) =>
-              '<tr>' +
-              header.map((_, ci) => `<td>${inline(r[ci] ?? '')}</td>`).join('') +
-              '</tr>'
-          )
-          .join('') +
-        '</tbody>'
-      out.push(`<table>${thead}${tbody}</table>`)
-      continue
-    }
-
-    if (!line.trim()) {
-      closeList()
-      continue
-    }
-
-    // horizontal rule
-    if (/^---+$/.test(line.trim())) {
-      closeList()
-      out.push('<hr/>')
-      continue
-    }
-
-    // headings
-    const h = line.match(/^(#{1,4})\s+(.*)$/)
-    if (h) {
-      closeList()
-      const level = h[1].length
-      out.push(`<h${level}>${inline(h[2])}</h${level}>`)
-      continue
-    }
-
-    // unordered list
-    const ul = line.match(/^\s*[-*]\s+(.*)$/)
-    if (ul) {
-      if (listType !== 'ul') {
-        closeList()
-        out.push('<ul>')
-        listType = 'ul'
-      }
-      out.push(`<li>${inline(ul[1])}</li>`)
-      continue
-    }
-
-    // ordered list
-    const ol = line.match(/^\s*\d+\.\s+(.*)$/)
-    if (ol) {
-      if (listType !== 'ol') {
-        closeList()
-        out.push('<ol>')
-        listType = 'ol'
-      }
-      out.push(`<li>${inline(ol[1])}</li>`)
-      continue
-    }
-
-    // paragraph
-    closeList()
-    out.push(`<p>${inline(line)}</p>`)
-  }
-  closeList()
-  return out.join('\n')
-}
-
-// ----------------------------------------------------------------------------
 // Curated analysis — TL;DR + signals + recommendation per initiative.
 // Synthesized 2026-06-03 from: memory doc, workspace-memory, workspace-context,
 // stakeholders, and context_store.current_focus. No linked tasks/agent_log
@@ -205,6 +60,15 @@ interface Highlight {
   recommendation: string[]
 }
 
+// Executive overview — qualitative cross-cutting analysis for the landing page.
+// Quantitative stats are computed live from the DB; this is the narrative layer.
+interface Overview {
+  headline: string
+  patterns: { title: string; tone: Tone; body: string }[]
+  keyDates?: { date: string; label: string }[]
+  watchlist?: { slug: string; label: string; note: string }[]
+}
+
 // Highlights are generated separately and loaded from JSON so the analysis
 // content stays free of TypeScript string-escaping. See
 // scripts/initiative-highlights.json (regenerate when refreshing the review).
@@ -214,8 +78,11 @@ const HIGHLIGHTS_RAW = JSON.parse(
 ) as Record<string, unknown>
 const ANALYSIS_DATE =
   (HIGHLIGHTS_RAW._meta as { analyzed?: string } | undefined)?.analyzed ?? ''
+const OVERVIEW = HIGHLIGHTS_RAW._overview as Overview | undefined
 const HIGHLIGHTS: Record<string, Highlight> = Object.fromEntries(
-  Object.entries(HIGHLIGHTS_RAW).filter(([k]) => k !== '_meta')
+  Object.entries(HIGHLIGHTS_RAW).filter(
+    ([k]) => k !== '_meta' && k !== '_overview'
+  )
 ) as Record<string, Highlight>
 
 function renderHighlight(h: Highlight): string {
@@ -235,6 +102,99 @@ function renderHighlight(h: Highlight): string {
     <div class="hl-signals">${signals}</div>
     <div class="hl-rec"><h4>Recommendation</h4><ol>${recs}</ol></div>
   </section>`
+}
+
+// Stats for the overview landing page — computed live from the DB.
+interface OverviewStats {
+  active: number
+  onHold: number
+  analyzed: number
+  unassigned: number
+  veryStale: number
+  missing: number
+  byPriority: { p: string; n: number }[]
+}
+
+function renderOverview(stats: OverviewStats, ov: Overview | undefined): string {
+  const tiles = [
+    { n: stats.active, label: 'Active', cls: '' },
+    { n: stats.analyzed, label: '⚡ Analyzed', cls: '' },
+    { n: stats.byPriority.find((x) => x.p === 'P0')?.n ?? 0, label: 'P0', cls: 'tile-p0' },
+    { n: stats.unassigned, label: 'Unassigned', cls: stats.unassigned ? 'tile-warn' : '' },
+    { n: stats.veryStale, label: '>60d stale', cls: stats.veryStale ? 'tile-warn' : '' },
+    { n: stats.missing, label: 'No memory', cls: stats.missing ? 'tile-bad' : '' },
+    { n: stats.onHold, label: '⏸ On hold', cls: 'tile-muted' },
+  ]
+    .map(
+      (t) =>
+        `<div class="tile ${t.cls}"><span class="tile-n">${t.n}</span><span class="tile-l">${t.label}</span></div>`
+    )
+    .join('')
+
+  const prioBar = stats.byPriority
+    .map(
+      (x) =>
+        `<span class="prio-seg prio-${x.p}" style="flex:${x.n}" title="${x.p}: ${x.n}">${x.p} ${x.n}</span>`
+    )
+    .join('')
+
+  const patterns = (ov?.patterns ?? [])
+    .map(
+      (p) =>
+        `<div class="ptn ptn-${p.tone}"><div class="ptn-title">${escapeHtml(
+          p.title
+        )}</div><div class="ptn-body">${escapeHtml(p.body)}</div></div>`
+    )
+    .join('')
+
+  const dates = (ov?.keyDates ?? [])
+    .map(
+      (d) =>
+        `<div class="kd"><span class="kd-date">${escapeHtml(
+          d.date
+        )}</span><span class="kd-label">${escapeHtml(d.label)}</span></div>`
+    )
+    .join('')
+
+  const watch = (ov?.watchlist ?? [])
+    .map(
+      (w) =>
+        `<button class="watch" data-jump="${escapeHtml(w.slug)}">
+          <span class="watch-label">${escapeHtml(w.label)}</span>
+          <span class="watch-note">${escapeHtml(w.note)}</span>
+          <span class="watch-slug">${escapeHtml(w.slug)} →</span>
+        </button>`
+    )
+    .join('')
+
+  return `<article class="panel overview" data-slug="__overview">
+    <header class="panel-head">
+      <h1>Portfolio Overview</h1>
+      <div class="meta-chips">
+        <span class="chip">${stats.active} active initiatives</span>
+        <span class="chip">⚡ ${stats.analyzed} analyzed</span>
+        <span class="chip slug">analysis ${ANALYSIS_DATE}</span>
+      </div>
+    </header>
+    ${ov?.headline ? `<p class="ov-headline">${escapeHtml(ov.headline)}</p>` : ''}
+    <div class="tiles">${tiles}</div>
+    ${prioBar ? `<div class="prio-bar">${prioBar}</div>` : ''}
+    ${
+      patterns
+        ? `<h2 class="ov-h">Cross-cutting patterns</h2><div class="ptns">${patterns}</div>`
+        : ''
+    }
+    ${
+      dates
+        ? `<h2 class="ov-h">Key dates</h2><div class="kds">${dates}</div>`
+        : ''
+    }
+    ${
+      watch
+        ? `<h2 class="ov-h">Needs attention now</h2><div class="watches">${watch}</div>`
+        : ''
+    }
+  </article>`
 }
 
 // ----------------------------------------------------------------------------
@@ -361,9 +321,8 @@ function buildHtml(items: ReviewItem[], buildDate: string): string {
           const agent = it.assigned_agent
             ? `<span class="tag agent">${escapeHtml(it.assigned_agent)}</span>`
             : `<span class="tag unassigned">unassigned</span>`
-          const activeCls = rowIdx === 0 ? ' active' : ''
           rowIdx++
-          return `<button class="nav-row${activeCls}${onHoldGroup ? ' onhold' : ''}" data-slug="${it.slug}">
+          return `<button class="nav-row${onHoldGroup ? ' onhold' : ''}" data-slug="${it.slug}">
             <span class="nav-title">${escapeHtml(it.title)}${spark}${warn}</span>
             <span class="nav-meta">${agent}${meta}</span>
           </button>`
@@ -391,7 +350,7 @@ function buildHtml(items: ReviewItem[], buildDate: string): string {
       const agent = it.assigned_agent
         ? escapeHtml(it.assigned_agent)
         : 'unassigned'
-      return `<article class="panel${isOnHold(it) ? ' onhold' : ''}" data-slug="${it.slug}"${i === 0 ? '' : ' hidden'}>
+      return `<article class="panel${isOnHold(it) ? ' onhold' : ''}" data-slug="${it.slug}" hidden>
         <header class="panel-head">
           <h1>${escapeHtml(it.title)}</h1>
           <div class="meta-chips">
@@ -421,6 +380,23 @@ function buildHtml(items: ReviewItem[], buildDate: string): string {
   const missing = activeItems.filter((i) => i.staleDays === null).length
   const veryStale = activeItems.filter((i) => (i.staleDays ?? 0) > 60).length
   const analyzed = activeItems.filter((i) => HIGHLIGHTS[i.slug]).length
+  const unassigned = activeItems.filter((i) => !i.assigned_agent).length
+
+  // Active priority breakdown (P0→P2), only buckets that exist.
+  const byPriority = ['P0', 'P1', 'P2', 'P3']
+    .map((p) => ({ p, n: activeItems.filter((i) => (i.priority ?? 'P3') === p).length }))
+    .filter((x) => x.n > 0)
+
+  const overviewPanel = renderOverview(
+    { active: activeCount, onHold, analyzed, unassigned, veryStale, missing, byPriority },
+    OVERVIEW
+  )
+  const overviewNav = `<div class="nav-pinned">
+    <button class="nav-row pinned active" data-slug="__overview">
+      <span class="nav-title">📋 Portfolio Overview</span>
+      <span class="nav-meta"><span class="tag">${activeCount} active · ⚡ ${analyzed}</span></span>
+    </button>
+  </div>`
 
   return `<!doctype html>
 <html lang="en">
@@ -516,6 +492,63 @@ function buildHtml(items: ReviewItem[], buildDate: string): string {
   .hl-rec ol{margin:0;padding-left:20px}
   .hl-rec li{margin:5px 0;font-size:13.5px;line-height:1.5;color:#e6e8ee}
 
+  /* Sidebar pinned overview row */
+  .nav-pinned{padding:10px 10px 0;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .nav-row.pinned{background:#1a1d27;border-color:var(--line)}
+  .nav-row.pinned.active{background:var(--accent-soft);border-color:var(--accent)}
+
+  /* Overview / front page */
+  .overview .ov-headline{font-size:16px;line-height:1.6;color:#eef0f4;margin:20px 0 22px;
+    padding-left:14px;border-left:3px solid var(--accent)}
+  .overview .ov-h{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:10px;margin:4px 0 18px}
+  .tile{display:flex;flex-direction:column;gap:3px;align-items:flex-start;padding:13px 14px;
+    background:#161922;border:1px solid var(--line);border-radius:11px;border-top:2px solid var(--gray)}
+  .tile-n{font-size:26px;font-weight:700;line-height:1;color:#fff}
+  .tile-l{font-size:11px;color:var(--muted)}
+  .tile.tile-p0{border-top-color:var(--p0)}
+  .tile.tile-warn{border-top-color:var(--amber)}
+  .tile.tile-warn .tile-n{color:#fbbf57}
+  .tile.tile-bad{border-top-color:var(--red)}
+  .tile.tile-bad .tile-n{color:#ff8a8a}
+  .tile.tile-muted{border-top-color:var(--gray);opacity:.75}
+
+  .prio-bar{display:flex;gap:4px;margin:0 0 6px;height:30px;border-radius:8px;overflow:hidden}
+  .prio-seg{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+    color:#fff;min-width:46px;letter-spacing:.04em}
+  .prio-seg.prio-P0{background:#ff4d4f55}
+  .prio-seg.prio-P1{background:#3b82f655}
+  .prio-seg.prio-P2{background:#8b8f9c55}
+  .prio-seg.prio-P3{background:#6b728055}
+
+  .ptns{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:760px){.ptns{grid-template-columns:1fr}}
+  .ptn{padding:14px 16px;border-radius:11px;background:#161922;border:1px solid var(--line);
+    border-left:3px solid var(--gray)}
+  .ptn-risk{border-left-color:var(--red)}
+  .ptn-warn{border-left-color:var(--amber)}
+  .ptn-ok{border-left-color:var(--green)}
+  .ptn-info{border-left-color:var(--p1)}
+  .ptn-title{font-size:14px;font-weight:650;color:#fff;margin-bottom:6px}
+  .ptn-body{font-size:13px;line-height:1.55;color:#cdd1da}
+
+  .kds{display:flex;flex-direction:column;gap:0}
+  .kd{display:flex;gap:14px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line)}
+  .kd:last-child{border-bottom:0}
+  .kd-date{flex:0 0 64px;font-weight:700;color:#ff9a76;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .kd-label{font-size:13px;line-height:1.5;color:#d6d9e1}
+
+  .watches{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:760px){.watches{grid-template-columns:1fr}}
+  .watch{display:flex;flex-direction:column;gap:4px;text-align:left;cursor:pointer;
+    padding:13px 15px;border-radius:11px;background:#161922;border:1px solid var(--line);
+    border-left:3px solid var(--red);color:var(--text)}
+  .watch:hover{background:#1c1f29;border-color:var(--accent)}
+  .watch-label{font-size:13.5px;font-weight:650;color:#fff}
+  .watch-note{font-size:12px;line-height:1.45;color:var(--muted)}
+  .watch-slug{font-size:11px;color:#ff9a76;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-top:2px}
+
   /* Rendered doc */
   .doc{padding-top:18px}
   .doc h1{font-size:21px;margin:26px 0 10px}
@@ -563,10 +596,12 @@ function buildHtml(items: ReviewItem[], buildDate: string): string {
         ${missing ? `<span class="pill bad">${missing} no memory</span>` : ''}
       </div>
     </div>
+    ${overviewNav}
     ${sidebar}
   </aside>
   <main class="main">
     <div class="empty" id="empty" hidden><div>Select an initiative from the left to review its memory doc.<br/>Use <kbd>↑</kbd> / <kbd>↓</kbd> or <kbd>j</kbd> / <kbd>k</kbd> to move through them.</div></div>
+    ${overviewPanel}
     ${panels}
   </main>
 </div>
@@ -590,6 +625,14 @@ function buildHtml(items: ReviewItem[], buildDate: string): string {
     progress.textContent = (i+1)+' / '+rows.length;
   }
   rows.forEach((r,i)=>r.addEventListener('click',()=>show(i)));
+  // Watchlist cards on the overview jump to the relevant initiative.
+  document.querySelectorAll('[data-jump]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const slug = el.getAttribute('data-jump');
+      const i = rows.findIndex(r=>r.dataset.slug===slug);
+      if(i>=0) show(i);
+    });
+  });
   document.addEventListener('keydown',(e)=>{
     if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
     if(e.key==='ArrowDown'||e.key==='j'){e.preventDefault();show(idx<0?0:Math.min(idx+1,rows.length-1));}
@@ -614,11 +657,13 @@ async function main() {
   const data = {
     generated: buildDate,
     analysisDate: ANALYSIS_DATE,
+    overview: OVERVIEW ?? null,
     counts: {
       total: items.length,
       active: activeItems.length,
       onHold: items.length - activeItems.length,
       analyzed: activeItems.filter((i) => HIGHLIGHTS[i.slug]).length,
+      unassigned: activeItems.filter((i) => !i.assigned_agent).length,
       missingMemory: activeItems.filter((i) => i.memory === null).length,
       veryStale: activeItems.filter((i) => (i.staleDays ?? 0) > 60).length,
     },
