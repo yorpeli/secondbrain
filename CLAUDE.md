@@ -120,6 +120,8 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 |---|---|
 | "gather context", "morning brief", "start the day" | First run: `npm run command-center:scaffold`. Then `npm run command-center:gather` → `open command-center/daily/$(date +%F)/dashboard.html`. Skim `01-focus.md`; curate if useful and re-render with `npm run command-center:dashboard -- --date=$(date +%F)`. |
 | "refresh the dashboard" | `npm run command-center:dashboard -- --date=$(date +%F)` + open. |
+| "scan" / "capture" / "what's new" *(MSFT session)* | Follow `agents/command-center-capture.md` capture mode: `command-center:capture -- window` → sweep Teams/SharePoint/mail/calendar → append a block to `02-captures.md` → `command-center:capture -- done --date=$(date +%F)`. |
+| "close out the day" / "wrap up" *(MSFT session)* | Follow `agents/command-center-capture.md` close mode: draft `03-summary.md`, show Yonatan, get approval, write it, then `command-center:capture -- done --date=$(date +%F)`. |
 
 Default scope: all active, tiered (full cards for substantive memory docs; a "not analyzed — too sparse" banner for thin/empty ones). `blocked` initiatives render in a greyed **"On Hold"** group at the bottom (cards kept). Closing/parking an initiative is a status change — `completed` drops it off entirely; `blocked` moves it to On Hold. The HTML + a data-layer JSON land in `output/initiatives/`.
 
