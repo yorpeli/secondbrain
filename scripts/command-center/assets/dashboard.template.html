@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="refresh" content="{{REFRESH_SECONDS}}" />
+  <title>Command Center — {{DATE}}</title>
+  <style>
+    :root {
+      --bg: #0f1117; --panel: #171a22; --panel2: #1d212b; --ink: #e7e9ee;
+      --muted: #9aa3b2; --line: #2a2f3a; --accent: #5b8cff; --ok: #3ecf8e;
+      --warn: #f5b14c; --risk: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    header {
+      padding: 22px 28px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: baseline; justify-content: space-between;
+    }
+    header h1 { margin: 0; font-size: 20px; letter-spacing: .2px; }
+    header .gen { color: var(--muted); font-size: 12px; }
+    main {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+      padding: 22px 28px; max-width: 1280px;
+    }
+    .card {
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 12px; padding: 18px 20px; overflow: hidden;
+    }
+    .card.wide { grid-column: 1 / -1; }
+    .card h2 {
+      margin: 0 0 10px; font-size: 13px; text-transform: uppercase;
+      letter-spacing: .8px; color: var(--muted);
+    }
+    .card :is(h2, h3, h4) + * { margin-top: 6px; }
+    .body h2 { text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 15px; margin: 14px 0 4px; }
+    .body h3 { font-size: 14px; color: var(--ink); margin: 12px 0 4px; }
+    .body p { margin: 6px 0; }
+    .body ul, .body ol { margin: 6px 0 6px 18px; padding: 0; }
+    .body li { margin: 3px 0; }
+    .body code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+    .body a { color: var(--accent); }
+    .body table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+    .body th, .body td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; }
+    .body hr { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+    .logdate { color: var(--accent); font-weight: 600; }
+    .empty { color: var(--muted); font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Command Center — {{DATE}}</h1>
+    <span class="gen">generated {{GENERATED_AT}} · auto-refresh {{REFRESH_SECONDS}}s</span>
+  </header>
+  <main>
+    <section class="card wide">
+      <h2>Today's Focus</h2>
+      <div class="body">{{FOCUS_HTML}}</div>
+    </section>
+    <section class="card">
+      <h2>Live Signals</h2>
+      <div class="body">{{CAPTURES_HTML}}</div>
+    </section>
+    <section class="card">
+      <h2>Summary &amp; Follow-ups</h2>
+      <div class="body">{{SUMMARY_HTML}}</div>
+    </section>
+  </main>
+</body>
+</html>

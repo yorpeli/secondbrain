@@ -19,8 +19,11 @@
     "embed:initiative-memory": "tsx scripts/generate-embeddings.ts initiative-memory",
     "embed:research": "tsx scripts/generate-embeddings.ts research",
     "ab-testing:run": "tsx ab-testing/run.ts",
+    "ai-pm:run": "tsx pm_team/ai-pm/run.ts",
     "outlook:run": "tsx outlook/run.ts",
-    "initiative-review": "tsx scripts/initiative-review/build.ts"
+    "initiative-review": "tsx scripts/initiative-review/build.ts",
+    "initiative-tracker": "tsx scripts/initiative-tracker/run.ts",
+    "command-center:scaffold": "tsx scripts/command-center/scaffold.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

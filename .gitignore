@@ -37,3 +37,6 @@ npm-debug.log*
 
 # Microsoft Office lock/temp files
 ~$*
+
+# Local daily working workspace (raw comms — never committed)
+/command-center/
