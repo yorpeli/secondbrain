@@ -98,9 +98,10 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 | KYC Product PM | `kyc-product-pm` | `pm_team/kyc-product/` | 0-to-1 KYC-as-a-Service exploration |
 | Competitive Analysis | `competitive-analysis` | `agents/competitive-analysis.md` | Definition-only research agent (no CLI) |
 | Domain Expertise | `domain-expertise` | `agents/domain-expertise.md` | Definition-only research agent (no CLI) |
-| Initiative Tracker | `initiative-tracker` | `agents/initiative-tracker.md` | Keeps initiative memory docs current from PPP, meetings, decisions (no CLI yet) |
+| Initiative Tracker | `initiative-tracker` | `agents/initiative-tracker.md` + `scripts/initiative-tracker/` | Keeps initiative memory docs current from PPP, meetings, decisions. `refresh-from-ppp` CLI (plan→apply) is the final step of PPP ingestion |
 | Q-Plan PM | `q-plan-pm` | `pm_team/q-plan/` | Quarterly plan ingestion, progress tracking, gap analysis, quarter reviews |
 | Vendor Optimization PM | `vendor-optimization-pm` | `pm_team/vendor-optimization/` | KYC vendor portfolio, POC lifecycle, coverage gap analysis, vendor deprecation tracking |
+| AI PM | `ai-pm` | `pm_team/ai-pm/` | Portfolio PM for all AI initiatives (claude-kyc-agent, air-squared, ai-native-team-structure, ai-academy-product, ai-powered-pm-team) + continuous-learning loop (demand-driven research + standing watchlist) on AI-in-enterprise, AI PM craft, AI engineering. `portfolio` / `brief` / `scan --plan`/`--store` |
 | AB Testing | `ab-testing` | `ab-testing/` | CLM experiment registry, Looker-based statistical analysis, Asana lifecycle tracking |
 | Outlook Agent | `outlook-agent` | `outlook/` + `agents/outlook-agent.md` | Claude-for-Outlook bridge — pull-only email/calendar lookups via agent_tasks, results promoted to initiative memory with provenance |
 | Initiative Review | `initiative-review` | `agents/initiative-review.md` + `scripts/initiative-review/` | Visual portfolio review — gathers active initiatives + memory docs, dispatches analysis sub-agents for TL;DR/recommendation cards, renders a self-contained offline HTML review page |
@@ -112,6 +113,13 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 | "review the initiatives", "run an initiative review", "let's look at the open initiatives" | Decide path. If analysis is fresh → **render-only**: `npm run initiative-review`, then `open output/initiatives/initiative-review.html`. If analysis is stale/missing or he wants a fresh take → **full review**: gather, dispatch one read-only analysis sub-agent per substantive initiative (parallel), merge results into `scripts/initiative-review/highlights.json` (bump `_meta.analyzed`), then `npm run initiative-review` + open. Then walk P0→P1 and surface the cross-cutting pattern. |
 | "refresh the review", "rebuild the review page" | `npm run initiative-review` + open (render-only from current Supabase data + existing highlights). |
 | "re-analyze X", "add X to the review" | Dispatch the analysis sub-agent for that slug, merge into `highlights.json`, re-render. |
+
+**Command Center — natural-language trigger (Yonatan never runs the CLI; you do):** The `command-center/` workspace is the shared local handoff between this (Supabase) session and the MSFT Claude Code session. See [docs/superpowers/specs/2026-06-05-command-center-daily-loop-design.md](docs/superpowers/specs/2026-06-05-command-center-daily-loop-design.md).
+
+| Yonatan says (or similar) | You do |
+|---|---|
+| "gather context", "morning brief", "start the day" | First run: `npm run command-center:scaffold`. Then `npm run command-center:gather` → `open command-center/daily/$(date +%F)/dashboard.html`. Skim `01-focus.md`; curate if useful and re-render with `npm run command-center:dashboard -- --date=$(date +%F)`. |
+| "refresh the dashboard" | `npm run command-center:dashboard -- --date=$(date +%F)` + open. |
 
 Default scope: all active, tiered (full cards for substantive memory docs; a "not analyzed — too sparse" banner for thin/empty ones). `blocked` initiatives render in a greyed **"On Hold"** group at the bottom (cards kept). Closing/parking an initiative is a status change — `completed` drops it off entirely; `blocked` moves it to On Hold. The HTML + a data-layer JSON land in `output/initiatives/`.
 
@@ -329,6 +337,8 @@ The PPP workflow has a detailed specification stored in `context_store` key `wor
 - Tags follow a dictionary: countries, vendors, themes, domains
 - Raw text preserved alongside Claude-generated summaries
 - Week-over-week comparison via `v_ppp_week_comparison` view
+
+**Ingestion has three phases, then a memory-refresh final step:** `ppp write` (Phase 1–2: parse → review → write) → `ppp enrich` (Phase 3: week-over-week diff, cross-swimlane patterns, dispatch PM tasks) → **`initiative-tracker refresh-from-ppp`** (fan this week's signals into the initiative memory docs). The refresh is **not optional** — always run it after enrich so the initiative docs reflect the latest PPP. It is Claude-in-the-loop: `--plan --week=…` emits a per-initiative scaffold (matched slug, prior/current status, stored summary, `suggested` text), Claude curates it (tight PPP-signal line; `status_line` only when status changed; real blocker bullets), then `--apply --payload=<path>` writes idempotently and prints an Updated/Skipped/Errors summary. See [agents/initiative-tracker.md](agents/initiative-tracker.md) for the procedure and the `WORKSTREAM_TO_INITIATIVES` mapping.
 
 ### Initiative Memory
 
