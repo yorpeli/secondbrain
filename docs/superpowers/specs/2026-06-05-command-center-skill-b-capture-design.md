@@ -97,25 +97,55 @@ next run is incremental. Sunday's first run naturally sees a Thursday-evening
 marker and sweeps Fri–Sat–Sun. The marker lives under the gitignored folder, so
 it never enters git.
 
-## Salience — what floats to the top (hybrid)
+## Durable people reference + salience (hybrid)
 
-The MSFT session can't query the DB, so the who-matters signal must be in files it
-reads:
+The MSFT session can't query the DB, so the who-matters signal must live in files it
+reads. Three roles, no duplication:
 
-- **Manual layer (Yonatan-curated):** a `## VIPs` section in
-  `command-center/context/routing.md` for people not in the org DB or needing
-  emphasis — CEO, CFO, board, key external partners. Edited whenever it changes.
-  The committed starter asset (`scripts/command-center/assets/routing.starter.md`)
-  gains an empty `## VIPs` section so new scaffolds include it.
-- **Auto layer (Skill A emits):** `gather-context.ts` gains a **"People who matter
-  today"** section in `01-focus.md`, listing names (and emails where available)
-  for: Yonatan's manager, his direct reports, and the stakeholders of active
-  initiatives. Refreshed every "gather context."
-- **Skill B unions both** and flags as **⚡ needs attention**: anything
-  from/about those people, plus meeting cancellations and explicit escalations.
+- **The DB (`people` table)** is the system-of-record. Skill C keeps it enriched
+  (including Skill B's harvested emails — see below).
+- **`command-center/context/people.md`** — a **durable people doc**, the file-side
+  home the MSFT session reads. It holds what the DB *doesn't* surface to the file
+  side: Yonatan's manual **VIPs** (CEO, CFO, board, key externals — people not in
+  the org DB or needing emphasis) **plus** the emails/notes Skill B **harvests** from
+  comms over time. It grows; it is hand- and Skill-B-maintained; "gather context"
+  never overwrites it. It is gitignored (lives under `command-center/`); a committed
+  starter `scripts/command-center/assets/people.starter.md` is copied in by
+  `scaffold.ts` if missing.
+- **`01-focus.md` "People who matter today"** — the *per-day DB snapshot* emitted by
+  Skill A (`gather-context.ts`): names for Yonatan's manager, direct reports, and
+  active-initiative stakeholders. Ephemeral; regenerated each "gather context".
+  Emails are empty in this DB, so this layer is **name-based**.
 
-This is a small, additive change to the already-shipped Skill A — a new section in
-the focus doc, no change to existing sections.
+`routing.md` returns to being purely the "where to read what matters" index, with a
+one-line pointer to `people.md` (no VIPs in routing).
+
+**Skill B unions `people.md` + `01-focus.md`** for its salience list and flags as
+**⚡ needs attention**: anything from/about those people, plus meeting cancellations
+and explicit escalations.
+
+### People-data harvest (Skill B → deltas → DB)
+
+Because the DB's emails are empty and new people surface in comms, Skill B also acts
+as a *source*: when it notices missing or new people data (an email for a known
+person, a recurring new face, a changed role), it appends a proposed delta to the
+`## Harvested` section of `people.md`:
+
+```
+- <name> | email: <x> | <note> | seen <date>
+```
+
+This serves two consumers: it immediately improves the file-side match on the next
+capture, and it is the queue Skill C later reconciles into the `people` table (with
+Yonatan's confirmation). Skill B never writes to Supabase.
+
+### Future direction (not this slice)
+
+`command-center/context/` is the durable home; `people.md` is the first durable
+reference beyond `routing.md`. The same pattern can later replace the daily
+regeneration of other slow-moving lists — e.g. a durable `initiatives.md` instead of
+re-pushing the active-initiatives list into `01-focus.md` every day. Out of scope
+here; the design leaves room to adopt it.
 
 ## Capture block format
 
@@ -147,18 +177,24 @@ now per Yonatan.)
 
 **Created:**
 - `agents/command-center-capture.md` — the committed agent definition (modes,
-  lookback, salience, capture format, privacy, the `capture` CLI contract).
+  lookback, salience, capture format, people-harvest, privacy, the `capture` CLI
+  contract).
 - `.claude/skills/command-center-capture/SKILL.md` — thin local trigger (untracked,
   like every other skill in this repo) that points to the agent doc.
 - `scripts/command-center/capture.ts` — `window` and `done` subcommands.
 - `scripts/command-center/__tests__/capture.test.ts` — unit tests for the window
-  logic (marker present / absent / stale>7d / cap) and marker round-trip.
+  logic (marker absent / present ≤7d / present >7d) and marker round-trip.
+- `scripts/command-center/assets/people.starter.md` — committed starter for the
+  durable people doc (manual VIPs + harvested), copied to
+  `command-center/context/people.md` by `scaffold.ts` if missing.
 
 **Modified:**
 - `scripts/command-center/gather-context.ts` — add the "People who matter today"
   section (manager + direct reports + active-initiative stakeholders).
-- `scripts/command-center/assets/routing.starter.md` — add an empty `## VIPs`
-  section.
+- `scripts/command-center/scaffold.ts` — also copy `people.starter.md` →
+  `context/people.md` (copy-if-missing).
+- `scripts/command-center/assets/routing.starter.md` — add a one-line pointer to
+  `people.md` (NOT a VIPs section — VIPs live in `people.md`).
 - `package.json` — add `"command-center:capture": "tsx scripts/command-center/capture.ts"`.
 - `CLAUDE.md` — add a Command Center capture trigger row (and note the MSFT-session
   phrases).
@@ -202,9 +238,11 @@ target.
 
 1. **`capture.ts` (`window` + `done`) + unit tests** — the deterministic core.
 2. **Skill A salience block** — `gather-context.ts` emits "People who matter today";
-   validate live (names/emails populate).
-3. **`routing.starter.md` `## VIPs` section** — and add `## VIPs` to the already-
-   scaffolded local `command-center/context/routing.md`.
-4. **`agents/command-center-capture.md`** — the full committed agent definition.
+   validate live (names populate).
+3. **Durable `people.md`** — committed starter `people.starter.md`, `scaffold.ts`
+   copies it in, `routing.starter.md` gets a pointer; mirror into the live local
+   `command-center/context/`.
+4. **`agents/command-center-capture.md`** — the full committed agent definition
+   (incl. union `people.md` + `01-focus.md`, and the people-harvest loop).
 5. **Thin local skill + CLAUDE.md trigger row.**
 6. **Live integration pass** in the MSFT session (manual).

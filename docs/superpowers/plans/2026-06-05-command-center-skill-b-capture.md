@@ -19,13 +19,15 @@
 **Created:**
 - `scripts/command-center/capture.ts` — `window` + `done` subcommands; pure `computeWindow` + injectable marker IO.
 - `scripts/command-center/__tests__/capture.test.ts` — unit tests for `computeWindow` (3 branches) + marker round-trip.
-- `agents/command-center-capture.md` — committed agent definition (modes, lookback, salience, format, privacy, CLI contract).
+- `agents/command-center-capture.md` — committed agent definition (modes, lookback, salience, format, people-harvest, privacy, CLI contract).
 - `.claude/skills/command-center-capture/SKILL.md` — thin local trigger pointing to the agent doc (untracked, like every other skill here).
+- `scripts/command-center/assets/people.starter.md` — committed starter for the durable people doc (VIPs + harvested).
 
 **Modified:**
 - `scripts/command-center/gather-context.ts` — add the "People who matter today" section.
-- `scripts/command-center/assets/routing.starter.md` — add an empty `## VIPs` section.
-- `command-center/context/routing.md` — add the same `## VIPs` section to the already-scaffolded local copy (gitignored; not committed).
+- `scripts/command-center/scaffold.ts` — also copy `people.starter.md` → `context/people.md`.
+- `scripts/command-center/assets/routing.starter.md` — replace the people section with a pointer to `people.md`.
+- `command-center/context/routing.md` — mirror that pointer (local copy; gitignored).
 - `package.json` — add `"command-center:capture"`.
 - `CLAUDE.md` — add the Command Center capture trigger row.
 
@@ -345,62 +347,98 @@ git commit -m "feat(command-center): emit 'People who matter today' salience in 
 
 ---
 
-## Task 3: VIPs convention in routing
+## Task 3: Durable `people.md` doc (VIPs + harvest home)
 
-Adds the manual VIP layer Yonatan curates. The committed starter gains the section (for future scaffolds); the already-scaffolded local copy gets it too.
+Adds the durable people doc the MSFT session reads: manual VIPs Yonatan curates plus
+a `## Harvested` section Skill B appends to. The committed starter is copied in by
+`scaffold.ts`; `routing.md` gets a one-line pointer (VIPs move OUT of routing).
 
 **Files:**
+- Create: `scripts/command-center/assets/people.starter.md`
+- Modify: `scripts/command-center/scaffold.ts`
 - Modify: `scripts/command-center/assets/routing.starter.md`
-- Modify: `command-center/context/routing.md` (local, gitignored — not committed)
+- Modify: `command-center/context/routing.md` (local, gitignored — pointer only)
+- Create (via scaffold): `command-center/context/people.md` (local, gitignored)
 
-- [ ] **Step 1: Add a `## VIPs` section to the committed starter**
-
-In `scripts/command-center/assets/routing.starter.md`, insert this block immediately BEFORE the existing `## People who matter this period` section:
+- [ ] **Step 1: Create the committed starter `scripts/command-center/assets/people.starter.md` with EXACTLY this content**
 
 ```markdown
-## VIPs
-<!-- Manually curated. People to surface immediately if they appear in comms —
-especially those NOT in the org DB. The DB-derived list (manager, direct reports,
-active-initiative stakeholders) is auto-emitted into 01-focus.md by "gather context";
-add anyone here that list won't catch. -->
-<!-- e.g.:
+# People — durable reference
+
+> Read by the MSFT capture agent alongside today's `01-focus.md`.
+> The DB-derived names (manager, direct reports, active-initiative stakeholders) are
+> auto-emitted into `01-focus.md` by "gather context" — do NOT duplicate them here.
+> This file holds what the DB doesn't: manually-curated VIPs + data harvested from
+> comms. "gather context" never overwrites this file.
+
+## VIPs (manual)
+<!-- People to surface immediately if they appear in comms — especially those NOT in
+the org DB. Add anyone the auto list in 01-focus.md won't catch. e.g.:
 - John Caplan — CEO
 - Bea Ordonez — CFO
 - <key external partner / board member>
 -->
 
+## Harvested (from comms — proposed for the people table via Skill C)
+<!-- The capture agent appends observations here when it sees missing/new people data.
+One line per observation:
+- <name> | email: <x> | <note, e.g. role / new face / which initiative> | seen <date>
+Skill C later reconciles these into the people table (with confirmation). -->
 ```
 
-- [ ] **Step 2: Mirror the same section into the already-scaffolded local routing.md**
+- [ ] **Step 2: Make `scaffold.ts` copy `people.starter.md` → `context/people.md`**
 
-The local `command-center/context/routing.md` was created by an earlier scaffold and will NOT be overwritten by `scaffold.ts` (copy-if-missing). Add the same `## VIPs` block to it manually so the live workspace has it. Insert immediately before its `## People who matter this period` heading:
+In `scripts/command-center/scaffold.ts`, inside the `scaffold()` function, after the
+existing `routing.md` copy block (the `const r = copyIfMissing(... 'routing.starter.md' ...)`
+lines) and before the `console.log(...)` lines, add a third copy:
+
+```typescript
+  const p = copyIfMissing(
+    join(ASSETS, 'people.starter.md'),
+    join(CC, 'context', 'people.md')
+  )
+```
+
+Then add a line to the existing console output (after the `context/routing.md` log line):
+
+```typescript
+  console.log(`  context/people.md: ${p}`)
+```
+
+- [ ] **Step 3: Turn the routing starter's people section into a pointer to `people.md`**
+
+In `scripts/command-center/assets/routing.starter.md`, REPLACE the existing
+`## People who matter this period` section (its heading and the HTML comment under it)
+with this pointer:
 
 ```markdown
-## VIPs
-<!-- Manually curated. People to surface immediately if they appear in comms —
-especially those NOT in the org DB. The DB-derived list (manager, direct reports,
-active-initiative stakeholders) is auto-emitted into 01-focus.md by "gather context";
-add anyone here that list won't catch. -->
-<!-- e.g.:
-- John Caplan — CEO
-- Bea Ordonez — CFO
-- <key external partner / board member>
--->
-
+## People
+See `people.md` in this folder — the durable people reference (manual VIPs + harvested
+data). Today's DB-derived who-matters is in `01-focus.md`.
 ```
 
-- [ ] **Step 3: Verify**
+- [ ] **Step 4: Mirror the pointer into the already-scaffolded local routing.md**
 
-Run: `grep -n "## VIPs" scripts/command-center/assets/routing.starter.md command-center/context/routing.md`
-Expected: a `## VIPs` match in BOTH files.
+The local `command-center/context/routing.md` won't be overwritten by `scaffold.ts`
+(copy-if-missing). Apply the same change by hand: replace its
+`## People who matter this period` heading + comment with the same `## People`
+pointer block from Step 3.
 
-Run: `git status --porcelain command-center/` → empty (local routing.md stays gitignored).
+- [ ] **Step 5: Scaffold so the local `people.md` is created, and verify**
 
-- [ ] **Step 4: Commit (committed starter only — the local copy is gitignored)**
+Run: `npm run command-center:scaffold`
+Expected: prints `context/people.md: copied` (and `kept` for the already-present template + routing).
+
+Run: `ls command-center/context/` → shows `people.md` and `routing.md`.
+Run: `grep -n "## VIPs\|## Harvested" command-center/context/people.md` → both headings present.
+Run: `grep -n "people.md" command-center/context/routing.md` → the pointer is present.
+Run: `git status --porcelain command-center/` → empty (local files stay gitignored).
+
+- [ ] **Step 6: Commit (committed assets + scaffold only — local copies are gitignored)**
 
 ```bash
-git add scripts/command-center/assets/routing.starter.md
-git commit -m "feat(command-center): add VIPs section to routing starter"
+git add scripts/command-center/assets/people.starter.md scripts/command-center/assets/routing.starter.md scripts/command-center/scaffold.ts
+git commit -m "feat(command-center): durable people.md doc (VIPs + harvest) + scaffold"
 ```
 
 ---
@@ -428,13 +466,16 @@ session exports, and writes captures back as files. It never writes to Supabase 
 that is Skill C (a separate, confirm-gated step).
 
 ## What this session can see
-- **Reads:** `command-center/context/routing.md` (manual VIPs + routing) and today's
+- **Reads:** `command-center/context/people.md` (durable: manual VIPs + harvested),
+  `command-center/context/routing.md` (the "where to read" index) and today's
   `command-center/daily/<date>/01-focus.md` (DB-derived focus + "People who matter
   today"). These define *what matters* — do not re-derive from scratch.
 - **Sweeps:** Teams (1:1 + channel chatter, meeting transcripts/recordings if
   reachable), SharePoint (doc changes in watched spaces), mail, calendar.
-- **Writes:** `command-center/daily/<date>/02-captures.md` (captures) and, on
-  close-the-day, `03-summary.md`. Nothing else.
+- **Writes:** `command-center/daily/<date>/02-captures.md` (captures), on
+  close-the-day `03-summary.md`, and the `## Harvested` section of
+  `command-center/context/people.md` (people-data deltas). Nothing else — never
+  Supabase.
 
 ## Modes (one agent, phrase-driven)
 
@@ -443,15 +484,18 @@ Frictionless. Run several times a day. NO confirmation.
 
 1. `npm run command-center:capture -- window` → returns `{ start, end, reason }`.
    Sweep comms for `start..end` only.
-2. Read `routing.md` (VIPs) + `01-focus.md` ("People who matter today"). Union them
-   into your salience list.
+2. Read `people.md` (VIPs + harvested) + `01-focus.md` ("People who matter today").
+   Union them into your salience list.
 3. Sweep Teams + SharePoint + mail + calendar for the window.
 4. Compose ONE timestamped block (format below) and **append** it to
    `command-center/daily/<date>/02-captures.md` (create the file if absent; never
    overwrite existing blocks).
-5. `npm run command-center:capture -- done --date=<date>` → stamps the marker and
+5. If you saw missing/new people data (an email for someone, a recurring new face, a
+   role change), append a delta line to the `## Harvested` section of `people.md`
+   (format below). This improves the next match and queues it for Skill C.
+6. `npm run command-center:capture -- done --date=<date>` → stamps the marker and
    re-renders the dashboard.
-6. Tell Yonatan what you appended in one line, and call out anything under
+7. Tell Yonatan what you appended in one line, and call out anything under
    ⚡ Needs attention.
 
 ### Close the day — triggers: "close out the day", "wrap up"
@@ -486,6 +530,20 @@ Append to `02-captures.md` (the dashboard renders newest-first automatically):
 
 Use `HH:MM` in local time. Tie items to initiatives/people by name where possible
 (match against `01-focus.md`). Keep it tight — one block per capture run.
+
+## People-data harvest (you are also a source)
+The DB's emails are empty and new people surface in comms. When you notice missing or
+new people data, append ONE line per observation to the `## Harvested` section of
+`command-center/context/people.md`:
+
+```markdown
+- <name> | email: <x or —> | <note: role / new face / which initiative> | seen <YYYY-MM-DD>
+```
+
+Only record real, useful signal (a confirmed email, a recurring relevant person, a
+clear role change) — not every name you see. This improves the next capture's matching
+and is the queue Skill C reconciles into the `people` table (with Yonatan's
+confirmation). Do not edit the `## VIPs (manual)` section — that is Yonatan's.
 
 ## Lookback (handled for you by `capture window`)
 - First run ever → last 3 days.
@@ -605,7 +663,8 @@ Report back any rough edges to tune the agent doc.
 - Behavior-in-`agents/` + thin local skill + gitignored data → Tasks 4, 5.
 - Two phrase-driven modes; close-the-day confirm-gated → Task 4 (agent doc), Task 5 (triggers).
 - `capture window`/`done`, marker, 3-day default / 7-day cap, all three branches → Task 1.
-- Hybrid salience: manual VIPs (Task 3) + DB-derived "People who matter today" emitted by Skill A (Task 2), unioned by the agent (Task 4).
+- Durable people doc + hybrid salience: `people.md` (manual VIPs + harvested, Task 3) + DB-derived "People who matter today" emitted by Skill A (Task 2), unioned by the agent (Task 4); `routing.md` becomes a pointer.
+- People-data harvest loop (Skill B → `## Harvested` deltas → Skill C) → Task 4 (agent doc).
 - Capture block format + ⚡ needs-attention + newest-first → Task 4 (uses the existing renderer; no dashboard change, per spec).
 - Privacy (local-only, sensitive placeholder, no Supabase writes) → Task 4.
 - Lookback robustness incl. Sunday/weekend → Task 1 (`computeWindow`), validated in tests.
