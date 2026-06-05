@@ -24,7 +24,8 @@
     "initiative-review": "tsx scripts/initiative-review/build.ts",
     "initiative-tracker": "tsx scripts/initiative-tracker/run.ts",
     "command-center:scaffold": "tsx scripts/command-center/scaffold.ts",
-    "command-center:dashboard": "tsx scripts/command-center/build-dashboard.ts"
+    "command-center:dashboard": "tsx scripts/command-center/build-dashboard.ts",
+    "command-center:gather": "tsx scripts/command-center/gather-context.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
