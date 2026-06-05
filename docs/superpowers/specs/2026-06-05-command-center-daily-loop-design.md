@@ -57,11 +57,15 @@ command-center/                  (gitignored)
     routing.md                   ← the index: what matters now → where to read it
                                    (local initiative dirs, external sources, people)
     *.md                         ← any long-term context worth keeping handy
+  templates/
+    dashboard.template.html      ← living-dashboard skeleton + styling (editable in place)
   daily/<YYYY-MM-DD>/
     01-focus.md                  ← THIS session writes (morning)
     02-captures.md               ← MSFT session appends (intraday, append-only)
     03-summary.md                ← MSFT session writes (end of day)
     04-reconcile.md              ← THIS session writes (end of day)
+    dashboard.html               ← rendered from the template + the files above;
+                                   re-rendered on every touch (the "living" view)
 ```
 
 ### File responsibilities
@@ -84,18 +88,43 @@ command-center/                  (gitignored)
 - **`04-reconcile.md`** — what THIS session actually pushed back to Supabase,
   with provenance — the audit trail of the loop.
 
+## Living dashboard
+
+A single self-contained, offline HTML page that gives Yonatan an at-a-glance view
+of the day and updates as the loop runs.
+
+- **Template** (`command-center/templates/dashboard.template.html`) is kept in the
+  workspace folder so Yonatan can restyle it in place. It is gitignored content,
+  not code.
+- **Render** is done by a committed build script
+  (`scripts/command-center/build-dashboard.ts`, mirroring the
+  `scripts/initiative-review/build.ts` pattern): it reads the template + the
+  current `01`/`02`/`03` files for the day and writes
+  `daily/<date>/dashboard.html`. Self-contained — no external assets, opens
+  offline.
+- **"Living"** means it is re-rendered on every touch: Skill A renders it in the
+  morning from `01-focus.md`; the MSFT session re-renders after each intraday
+  capture (so `02` signals show up through the day); Skill C re-renders with the
+  EOD summary. The page includes a `<meta http-equiv="refresh">` so a tab left
+  open refreshes itself — no server, still fully offline.
+- **Sections** (initial cut): today's focus (from `01`), live signals/captures
+  (from `02`, newest first), proposed follow-ups (from `03` once it exists), and
+  upcoming hard deadlines. Empty sections render a quiet placeholder rather than
+  breaking.
+
 ## Three skills
 
 - **Skill A — "gather context"** (this session). Assembles `01-focus.md` from
-  Supabase; refreshes `routing.md` when priorities shift. Cheap (mostly reads).
-  *Built first.*
+  Supabase; refreshes `routing.md` when priorities shift; renders the initial
+  `dashboard.html`. Cheap (mostly reads). *Built first.*
 - **Skill B — MSFT daily skill** (frozen-spec style, mirroring the Outlook agent
   pattern). Reads `context/` + `01-focus.md`; pulls Teams/SharePoint/mail;
-  appends `02-captures.md`; at end of day distills `02` → `03-summary.md`.
-  Behavior lives in a spec, not hardcoded, so it can evolve without editing the
-  skill.
+  appends `02-captures.md` and re-renders `dashboard.html` each run; at end of day
+  distills `02` → `03-summary.md` and re-renders once more. Behavior lives in a
+  spec, not hardcoded, so it can evolve without editing the skill.
 - **Skill C — "close the day"** (this session). Reads `03-summary.md`, decides
-  what is durable, writes approved deltas to Supabase, logs `04-reconcile.md`.
+  what is durable, writes approved deltas to Supabase, logs `04-reconcile.md`, and
+  re-renders `dashboard.html` with the day's outcome.
 
 ## Write-back rules (Skill C)
 
@@ -132,13 +161,20 @@ project conventions:
 
 - Any automation/scheduling — all three arcs are manually triggered.
 - Changes to the Claude-for-Outlook bridge.
-- A rendered visual dashboard — `03-summary.md` is markdown; HTML rendering can
-  come later if wanted.
+- A live web server or websockets — the dashboard updates via re-render +
+  `<meta refresh>`, no server.
 - Cross-machine sync — both sessions are same-machine by assumption.
 
 ## Build order
 
-1. **Skill A — "gather context"** (this session) — smallest, unblocks the loop.
-2. Folder scaffold + `.gitignore` entry + a starter `context/routing.md`.
-3. **Skill B — MSFT daily skill** (frozen spec) — the intraday + EOD producer.
-4. **Skill C — "close the day"** (this session) — the reconcile/write-back.
+Built and validated **step by step** — each piece is tested before the next.
+
+1. **Folder scaffold** — `command-center/{context,templates,daily}/`, the
+   `.gitignore` entry, a starter `context/routing.md`, and the dashboard template.
+2. **Dashboard build script** (`scripts/command-center/build-dashboard.ts`) —
+   renders `dashboard.html` from template + daily files. Validate against a
+   hand-written sample day.
+3. **Skill A — "gather context"** (this session) — assembles `01-focus.md` from
+   Supabase and renders the morning dashboard. Validate end-to-end.
+4. **Skill B — MSFT daily skill** (frozen spec) — the intraday + EOD producer.
+5. **Skill C — "close the day"** (this session) — the reconcile/write-back.
