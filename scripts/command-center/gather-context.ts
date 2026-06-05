@@ -29,6 +29,78 @@ function section(title: string, body: string): string {
   return `## ${title}\n\n${body.trim() || '_none_'}\n`
 }
 
+interface PersonRow {
+  id: string
+  name: string
+  type: string
+  slug: string
+}
+interface StakeholderRow {
+  person_id: string
+  initiative_id: string
+  role: string | null
+}
+interface InitiativeIdRow {
+  id: string
+  title: string
+}
+
+async function buildWhoMatters(
+  supabase: ReturnType<typeof getSupabase>
+): Promise<string> {
+  // Leadership + direct reports (exclude Yonatan's own row).
+  const { data: core, error: coreErr } = await supabase
+    .from('people' as any)
+    .select('id, name, type, slug')
+    .eq('status', 'active')
+    .in('type', ['leadership', 'direct-report'])
+    .neq('slug', 'yonatan-orpeli')
+  if (coreErr) throw coreErr
+  const people = (core as unknown as PersonRow[]) ?? []
+  const leadership = people.filter((p) => p.type === 'leadership').map((p) => p.name)
+  const directs = people.filter((p) => p.type === 'direct-report').map((p) => p.name)
+
+  // Active-initiative stakeholders — plain joins in JS (no embed).
+  const { data: actInits, error: aiErr } = await supabase
+    .from('initiatives' as any)
+    .select('id, title')
+    .eq('status', 'active')
+  if (aiErr) throw aiErr
+  const titleById = new Map<string, string>(
+    ((actInits as unknown as InitiativeIdRow[]) ?? []).map((i) => [i.id, i.title])
+  )
+
+  const { data: stk, error: stkErr } = await supabase
+    .from('initiative_stakeholders' as any)
+    .select('person_id, initiative_id, role')
+  if (stkErr) throw stkErr
+
+  const { data: ppl, error: pplErr } = await supabase
+    .from('people' as any)
+    .select('id, name')
+    .eq('status', 'active')
+  if (pplErr) throw pplErr
+  const nameById = new Map<string, string>(
+    ((ppl as unknown as { id: string; name: string }[]) ?? []).map((p) => [p.id, p.name])
+  )
+
+  const stakeholderLines = ((stk as unknown as StakeholderRow[]) ?? [])
+    .filter((s) => titleById.has(s.initiative_id) && nameById.has(s.person_id))
+    .map(
+      (s) =>
+        `- ${nameById.get(s.person_id)} (${s.role ?? 'stakeholder'} · ${titleById.get(
+          s.initiative_id
+        )})`
+    )
+
+  const parts: string[] = []
+  if (leadership.length) parts.push(`**Leadership:** ${leadership.join(', ')}`)
+  if (directs.length) parts.push(`**Direct reports:** ${directs.join(', ')}`)
+  if (stakeholderLines.length)
+    parts.push(`**Active-initiative stakeholders:**\n${stakeholderLines.join('\n')}`)
+  return parts.join('\n\n')
+}
+
 async function buildFocusDoc(date: string): Promise<string> {
   const supabase = getSupabase()
 
@@ -94,12 +166,16 @@ async function buildFocusDoc(date: string): Promise<string> {
     }
   }
 
+  // 5. people who matter today (name-based salience for the MSFT capture agent)
+  const whoMatters = await buildWhoMatters(supabase)
+
   return [
     `# Focus — ${date}`,
     '',
     section('Current Focus', currentFocus),
     section('Active Initiatives', initiativesBody),
     section('Open Action Items', actionItems),
+    section('People who matter today', whoMatters),
     section('Portfolio Headline', headline),
   ].join('\n')
 }
