@@ -30,10 +30,15 @@ export function scaffold(): void {
     join(ASSETS, 'routing.starter.md'),
     join(CC, 'context', 'routing.md')
   )
+  const p = copyIfMissing(
+    join(ASSETS, 'people.starter.md'),
+    join(CC, 'context', 'people.md')
+  )
 
   console.log(`command-center scaffolded at ${CC}`)
   console.log(`  templates/dashboard.template.html: ${t}`)
   console.log(`  context/routing.md: ${r}`)
+  console.log(`  context/people.md: ${p}`)
 }
 
 scaffold()

@@ -11,8 +11,9 @@
 ## External sources
 - KYC team repo (read-only, Azure DevOps) — Elad's "Product KYC Team", branch KYC_Team_Branch.
 
-## People who matter this period
-<!-- e.g. direct reports, key stakeholders for the current focus -->
+## People
+See `people.md` in this folder — the durable people reference (manual VIPs + harvested
+data). Today's DB-derived who-matters is in `01-focus.md`.
 
 ## Notes
 - This folder (`command-center/`) is gitignored. Raw comms stay local.
