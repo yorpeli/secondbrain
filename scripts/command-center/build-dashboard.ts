@@ -14,9 +14,23 @@ export function todayIso(): string {
 }
 
 /**
- * Reorder an append-only captures doc so the newest `## HH:MM` block is first.
- * Any preamble before the first `## ` heading is kept at the top.
+ * Order a captures doc so the newest `## HH:MM` block is first — by parsing the
+ * `HH:MM` in each block heading and sorting descending, NOT by file order. This
+ * is robust to however the capture agent writes the file (append or prepend).
+ * Blocks whose heading has no parseable HH:MM keep their original relative order
+ * and sort after timestamped blocks. Any preamble before the first `## ` heading
+ * is kept at the top.
  */
+function blockMinutes(heading: string): number | null {
+  // Match a leading "## HH:MM" (24h). Returns minutes-since-midnight, or null.
+  const m = heading.match(/^##\s+(\d{1,2}):(\d{2})\b/)
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2])
+  if (h > 23 || min > 59) return null
+  return h * 60 + min
+}
+
 export function orderCapturesNewestFirst(md: string): string {
   const lines = md.replace(/\r\n/g, '\n').split('\n')
   const blocks: string[][] = []
@@ -33,7 +47,19 @@ export function orderCapturesNewestFirst(md: string): string {
     }
   }
   if (cur) blocks.push(cur)
-  const ordered = blocks.reverse().map((b) => b.join('\n').replace(/\n+$/, '')).join('\n\n')
+
+  // Stable sort by HH:MM descending; un-timestamped blocks keep order, sort last.
+  const indexed = blocks.map((b, i) => ({ b, i, t: blockMinutes(b[0]) }))
+  indexed.sort((a, z) => {
+    if (a.t === null && z.t === null) return a.i - z.i
+    if (a.t === null) return 1
+    if (z.t === null) return -1
+    return z.t - a.t || a.i - z.i
+  })
+
+  const ordered = indexed
+    .map(({ b }) => b.join('\n').replace(/\n+$/, ''))
+    .join('\n\n')
   const pre = preamble.join('\n').trim()
   return [pre, ordered].filter(Boolean).join('\n\n')
 }

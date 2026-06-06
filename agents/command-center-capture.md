@@ -17,6 +17,11 @@ that is Skill C (a separate, confirm-gated step).
   today"). These define *what matters* — do not re-derive from scratch.
 - **Sweeps:** Teams (1:1 + channel chatter, meeting transcripts/recordings if
   reachable), SharePoint (doc changes in watched spaces), mail, calendar.
+  **Calendar is swept in BOTH directions:** the lookback window for *past* changes
+  (what happened, cancellations/edits to meetings already passed) AND **now → end of
+  today** for what's *coming up* (remaining meetings, and any cancellation/reschedule
+  of an upcoming meeting). Teams/SharePoint/mail are backward-only (the lookback
+  window); only the calendar looks ahead.
 - **Writes:** `command-center/daily/<date>/02-captures.md` (captures), on
   close-the-day `03-summary.md`, and the `## Harvested` section of
   `command-center/context/people.md` (people-data deltas). Nothing else — never
@@ -31,7 +36,9 @@ Frictionless. Run several times a day. NO confirmation.
    Sweep comms for `start..end` only.
 2. Read `people.md` (VIPs + harvested) + `01-focus.md` ("People who matter today").
    Union them into your salience list.
-3. Sweep Teams + SharePoint + mail + calendar for the window.
+3. Sweep Teams + SharePoint + mail for the lookback window (`start..end`). Sweep
+   **calendar twice**: the lookback window (past changes) AND `end` → end of today
+   (upcoming meetings + any cancellation/reschedule of an upcoming meeting).
 4. Compose ONE timestamped block (format below) and **append** it to
    `command-center/daily/<date>/02-captures.md` (create the file if absent; never
    overwrite existing blocks).
@@ -58,7 +65,8 @@ CONFIRM-GATED.
 Flag, at the top of the capture block:
 - Anything from/about a person in your unioned salience list (VIPs + leadership +
   direct reports + active-initiative stakeholders).
-- Meeting cancellations / reschedules of meetings Yonatan owns or attends.
+- Meeting cancellations / reschedules of meetings Yonatan owns or attends —
+  whether already passed OR coming up later today.
 - Explicit escalations, blockers, or anything marked urgent.
 If none, omit the ⚡ line.
 
@@ -70,7 +78,9 @@ Append to `02-captures.md` (the dashboard renders newest-first automatically):
 **⚡ Needs attention:** <VIP email / cancelled meeting / escalation — omit if none>
 **Teams:** <signals, tied to [initiative] / [person] where possible>
 **SharePoint:** <doc changes in watched spaces>
-**Mail/Calendar:** <important mail, calendar changes>
+**Mail:** <important mail in the window>
+**Calendar — changes:** <cancellations/reschedules/new invites in the window — omit if none>
+**Coming up today:** <remaining meetings now → end of day, time-ordered — omit if none>
 ```
 
 Use `HH:MM` in local time. Tie items to initiatives/people by name where possible

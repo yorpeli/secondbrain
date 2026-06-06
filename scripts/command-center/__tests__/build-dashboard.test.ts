@@ -7,10 +7,24 @@ const TEMPLATE =
   'F:{{FOCUS_HTML}}|C:{{CAPTURES_HTML}}|S:{{SUMMARY_HTML}}'
 
 describe('orderCapturesNewestFirst', () => {
-  it('reverses ## HH:MM blocks so newest is first', () => {
+  it('orders ## HH:MM blocks newest-first when written append-order (oldest-first)', () => {
     const md = '## 09:00 — morning\nfirst thing\n\n## 14:00 — afternoon\nlater thing'
     const out = orderCapturesNewestFirst(md)
     assert.ok(out.indexOf('14:00') < out.indexOf('09:00'))
+  })
+
+  it('orders by HH:MM regardless of file write order (regression: file already newest-first)', () => {
+    // The agent wrote the file newest-first (prepended). It must NOT be flipped to oldest-first.
+    const md = '## 14:00 — afternoon\nlater\n\n## 09:00 — morning\nearlier'
+    const out = orderCapturesNewestFirst(md)
+    assert.ok(out.indexOf('14:00') < out.indexOf('09:00'))
+  })
+
+  it('sorts across an unsorted file purely by timestamp', () => {
+    const md = '## 11:00 — b\n.\n\n## 23:24 — d\n.\n\n## 09:00 — a\n.\n\n## 14:00 — c\n.'
+    const out = orderCapturesNewestFirst(md)
+    const order = ['23:24', '14:00', '11:00', '09:00'].map((t) => out.indexOf(t))
+    assert.deepEqual(order, [...order].sort((x, y) => x - y))
   })
 
   it('keeps preamble above the blocks', () => {
@@ -18,6 +32,12 @@ describe('orderCapturesNewestFirst', () => {
     const out = orderCapturesNewestFirst(md)
     assert.ok(out.startsWith('intro line'))
     assert.ok(out.indexOf('10:00') < out.indexOf('09:00'))
+  })
+
+  it('un-timestamped ## blocks sort after timestamped ones', () => {
+    const md = '## a note without time\nfoo\n\n## 09:00 — real\nbar'
+    const out = orderCapturesNewestFirst(md)
+    assert.ok(out.indexOf('09:00') < out.indexOf('a note without time'))
   })
 })
 
