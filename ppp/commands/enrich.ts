@@ -309,10 +309,25 @@ export async function run(options: { week?: string } = {}): Promise<EnrichResult
     })
   }
 
-  // Write dispatched tasks to agent_tasks
+  // Write dispatched tasks to agent_tasks — guarded against duplicates so a
+  // re-run of enrich for the same week doesn't re-create the same PM tasks.
+  // Dedupe key is (target_agent, title) within this week's ppp-dispatch batch.
+  let dispatchSkipped = 0
   if (dispatched.length > 0) {
+    const { data: existingTasks } = await supabase
+      .from('agent_tasks' as any)
+      .select('title, target_agent')
+      .contains('tags', ['ppp-dispatch', currentWeek])
+
+    const seen = new Set(
+      ((existingTasks || []) as Array<{ title: string; target_agent: string | null }>)
+        .map(t => `${t.target_agent} ${t.title}`)
+    )
+
     const { createTask } = await import('../../lib/tasks.js')
     for (const task of dispatched) {
+      const key = `${task.target_agent} ${task.title}`
+      if (seen.has(key)) { dispatchSkipped++; continue }
       await createTask({
         title: task.title,
         description: task.description,
@@ -321,6 +336,7 @@ export async function run(options: { week?: string } = {}): Promise<EnrichResult
         createdBy: 'agent:ppp-ingest',
         tags: ['ppp-dispatch', currentWeek],
       })
+      seen.add(key)
     }
   }
 
@@ -371,9 +387,18 @@ export async function run(options: { week?: string } = {}): Promise<EnrichResult
   }
 
   if (dispatched.length) {
-    parts.push(`Dispatched ${dispatched.length} task(s) to PM agents:`)
+    const created = dispatched.length - dispatchSkipped
+    const skipNote = dispatchSkipped ? ` (${dispatchSkipped} already existed for ${currentWeek}, skipped)` : ''
+    parts.push(`Dispatched ${created} task(s) to PM agents${skipNote}:`)
     for (const d of dispatched) parts.push(`  → ${d.target_agent}: ${d.reason}`)
   }
+
+  // Final ingestion step: fan this week's signals into the initiative memory docs.
+  // Content is Claude-authored, so this is a plan → curate → apply handoff.
+  parts.push('')
+  parts.push('▶ Final step — refresh initiative memories from this PPP (initiative-tracker):')
+  parts.push(`  Plan:  npx tsx scripts/initiative-tracker/run.ts refresh-from-ppp --plan --week=${currentWeek}`)
+  parts.push('  Apply: npx tsx scripts/initiative-tracker/run.ts refresh-from-ppp --apply --payload=<path>')
 
   return {
     week_date: currentWeek,

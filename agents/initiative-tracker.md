@@ -8,7 +8,29 @@ The agent does NOT make judgment calls on priority, status, ownership changes, o
 
 **Core principle:** If something happened that affects an initiative, the memory doc should reflect it within one cycle.
 
-This is a **definition-only agent** — no TypeScript CLI yet. Invoked by other agents (PPP Ingest, PM agents, Claude Chat) or directly by Claude Code.
+Invoked by other agents (PPP Ingest, PM agents, Claude Chat) or directly by Claude Code.
+
+## CLI — `refresh-from-ppp`
+
+The `refresh-from-ppp` flow has a TypeScript CLI at `scripts/initiative-tracker/run.ts` (`npm run initiative-tracker`). It is **Claude-in-the-loop by design**: the CLI owns the mechanical work (matching workstreams → initiatives, finding section anchors, the actual writes, idempotency, verification) while Claude authors the per-initiative prose. Two modes:
+
+```bash
+# 1) Plan (read-only): scaffold of every initiative the PPP week touches —
+#    matched slug, memory_id, prior/current status, status_changed, already_present,
+#    stored PPP summary, parsed "Blocked By" excerpt, and a `suggested` default.
+npm run initiative-tracker -- refresh-from-ppp --plan --week=YYYY-MM-DD
+
+# 2) Apply: write a Claude-authored payload into each memory doc (idempotent + verified).
+npm run initiative-tracker -- refresh-from-ppp --apply --payload=<path>
+```
+
+**This is the final step of PPP ingestion** (after `ppp write` + `ppp enrich`). Procedure:
+1. Run `--plan` for the ingested week.
+2. For each entry, curate the `suggested` text — trim the PPP signal to a tight one-liner, keep the `status_line` **only** when `status_changed` is true, and turn the `blocked_by_excerpt` into real blocker bullets (the excerpt is a heuristic hint, not final).
+3. Write the payload (`{ week_date, entries: [{ initiative_slug, ppp_signal, status_line?, blockers? }] }`) and run `--apply`.
+4. The CLI prints an Updated/Skipped/Errors summary. Entries whose week is already in the doc's PPP Signals section are **skipped** (safe to re-run).
+
+The workstream → initiative mapping lives in `scripts/initiative-tracker/refresh.ts` (`WORKSTREAM_TO_INITIATIVES`). New/unmapped lanes are surfaced in the plan under `unmapped_workstreams` so they are never silently dropped — add them to the map when they appear. `--plan` also reports `no_initiative_workstreams` (mapped to `[]` on purpose, e.g. Product UX) and `missing_memory` (slug exists but has no memory doc).
 
 ## Context Library
 

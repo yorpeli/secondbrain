@@ -22,7 +22,7 @@ When triggered, decide which path:
 | File | Role | Tracked? |
 |------|------|----------|
 | `scripts/initiative-review/build.ts` | Deterministic gather (Supabase) + merge highlights + render JSON & HTML | git |
-| `scripts/initiative-review/highlights.json` | The analysis — `{ slug: {tldr, signals[], recommendation[]} }` + `_meta.analyzed` date | git (durable — expensive to regenerate) |
+| `scripts/initiative-review/highlights.json` | The analysis — `{ slug: {tldr, signals[], recommendation[]} }` + `_meta.analyzed` date + `_overview` (front-page cross-cutting patterns) | git (durable — expensive to regenerate) |
 | `output/initiatives/initiative-review.json` | Data-layer snapshot (initiatives + memory + metadata + highlights) | gitignored (regenerable) |
 | `output/initiatives/initiative-review.html` | Self-contained, offline, double-clickable view | gitignored (regenerable) |
 
@@ -42,6 +42,8 @@ Then open it: `open output/initiatives/initiative-review.html`.
 Default scope: **all active, tiered.** Give a **full analysis card** to every active initiative whose memory doc is substantive (≈≥2,800 chars) — currently the 3 P0s + ~10 P1s. Leave thin stubs (`< ~2,500 chars`) and no-memory initiatives to their banner — *that sparseness is itself the finding*. Overridable when Yonatan names a scope.
 
 Dispatch **one analysis sub-agent per initiative in parallel** (see `superpowers:dispatching-parallel-agents`). Each is read-only, pulls its own data, and returns a strict-JSON highlight. Use the prompt template below. Collect the JSON objects, then update `scripts/initiative-review/highlights.json` (set each slug's `{tldr, signals, recommendation}` and bump `_meta.analyzed` to today). Re-run step 1 to render.
+
+**Front-page overview (`_overview`).** After the per-initiative cards are merged, synthesize the portfolio-level view yourself (you've just read all the cards) and write it to the `_overview` key in `highlights.json`: `{ headline, patterns:[{title, tone, body}], keyDates:[{date, label}], watchlist:[{slug, label, note}] }`. The build script renders this as the landing "Portfolio Overview" panel (pinned at the top of the sidebar) — quantitative tiles (active/analyzed/P0/unassigned/stale/no-memory, priority bar) are computed live from the DB; `_overview` supplies the qualitative cross-cutting patterns, key dates, and the click-through watchlist. Refresh `_overview` on every full review so it tracks the current cards.
 
 #### Sub-agent prompt template
 ```
