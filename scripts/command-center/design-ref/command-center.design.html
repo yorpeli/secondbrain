@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Auto-refresh: re-pull the underlying JSON every 10 minutes. Demo/view state
+     is persisted to localStorage so a refresh never loses the user's place. -->
+<meta http-equiv="refresh" content="600" />
+<title>Command Center</title>
+
+<!--====================================================================
+  DATA CONTRACT  —  the ideal shape of the JSON this view renders from.
+  (Typed sketch; a realistic sample is assigned to `DATA` further down.)
+
+  type Dashboard = {
+    meta: {
+      user: { name: string, role: string, org: string },
+      generatedAt: ISOString,          // when this snapshot was built
+      partOfDay: "morning"|"midday"|"evening"
+    },
+
+    // ── ZONE 1 · highest priority. The "what needs me right now" queue. ──
+    needsAttention: Array<{
+      id: string,
+      kind: "vip_email" | "meeting_change" | "escalation" | "followup_due",
+      severity: "critical" | "high" | "medium",   // drives ordering + color
+      title: string,                  // the one-line ask
+      detail?: string,                // supporting context, <= ~12 words
+      person?: { name: string, relation: "manager"|"report"|"stakeholder"|"customer"|"vip" },
+      initiative?: string,            // initiative id/name if relevant
+      source: "email"|"calendar"|"teams"|"sharepoint",
+      at: ISOString,                  // when it landed / is due
+      due?: ISOString,                // for followup_due
+      action?: string                 // suggested next move, e.g. "Reply" / "Reschedule"
+    }>,
+
+    // ── ZONE 2a · live signals captured through the day. Newest first. ──
+    signals: Array<{
+      id: string,
+      at: ISOString,
+      source: "teams"|"sharepoint"|"email"|"calendar",
+      text: string,
+      person?: string,
+      initiative?: string,
+      urgent?: boolean                // ⚡ flag
+    }>,
+
+    // ── ZONE 2b · today's meetings from now → end of day. ──
+    meetings: Array<{
+      id: string,
+      start: ISOString, end: ISOString,
+      title: string,
+      with?: string[],
+      status: "confirmed"|"tentative"|"moved",
+      note?: string
+    }>,
+
+    // ── ZONE 3 · state of what matters (tight, scannable). ──
+    tasks: Array<{                    // open follow-ups the user OWNS
+      id: string,
+      title: string,
+      priority: "P0"|"P1"|"P2",
+      due?: ISOString,
+      initiative?: string
+    }>,
+    initiatives: Array<{              // ~16; mostly REFERENCE. surface at-risk only.
+      id: string,
+      name: string,
+      status: "on_track"|"at_risk"|"blocked"|"done",
+      priority: "P0"|"P1"|"P2",
+      owner: string,
+      note?: string
+    }>,
+    focus: {                          // strategic, slow-moving
+      priorities: string[],
+      watching: string[],
+      waitingOn: Array<{ item: string, who: string }>
+    },
+
+    // ── REFERENCE · progressive disclosure only. ──
+    people: Array<{
+      name: string,
+      relation: "manager"|"report"|"stakeholder",
+      team?: string,
+      initiatives?: string[]
+    }>,
+
+    // ── present only later in the day ──
+    endOfDay?: null | {
+      summary: string,
+      highlights: string[],
+      proposedFollowups: Array<{ title: string, priority: "P0"|"P1"|"P2" }>
+    }
+  }
+=====================================================================-->
+
+<style>
+  :root{
+    /* ground */
+    --bg:#0d0e11;
+    --bg-2:#141519;
+    --panel:#16181d;
+    --panel-2:#1a1d23;
+    --raise:#1f232a;
+    --line:rgba(255,255,255,.07);
+    --line-2:rgba(255,255,255,.045);
+
+    /* ink */
+    --ink:#e8eaee;
+    --ink-2:#9ca3af;
+    --ink-3:#6b7280;
+    --ink-4:#565d68;
+
+    /* meaning — used ONLY for urgency / risk / new */
+    --urgent:#e8b13a;      /* ⚡ amber */
+    --urgent-dim:rgba(232,177,58,.14);
+    --risk:#e0654a;        /* escalation / at-risk / overdue */
+    --risk-dim:rgba(224,101,74,.13);
+    --crit:#e34d4d;        /* blocked / critical */
+    --crit-dim:rgba(227,77,77,.13);
+    --new:#5fa3d6;         /* fresh signal / info */
+    --new-dim:rgba(95,163,214,.13);
+    --ok:#46b08a;          /* on track */
+    --ok-dim:rgba(70,176,138,.12);
+
+    --r:10px;
+    --r-sm:7px;
+    --maxw:1320px;
+
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  body{
+    font-size:14px;line-height:1.45;letter-spacing:.1px;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    background:
+      radial-gradient(1200px 600px at 78% -10%, rgba(95,163,214,.04), transparent 60%),
+      var(--bg);
+    min-height:100vh;
+  }
+  ::selection{background:rgba(95,163,214,.25)}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#23262d;border-radius:8px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-thumb:hover{background:#2c3038}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px 64px;}
+
+  /*— header —*/
+  header.bar{
+    position:sticky;top:0;z-index:40;
+    background:linear-gradient(to bottom,rgba(13,14,17,.96),rgba(13,14,17,.86));
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .bar-in{max-width:var(--maxw);margin:0 auto;padding:16px 28px 14px;
+    display:flex;align-items:center;justify-content:space-between;gap:24px;}
+  .greet{display:flex;align-items:baseline;gap:14px;min-width:0}
+  .greet h1{font-size:19px;font-weight:600;margin:0;letter-spacing:-.2px;white-space:nowrap}
+  .greet .who{color:var(--ink-3);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .greet .who b{color:var(--ink-2);font-weight:500}
+
+  .head-right{display:flex;align-items:center;gap:16px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+  .clock{font-family:var(--mono);font-size:13px;color:var(--ink-2);letter-spacing:.4px;display:flex;align-items:center;gap:9px}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-3);
+    text-transform:uppercase;letter-spacing:1.2px}
+  .live .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);
+    box-shadow:0 0 0 0 rgba(70,176,138,.5);animation:pulse 2.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(70,176,138,.45)}70%{box-shadow:0 0 0 7px rgba(70,176,138,0)}100%{box-shadow:0 0 0 0 rgba(70,176,138,0)}}
+
+  /*— demo control cluster (clearly a preview affordance) —*/
+  .demo{display:flex;align-items:center;gap:10px}
+  .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px}
+  .seg button{
+    appearance:none;border:0;background:transparent;color:var(--ink-3);
+    font-family:var(--sans);font-size:11.5px;font-weight:500;letter-spacing:.2px;
+    padding:5px 11px;border-radius:6px;cursor:pointer;transition:.15s;white-space:nowrap}
+  .seg button:hover{color:var(--ink-2)}
+  .seg button[aria-pressed="true"]{background:var(--raise);color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.3)}
+  .demo-lbl{font-size:10px;color:var(--ink-4);text-transform:uppercase;letter-spacing:1.3px}
+
+  /*— section scaffolding —*/
+  section.zone{margin-top:30px}
+  .zone-head{display:flex;align-items:center;gap:12px;margin:0 0 13px}
+  .zone-head h2{margin:0;font-size:11.5px;font-weight:600;text-transform:uppercase;
+    letter-spacing:1.8px;color:var(--ink-3)}
+  .zone-head .rule{flex:1;height:1px;background:var(--line-2)}
+  .zone-head .count{font-family:var(--mono);font-size:11px;color:var(--ink-4);letter-spacing:.5px}
+  .zone-head .count.alarm{color:var(--risk)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+
+  /*================= ZONE 1 · NEEDS YOU NOW =================*/
+  .needs-banner{
+    display:flex;align-items:center;gap:14px;margin:6px 0 13px;
+  }
+  .needs-banner .lead{font-size:24px;font-weight:600;letter-spacing:-.4px;margin:0;display:flex;align-items:baseline;gap:12px}
+  .needs-banner .lead .n{font-family:var(--mono);color:var(--ink)}
+  .needs-banner .lead .word{color:var(--ink-2);font-weight:500;font-size:18px;letter-spacing:0}
+  .needs-banner.clear .lead{font-size:18px;color:var(--ink-2);font-weight:500}
+  .needs-banner .spark{color:var(--ink-4);font-size:12.5px;margin-left:auto;font-family:var(--mono)}
+
+  /* severity left-edge + dot shared */
+  .sev-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .sev-critical{--c:var(--crit);--cd:var(--crit-dim)}
+  .sev-high{--c:var(--risk);--cd:var(--risk-dim)}
+  .sev-medium{--c:var(--urgent);--cd:var(--urgent-dim)}
+  .sev-dot.sev-critical,.sev-dot.sev-high,.sev-dot.sev-medium{background:var(--c)}
+
+  /* ---- layout A: TRIAGE COLUMN ---- */
+  .triage{display:flex;flex-direction:column;gap:1px;background:var(--line-2);
+    border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .triage .row{
+    display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:14px;
+    background:var(--panel);padding:14px 18px 14px 14px;position:relative;cursor:default;
+    transition:background .14s}
+  .triage .row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+  .triage .row:hover{background:var(--panel-2)}
+  .triage .ic{display:flex;align-items:center;justify-content:center;width:34px;height:34px;
+    border-radius:9px;background:var(--cd);color:var(--c);font-size:15px}
+  .triage .body{min-width:0}
+  .triage .ttl{font-size:14.5px;font-weight:550;color:var(--ink);letter-spacing:-.1px;
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .triage .ttl .bolt{color:var(--urgent)}
+  .triage .meta{margin-top:3px;font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .triage .meta .who{color:var(--ink-2)}
+  .triage .meta .sep{color:var(--ink-4)}
+  .triage .right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+  .triage .when{font-family:var(--mono);font-size:11.5px;color:var(--ink-4);white-space:nowrap}
+  .act{font-size:11.5px;font-weight:550;color:var(--ink-2);border:1px solid var(--line);
+    background:var(--panel-2);padding:4px 11px;border-radius:999px;white-space:nowrap;letter-spacing:.2px}
+  .act.hot{color:#1a1206;background:var(--urgent);border-color:transparent}
+
+  /* ---- layout B: HERO STRIP ---- */
+  .hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+  .hero .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 16px 15px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:11px;
+    min-height:150px}
+  .hero .card::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--c)}
+  .hero .card .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .hero .kind{display:inline-flex;align-items:center;gap:8px;font-size:10.5px;font-weight:600;
+    text-transform:uppercase;letter-spacing:1.3px;color:var(--c)}
+  .hero .kind .ic{font-size:13px}
+  .hero .when{font-family:var(--mono);font-size:11px;color:var(--ink-4)}
+  .hero .ttl{font-size:16px;font-weight:600;line-height:1.3;letter-spacing:-.2px;color:var(--ink);text-wrap:pretty}
+  .hero .dtl{font-size:12.5px;color:var(--ink-3);line-height:1.45;margin-top:-4px}
+  .hero .foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:4px}
+  .hero .who{font-size:12px;color:var(--ink-2);display:flex;align-items:center;gap:7px;min-width:0}
+  .hero .who .av{width:20px;height:20px;border-radius:50%;background:var(--raise);color:var(--ink-2);
+    font-size:9.5px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .hero .bolt{color:var(--urgent)}
+
+  /* clear / empty state for zone 1 */
+  .all-clear{display:flex;align-items:center;gap:13px;padding:18px 20px;
+    border:1px dashed var(--line);border-radius:var(--r);background:rgba(70,176,138,.035);color:var(--ink-2)}
+  .all-clear .tick{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ok);color:var(--ok);
+    display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+
+  /*================= main two-column grid =================*/
+  .grid{display:grid;grid-template-columns:1.5fr 1fr;gap:26px;align-items:start}
+  @media(max-width:980px){.grid{grid-template-columns:1fr}}
+
+  .col{display:flex;flex-direction:column;gap:30px}
+  .sub{margin:0 0 12px;display:flex;align-items:center;gap:10px}
+  .sub h3{margin:0;font-size:12.5px;font-weight:600;color:var(--ink);letter-spacing:.1px}
+  .sub .meta{font-family:var(--mono);font-size:11px;color:var(--ink-4)}
+  .sub .rule{flex:1;height:1px;background:var(--line-2)}
+
+  /*— signals feed —*/
+  .feed{display:flex;flex-direction:column}
+  .sig{display:grid;grid-template-columns:62px 1fr;gap:14px;padding:11px 0;
+    border-top:1px solid var(--line-2)}
+  .sig:first-child{border-top:0}
+  .sig.fresh{}
+  .sig .stamp{font-family:var(--mono);font-size:11.5px;color:var(--ink-4);text-align:right;padding-top:2px;white-space:nowrap}
+  .sig .stamp .src{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-4);margin-top:3px;opacity:.8}
+  .sig .txt{font-size:13.5px;color:var(--ink);line-height:1.5;text-wrap:pretty}
+  .sig.urgent .txt{}
+  .sig .txt .bolt{color:var(--urgent);margin-right:5px}
+  .sig .tags{margin-top:5px;display:flex;gap:7px;flex-wrap:wrap}
+  .tag{font-size:10.5px;letter-spacing:.3px;color:var(--ink-3);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:5px;padding:2px 7px;white-space:nowrap}
+  .tag.who{color:var(--ink-2)}
+  .tag.init{color:var(--new)}
+  .sig .newdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--new);
+    margin-left:7px;vertical-align:middle;box-shadow:0 0 0 3px var(--new-dim)}
+
+  .empty{padding:16px 2px;color:var(--ink-4);font-size:12.5px;font-style:italic}
+
+  /*— meetings —*/
+  .mtgs{display:flex;flex-direction:column;gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .mtg{display:grid;grid-template-columns:78px 1fr auto;gap:14px;align-items:center;
+    background:var(--panel);padding:11px 16px;position:relative}
+  .mtg.now::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--new)}
+  .mtg .time{font-family:var(--mono);font-size:12px;color:var(--ink-2);line-height:1.35}
+  .mtg .time .end{display:block;color:var(--ink-4);font-size:10.5px}
+  .mtg .mt{min-width:0}
+  .mtg .mt .t{font-size:13.5px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mtg .mt .w{font-size:11.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mtg .badge{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-3);
+    border:1px solid var(--line);padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .mtg .badge.tentative{color:var(--urgent);border-color:rgba(232,177,58,.35)}
+  .mtg .badge.next{color:var(--new);border-color:rgba(95,163,214,.4)}
+  .mtg .badge.moved{color:var(--risk);border-color:rgba(224,101,74,.4)}
+
+  /*— at-risk initiatives —*/
+  .risks{display:flex;flex-direction:column;gap:8px}
+  .risk{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c);border-radius:var(--r-sm);
+    padding:11px 14px}
+  .risk.s-blocked{--c:var(--crit);--cd:var(--crit-dim)}
+  .risk.s-at_risk{--c:var(--risk);--cd:var(--risk-dim)}
+  .risk .stat{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--c);
+    background:var(--cd);padding:3px 8px;border-radius:5px;white-space:nowrap}
+  .risk .ri{min-width:0}
+  .risk .ri .nm{font-size:13.5px;font-weight:550;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .risk .ri .nt{font-size:12px;color:var(--ink-3);margin-top:2px;text-wrap:pretty}
+  .risk .own{font-size:11px;color:var(--ink-4);font-family:var(--mono);white-space:nowrap}
+
+  /*— tasks —*/
+  .tasks{display:flex;flex-direction:column;gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .task{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--panel);padding:10px 14px}
+  .pri{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.5px;padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .pri.P0{color:var(--crit);background:var(--crit-dim)}
+  .pri.P1{color:var(--urgent);background:var(--urgent-dim)}
+  .pri.P2{color:var(--ink-3);background:var(--panel-2)}
+  .task .tt{font-size:13px;color:var(--ink);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .task .tt .lk{color:var(--ink-4);font-size:11px;margin-left:8px}
+  .task .due{font-family:var(--mono);font-size:11px;color:var(--ink-4);white-space:nowrap}
+  .task .due.over{color:var(--risk)}
+  .task .due.today{color:var(--urgent)}
+
+  /*— focus block —*/
+  .focus{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:4px 16px 14px}
+  .focus .frow{padding:12px 0;border-top:1px solid var(--line-2)}
+  .focus .frow:first-child{border-top:0}
+  .focus .flbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ink-4);margin-bottom:8px}
+  .focus ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+  .focus li{font-size:13px;color:var(--ink-2);display:flex;gap:9px;line-height:1.4}
+  .focus li::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--ink-4);margin-top:7px;flex-shrink:0}
+  .focus li .w{color:var(--ink-4);font-size:11.5px}
+  .focus .frow.watch li::before{background:var(--new);box-shadow:0 0 0 2px var(--new-dim)}
+
+  /*— end of day —*/
+  .eod{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-top:6px;
+    background:linear-gradient(180deg, rgba(95,163,214,.05), var(--panel) 70%)}
+  .eod .eh{display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line)}
+  .eod .eh .moon{font-size:16px}
+  .eod .eh h3{margin:0;font-size:13px;font-weight:600;letter-spacing:.2px}
+  .eod .eh .tm{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-4)}
+  .eod .eb{padding:16px 20px 18px;display:grid;grid-template-columns:1.3fr 1fr;gap:26px}
+  @media(max-width:760px){.eod .eb{grid-template-columns:1fr;gap:18px}}
+  .eod .sum{font-size:14px;color:var(--ink);line-height:1.55;text-wrap:pretty}
+  .eod .hl{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+  .eod .hl li{font-size:12.5px;color:var(--ink-2);display:flex;gap:9px}
+  .eod .hl li::before{content:"✓";color:var(--ok);font-size:12px;flex-shrink:0}
+  .eod .pf .plbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ink-4);margin-bottom:10px}
+  .eod .pf .pitem{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-2)}
+  .eod .pf .pitem:first-of-type{border-top:0}
+  .eod .pf .pt{font-size:12.5px;color:var(--ink-2);flex:1}
+  .eod .pf .add{font-size:11px;color:var(--new);border:1px solid rgba(95,163,214,.35);border-radius:999px;padding:3px 11px;white-space:nowrap}
+
+  /*— reference disclosure —*/
+  details.ref{margin-top:30px;border-top:1px solid var(--line);padding-top:8px}
+  details.ref>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
+    padding:12px 2px;color:var(--ink-3);font-size:11.5px;text-transform:uppercase;letter-spacing:1.6px;font-weight:600}
+  details.ref>summary::-webkit-details-marker{display:none}
+  details.ref>summary .chev{transition:transform .2s;color:var(--ink-4)}
+  details.ref[open]>summary .chev{transform:rotate(90deg)}
+  details.ref>summary .hint{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink-4);text-transform:none;letter-spacing:.3px}
+  .ref-body{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:14px 2px 8px}
+  @media(max-width:860px){.ref-body{grid-template-columns:1fr}}
+  .ref-col h4{margin:0 0 11px;font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ink-4);font-weight:600}
+  .ppl{display:flex;flex-direction:column;gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+  .pp{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center;background:var(--panel);padding:8px 13px}
+  .pp .av{width:26px;height:26px;border-radius:50%;background:var(--raise);color:var(--ink-2);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  .pp .pn{font-size:12.5px;color:var(--ink-2);min-width:0}
+  .pp .pn small{display:block;color:var(--ink-4);font-size:10.5px}
+  .pp .rel{font-size:9.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-4);border:1px solid var(--line);padding:2px 6px;border-radius:4px;white-space:nowrap}
+  .pp .rel.manager{color:var(--new);border-color:rgba(95,163,214,.3)}
+  .pp .rel.report{color:var(--ok);border-color:rgba(70,176,138,.28)}
+  .roster{display:flex;flex-direction:column;gap:1px;background:var(--line-2);border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+  .rr{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--panel);padding:7px 13px;font-size:12px}
+  .rr .sd{width:7px;height:7px;border-radius:50%}
+  .rr .sd.on_track{background:var(--ok)}.rr .sd.at_risk{background:var(--risk)}.rr .sd.blocked{background:var(--crit)}.rr .sd.done{background:var(--ink-4)}
+  .rr .rn{color:var(--ink-2);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rr .ro{color:var(--ink-4);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+
+  /*— focus strip (compact, full-width, lifted near the top) —*/
+  .focus-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-2);
+    border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  @media(max-width:760px){.focus-strip{grid-template-columns:1fr}}
+  .focus-strip .fcell{background:var(--panel);padding:13px 16px 15px}
+  .focus-strip .flbl{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--ink-4);
+    margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .focus-strip .flbl .fdot{width:5px;height:5px;border-radius:50%;background:var(--ink-4)}
+  .focus-strip .flbl.watch .fdot{background:var(--new);box-shadow:0 0 0 2px var(--new-dim)}
+  .focus-strip .flbl.wait .fdot{background:var(--urgent);box-shadow:0 0 0 2px var(--urgent-dim)}
+  .focus-strip ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .focus-strip li{font-size:12.5px;color:var(--ink-2);line-height:1.42;display:flex;gap:8px;text-wrap:pretty}
+  .focus-strip li::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--ink-4);margin-top:6px;flex-shrink:0;opacity:.7}
+  .focus-strip li .w{color:var(--ink-4);font-size:11px}
+
+  /*— collapsible section (remembers open/closed) —*/
+  details.csec{margin:0}
+  details.csec>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:11px;margin:0 0 12px;user-select:none}
+  details.csec>summary::-webkit-details-marker{display:none}
+  details.csec>summary h3{margin:0;font-size:12.5px;font-weight:600;color:var(--ink);letter-spacing:.1px}
+  details.csec>summary .chev{color:var(--ink-4);font-size:10px;transition:transform .2s;flex-shrink:0}
+  details.csec[open]>summary .chev{transform:rotate(90deg)}
+  details.csec>summary:hover h3{color:var(--ink)}
+  details.csec>summary:hover .chev{color:var(--ink-3)}
+  details.csec>summary .meta{font-family:var(--mono);font-size:11px;color:var(--ink-4)}
+  details.csec>summary .rule{flex:1;height:1px;background:var(--line-2)}
+  details.csec:not([open])>summary .rule{background:var(--line)}
+  details.csec:not([open])>summary{margin-bottom:0}
+  details.csec>summary .folded{display:none;font-family:var(--mono);font-size:11px;color:var(--ink-4)}
+  details.csec:not([open])>summary .folded{display:inline}
+  details.csec:not([open])>summary .meta{display:none}
+
+  /*— 'state of what matters' band (Bands arrangement) —*/
+  .matters{display:grid;grid-template-columns:1.5fr 1fr;gap:26px;align-items:start}
+  @media(max-width:860px){.matters{grid-template-columns:1fr;gap:24px}}
+
+  /* top-zone layout switch (its own little control, lives in the zone head) */
+  .layout-switch{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:2px;gap:2px;margin-left:auto}
+  .layout-switch button{appearance:none;border:0;background:transparent;color:var(--ink-4);cursor:pointer;
+    font-family:var(--sans);font-size:10.5px;font-weight:600;letter-spacing:.4px;padding:4px 10px;border-radius:5px;text-transform:uppercase}
+  .layout-switch button[aria-pressed="true"]{background:var(--raise);color:var(--ink-2)}
+
+  footer.foot{max-width:var(--maxw);margin:40px auto 0;padding:18px 28px 0;border-top:1px solid var(--line-2);
+    color:var(--ink-4);font-size:11px;font-family:var(--mono);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .fade-in{animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="greet">
+      <h1 id="greeting">Good morning, Daniel</h1>
+      <span class="who">Command Center · <b>VP Product</b>, Customer Lifecycle</span>
+    </div>
+    <div class="head-right">
+      <div class="clock"><span class="live"><span class="dot"></span>Live</span><span id="asof">as of 7:42</span></div>
+      <div class="demo">
+        <span class="demo-lbl">View</span>
+        <div class="seg" id="stateSeg" role="group" aria-label="Time of day">
+          <button data-state="morning" aria-pressed="true">Morning</button>
+          <button data-state="midday" aria-pressed="false">Midday</button>
+          <button data-state="evening" aria-pressed="false">Evening</button>
+        </div>
+      </div>
+      <div class="demo">
+        <span class="demo-lbl">Arrange</span>
+        <div class="seg" id="arrangeSeg" role="group" aria-label="Arrangement">
+          <button data-arrange="rail" aria-pressed="true">Rail</button>
+          <button data-arrange="bands" aria-pressed="false">Bands</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="app"><!-- rendered --></main>
+
+<footer class="foot">
+  <span id="footmeta">snapshot · auto-refreshes every 10 min</span>
+  <span>Customer Lifecycle Management · Command Center</span>
+</footer>
+
+<script>
+/*==================================================================
+  SAMPLE DATA  (one object per time-of-day, sharing the slow-moving
+  reference data). Shapes conform to the contract documented in <head>.
+==================================================================*/
+
+// ----- slow-moving reference, shared across the day -----
+const INITIATIVES = [
+  { id:"clm-reactivation", name:"Dormant-account Reactivation", status:"at_risk", priority:"P0", owner:"Priya N.", note:"Email vendor deliverability dipped to 71% — fix ETA slipped." },
+  { id:"onboard-v3", name:"Onboarding v3 (progressive KYC)", status:"blocked", priority:"P0", owner:"Marcus L.", note:"Blocked on Risk sign-off; legal review in 3rd round." },
+  { id:"churn-model", name:"Churn Propensity Model 2.1", status:"on_track", priority:"P1", owner:"Sofia R." },
+  { id:"loyalty-tiers", name:"Loyalty Tiers Revamp", status:"at_risk", priority:"P1", owner:"Tomás V.", note:"Finance hasn't confirmed reward liability cap." },
+  { id:"dunning", name:"Smart Dunning & Retries", status:"on_track", priority:"P1", owner:"Aisha K." },
+  { id:"inapp-msg", name:"In-app Messaging Center", status:"on_track", priority:"P2", owner:"Leo P." },
+  { id:"referral", name:"Referral Program 2.0", status:"on_track", priority:"P2", owner:"Hannah W." },
+  { id:"winback", name:"Win-back Offers Engine", status:"on_track", priority:"P1", owner:"Priya N." },
+  { id:"nps-loop", name:"NPS Closed-loop Follow-up", status:"on_track", priority:"P2", owner:"Owen D." },
+  { id:"segment", name:"Behavioral Segmentation Service", status:"at_risk", priority:"P1", owner:"Sofia R.", note:"Data contract change broke 2 downstream jobs." },
+  { id:"pricing-test", name:"Premium Pricing Experiment", status:"on_track", priority:"P1", owner:"Marcus L." },
+  { id:"consent", name:"Consent & Preferences Hub", status:"on_track", priority:"P2", owner:"Aisha K." },
+  { id:"lifecycle-map", name:"Lifecycle Journey Mapping", status:"on_track", priority:"P2", owner:"Leo P." },
+  { id:"support-deflect", name:"Self-serve Support Deflection", status:"on_track", priority:"P2", owner:"Hannah W." },
+  { id:"data-trust", name:"CLM Data Trust & Lineage", status:"done", priority:"P1", owner:"Owen D." },
+  { id:"acct-health", name:"Account Health Score v2", status:"on_track", priority:"P1", owner:"Tomás V." },
+];
+
+const PEOPLE = [
+  { name:"Karen Whitfield", relation:"manager", team:"Chief Product Officer" },
+  { name:"Priya Nair", relation:"report", team:"Retention & Reactivation" },
+  { name:"Marcus Lindqvist", relation:"report", team:"Onboarding & Activation" },
+  { name:"Sofia Ramos", relation:"report", team:"Data & Modeling" },
+  { name:"Aisha Karim", relation:"report", team:"Billing Lifecycle" },
+  { name:"Leo Park", relation:"report", team:"Engagement & Messaging" },
+  { name:"Tomás Vidal", relation:"report", team:"Loyalty & Growth" },
+  { name:"Hannah Weiss", relation:"stakeholder", team:"Growth Marketing", initiatives:["referral","support-deflect"] },
+  { name:"Owen Doyle", relation:"stakeholder", team:"Data Platform", initiatives:["nps-loop","data-trust"] },
+  { name:"Rachel Stern", relation:"stakeholder", team:"Risk & Compliance", initiatives:["onboard-v3","consent"] },
+  { name:"David Okonjo", relation:"stakeholder", team:"Finance", initiatives:["loyalty-tiers"] },
+  { name:"Mei Chen", relation:"stakeholder", team:"Customer Support", initiatives:["support-deflect","inapp-msg"] },
+  { name:"Jonas Albrecht", relation:"stakeholder", team:"Design", initiatives:["onboard-v3","inapp-msg"] },
+  { name:"Fatima Bah", relation:"stakeholder", team:"Legal", initiatives:["onboard-v3","consent"] },
+  { name:"Carlos Mendes", relation:"stakeholder", team:"Engineering", initiatives:["segment","churn-model"] },
+  { name:"Ingrid Solberg", relation:"stakeholder", team:"Analytics", initiatives:["pricing-test","churn-model"] },
+];
+
+const TASKS = [
+  { id:"t1", title:"Approve reactivation budget reallocation", priority:"P0", due:"2026-06-07", initiative:"clm-reactivation" },
+  { id:"t2", title:"Send Risk the revised KYC step-down spec", priority:"P0", due:"2026-06-06", initiative:"onboard-v3" },
+  { id:"t3", title:"Decide loyalty reward liability cap w/ Finance", priority:"P1", due:"2026-06-07", initiative:"loyalty-tiers" },
+  { id:"t4", title:"Review churn model 2.1 eval before ship", priority:"P1", due:"2026-06-09", initiative:"churn-model" },
+  { id:"t5", title:"Draft Q3 CLM OKRs for Karen", priority:"P1", due:"2026-06-10" },
+  { id:"t6", title:"Close the loop on segmentation data contract", priority:"P1", due:"2026-06-08", initiative:"segment" },
+  { id:"t7", title:"Confirm referral fraud thresholds", priority:"P2", due:"2026-06-12", initiative:"referral" },
+  { id:"t8", title:"Schedule skip-levels for Engagement pod", priority:"P2" },
+];
+
+const FOCUS = {
+  priorities:[
+    "Unblock Onboarding v3 — Risk + Legal sign-off this week",
+    "Reactivation back on plan before the board update (Jun 18)",
+    "Lock Q3 OKRs with Karen"
+  ],
+  watching:[
+    "Segmentation service stability after data-contract change",
+    "Loyalty reward-liability decision with Finance"
+  ],
+  waitingOn:[
+    { item:"Risk sign-off on progressive KYC", who:"Rachel Stern" },
+    { item:"Reward liability cap confirmation", who:"David Okonjo" },
+    { item:"Deliverability fix ETA", who:"Priya Nair" }
+  ]
+};
+
+// ----- meetings (now → EOD); times are today, local -----
+const MEETINGS = [
+  { id:"m1", start:"2026-06-07T09:00", end:"2026-06-07T09:30", title:"Onboarding v3 unblock sync", with:["Marcus L.","Rachel S.","Fatima B."], status:"confirmed", note:"Risk + Legal" },
+  { id:"m2", start:"2026-06-07T10:00", end:"2026-06-07T10:30", title:"Reactivation war-room", with:["Priya N.","Carlos M."], status:"confirmed" },
+  { id:"m3", start:"2026-06-07T11:30", end:"2026-06-07T12:00", title:"1:1 — Sofia (Data & Modeling)", with:["Sofia R."], status:"confirmed" },
+  { id:"m4", start:"2026-06-07T13:00", end:"2026-06-07T14:00", title:"CPO staff", with:["Karen W.","+6"], status:"confirmed" },
+  { id:"m5", start:"2026-06-07T15:00", end:"2026-06-07T15:30", title:"Loyalty liability w/ Finance", with:["Tomás V.","David O."], status:"tentative", note:"Awaiting David's confirm" },
+  { id:"m6", start:"2026-06-07T16:30", end:"2026-06-07T17:00", title:"Weekly CLM review", with:["All leads"], status:"confirmed" },
+];
+
+// ----- needs-attention items, full set; states slice this -----
+const NEEDS_FULL = [
+  { id:"n1", kind:"escalation", severity:"critical", title:"Onboarding v3 will miss the board demo", detail:"Legal review entered a 3rd round overnight.", person:{name:"Marcus Lindqvist",relation:"report"}, initiative:"onboard-v3", source:"teams", at:"2026-06-07T07:12", action:"Decide" },
+  { id:"n2", kind:"vip_email", severity:"high", title:"Karen wants reactivation numbers before staff", detail:"\"Can you walk me through the dip at 1:1?\"", person:{name:"Karen Whitfield",relation:"manager"}, source:"email", at:"2026-06-07T06:58", action:"Reply" },
+  { id:"n3", kind:"meeting_change", severity:"high", title:"Finance moved loyalty review to 3:00", detail:"Was 4:30 — now overlaps CLM review prep.", person:{name:"David Okonjo",relation:"stakeholder"}, initiative:"loyalty-tiers", source:"calendar", at:"2026-06-07T07:05", action:"Reschedule" },
+  { id:"n4", kind:"followup_due", severity:"high", title:"Send Risk the revised KYC step-down spec", detail:"Overdue since yesterday — blocks v3.", initiative:"onboard-v3", source:"email", at:"2026-06-06T18:00", due:"2026-06-06", action:"Do now" },
+  { id:"n5", kind:"followup_due", severity:"medium", title:"Approve reactivation budget reallocation", detail:"Due today — Priya is waiting to act.", initiative:"clm-reactivation", source:"sharepoint", at:"2026-06-07T07:00", due:"2026-06-07", action:"Approve" },
+];
+
+// ----- live signals, full set; states reveal progressively -----
+const SIGNALS_FULL = [
+  { id:"s12", at:"2026-06-07T16:48", source:"teams", text:"Carlos confirmed deliverability fix is deployed — sit at 79% and climbing.", person:"Carlos Mendes", initiative:"clm-reactivation" },
+  { id:"s11", at:"2026-06-07T16:20", source:"email", text:"Karen: \"Good session. Let's get v3 to the board next cycle, not this one.\"", person:"Karen Whitfield", initiative:"onboard-v3" },
+  { id:"s10", at:"2026-06-07T15:35", source:"teams", text:"Finance verbally agreed a reward-liability cap of $1.4M for loyalty tiers.", person:"David Okonjo", initiative:"loyalty-tiers", urgent:false },
+  { id:"s9", at:"2026-06-07T14:10", source:"sharepoint", text:"Churn model 2.1 eval posted — AUC up 4.2pts, ready for ship review.", person:"Sofia Ramos", initiative:"churn-model" },
+  { id:"s8", at:"2026-06-07T13:25", source:"teams", text:"Risk flagged one more clause in the KYC step-down — Fatima reviewing.", person:"Rachel Stern", initiative:"onboard-v3", urgent:true },
+  { id:"s7", at:"2026-06-07T12:40", source:"teams", text:"Segmentation jobs green again after Carlos repointed the data contract.", person:"Carlos Mendes", initiative:"segment" },
+  { id:"s6", at:"2026-06-07T11:15", source:"email", text:"Enterprise customer (Northwind) escalated a billing-retry double-charge.", initiative:"dunning", urgent:true },
+  { id:"s5", at:"2026-06-07T10:32", source:"teams", text:"Priya: reactivation A/B holdout looks clean, ready to scale once deliverability ≥85%.", person:"Priya Nair", initiative:"clm-reactivation" },
+  { id:"s4", at:"2026-06-07T09:48", source:"calendar", text:"Marcus added a Legal counsel to the 9:00 — ran 12 min over.", person:"Marcus Lindqvist", initiative:"onboard-v3" },
+  { id:"s3", at:"2026-06-07T09:05", source:"sharepoint", text:"Q3 OKR draft v2 uploaded to the CLM space for your edits.", initiative:null },
+  { id:"s2", at:"2026-06-07T08:30", source:"teams", text:"Tomás: Finance is \"optimistic\" on the liability cap — expects an answer by EOD.", person:"Tomás Vidal", initiative:"loyalty-tiers" },
+  { id:"s1", at:"2026-06-07T08:02", source:"email", text:"Overnight: reactivation deliverability recovered from 71% → 76%.", initiative:"clm-reactivation" },
+];
+
+const EOD = {
+  summary:"Solid day on the two fires. Onboarding v3 didn't fully unblock but the path is clear and Karen agreed to slip it one cycle rather than force it. Reactivation deliverability is recovering and the budget call is made. Loyalty liability looks resolved pending David's written confirm.",
+  highlights:[
+    "v3: Legal down to one clause; board demo moved to next cycle (Karen aligned)",
+    "Reactivation: deliverability 71% → 79%, budget reallocation approved",
+    "Churn model 2.1 cleared eval (AUC +4.2pts) — queued for ship review",
+    "Segmentation jobs recovered; Northwind double-charge contained"
+  ],
+  proposedFollowups:[
+    { title:"Confirm $1.4M loyalty liability cap in writing with David", priority:"P1" },
+    { title:"Set v3 board demo for next cycle + tell stakeholders", priority:"P1" },
+    { title:"Greenlight churn 2.1 ship review with Sofia", priority:"P1" },
+    { title:"Post-mortem the Northwind billing double-charge", priority:"P2" }
+  ]
+};
+
+// ---- assemble the three snapshots ----
+const SNAPSHOTS = {
+  morning:{
+    meta:{ user:{name:"Daniel",role:"VP Product",org:"Customer Lifecycle"}, partOfDay:"morning", asof:"7:42" },
+    needsAttention: NEEDS_FULL,                 // morning is when the queue is fullest
+    signals: SIGNALS_FULL.filter(s=>s.at<="2026-06-07T08:05"),  // just overnight + first
+    meetings: MEETINGS,                         // whole day ahead
+    endOfDay: null
+  },
+  midday:{
+    meta:{ user:{name:"Daniel",role:"VP Product",org:"Customer Lifecycle"}, partOfDay:"midday", asof:"1:38" },
+    needsAttention: NEEDS_FULL.filter(n=>["n1","n3","n5"].includes(n.id)===false ? true : ["n3"].includes(n.id)).filter(n=>["n2","n4"].includes(n.id)===false), // resolved a few
+    signals: SIGNALS_FULL.filter(s=>s.at<="2026-06-07T13:30"),
+    meetings: MEETINGS.filter(m=>m.start>="2026-06-07T13:00"),  // afternoon remaining
+    endOfDay: null
+  },
+  evening:{
+    meta:{ user:{name:"Daniel",role:"VP Product",org:"Customer Lifecycle"}, partOfDay:"evening", asof:"6:10" },
+    needsAttention: [],                         // queue cleared
+    signals: SIGNALS_FULL,                      // full day
+    meetings: [],                               // day's done
+    endOfDay: EOD
+  }
+};
+// shared reference attached to each
+for(const k in SNAPSHOTS){ Object.assign(SNAPSHOTS[k], { tasks:TASKS, initiatives:INITIATIVES, focus:FOCUS, people:PEOPLE }); }
+
+/*==================================================================
+  RENDER
+==================================================================*/
+const NOW = { morning:"2026-06-07T07:42", midday:"2026-06-07T13:38", evening:"2026-06-07T18:10" };
+const KIND_ICON = { vip_email:"✦", meeting_change:"⇄", escalation:"!", followup_due:"◷" };
+const KIND_LABEL = { vip_email:"VIP email", meeting_change:"Meeting change", escalation:"Escalation", followup_due:"Follow-up due" };
+const SRC_LABEL = { email:"Email", calendar:"Calendar", teams:"Teams", sharepoint:"SharePoint" };
+const SEV_ORDER = { critical:0, high:1, medium:2 };
+
+const $ = (s,el=document)=>el.querySelector(s);
+function esc(s){ return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+function initials(n){ return n.split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
+function hhmm(iso){ const t=iso.slice(11,16); let [h,m]=t.split(":").map(Number); const ap=h>=12?"p":"a"; h=h%12||12; return h+":"+String(m).padStart(2,"0")+ap; }
+function ago(iso,nowIso){
+  const a=new Date(iso+":00"), b=new Date(nowIso+":00"); let mins=Math.round((b-a)/60000);
+  if(mins<1) return "now"; if(mins<60) return mins+"m ago";
+  const h=Math.floor(mins/60); if(h<24) return h+"h ago"; return Math.floor(h/24)+"d ago";
+}
+function initName(id){ const i=INITIATIVES.find(x=>x.id===id); return i?i.name:id; }
+
+// --- state ---
+let state = localStorage.getItem("cc_state") || "morning";
+let topLayout = localStorage.getItem("cc_layout") || "triage";
+let arrange = localStorage.getItem("cc_arrange") || "rail";
+if(!SNAPSHOTS[state]) state="morning";
+
+function setState(s){ state=s; localStorage.setItem("cc_state",s); render(); }
+function setLayout(l){ topLayout=l; localStorage.setItem("cc_layout",l); render(); }
+function setArrange(a){ arrange=a; localStorage.setItem("cc_arrange",a); render(); }
+
+// collapsible section that remembers its open/closed state across refreshes
+function collapsible(id, title, metaHtml, body, foldedHint){
+  const open = localStorage.getItem("cc_sec_"+id) !== "closed";   // default open
+  return `<details class="csec" data-sec="${id}" ${open?"open":""}>
+    <summary><span class="chev">▸</span><h3>${title}</h3>${metaHtml||""}<span class="rule"></span>${foldedHint?`<span class="folded">${foldedHint}</span>`:""}</summary>
+    <div class="csec-body">${body}</div>
+  </details>`;
+}
+
+// ---------- zone renderers ----------
+function renderNeeds(d, nowIso){
+  const items=[...d.needsAttention].sort((a,b)=> (SEV_ORDER[a.severity]-SEV_ORDER[b.severity]) || (a.at<b.at?1:-1));
+  if(items.length===0){
+    return `<div class="all-clear"><span class="tick">✓</span>
+      <div><b style="color:var(--ink)">Nothing needs you right now.</b> &nbsp;
+      <span>Queue is clear — the day's signals are below.</span></div></div>`;
+  }
+  const banner = `<div class="needs-banner">
+      <p class="lead"><span class="n">${items.length}</span> <span class="word">thing${items.length>1?"s":""} need${items.length>1?"":"s"} you</span></p>
+      <span class="spark">${items.filter(i=>i.severity==="critical").length} critical · sorted by urgency</span>
+    </div>`;
+
+  if(topLayout==="hero"){
+    const cards = items.slice(0,4).map(it=>`
+      <div class="card sev-${it.severity}">
+        <div class="top">
+          <span class="kind"><span class="ic">${KIND_ICON[it.kind]}</span>${KIND_LABEL[it.kind]}</span>
+          <span class="when">${ago(it.at,nowIso)}</span>
+        </div>
+        <div class="ttl">${it.kind==="followup_due"&&it.severity==="high"?'<span class="bolt">⚡</span> ':''}${esc(it.title)}</div>
+        ${it.detail?`<div class="dtl">${esc(it.detail)}</div>`:""}
+        <div class="foot">
+          <span class="who">${it.person?`<span class="av">${initials(it.person.name)}</span>${esc(it.person.name.split(" ")[0])}`:`<span style="color:var(--ink-4)">${SRC_LABEL[it.source]}</span>`}</span>
+          ${it.action?`<span class="act ${it.severity==="critical"||it.severity==="medium"&&it.kind==="followup_due"?"":""}">${esc(it.action)} →</span>`:""}
+        </div>
+      </div>`).join("");
+    const more = items.length>4?`<div class="card" style="justify-content:center;align-items:center;color:var(--ink-3);font-size:13px">+${items.length-4} more in triage</div>`:"";
+    return banner + `<div class="hero">${cards}${more}</div>`;
+  }
+
+  // triage column (default)
+  const rows = items.map(it=>`
+    <div class="row sev-${it.severity}">
+      <div class="ic">${KIND_ICON[it.kind]}</div>
+      <div class="body">
+        <div class="ttl">${esc(it.title)} ${it.kind==="followup_due"&&it.due&&it.due<nowIso.slice(0,10)?'<span class="bolt" title="overdue">⚡</span>':''}</div>
+        <div class="meta">
+          ${it.person?`<span class="who">${esc(it.person.name)}</span><span class="sep">·</span>`:""}
+          <span>${esc(it.detail||KIND_LABEL[it.kind])}</span>
+          ${it.initiative?`<span class="sep">·</span><span style="color:var(--new)">${esc(initName(it.initiative))}</span>`:""}
+        </div>
+      </div>
+      <div class="right">
+        ${it.action?`<span class="act ${it.severity==="critical"?"hot":""}">${esc(it.action)}</span>`:""}
+        <span class="when">${ago(it.at,nowIso)} · ${SRC_LABEL[it.source]}</span>
+      </div>
+    </div>`).join("");
+  return banner + `<div class="triage">${rows}</div>`;
+}
+
+function renderSignals(d, nowIso){
+  const sigs=[...d.signals].sort((a,b)=> a.at<b.at?1:-1);
+  if(sigs.length===0){
+    return `<div class="empty">No signals captured yet — it's early. New activity from Teams, email, and SharePoint will surface here as the day moves.</div>`;
+  }
+  const freshCut = (()=>{ const b=new Date(nowIso+":00"); b.setMinutes(b.getMinutes()-90); return b.toISOString().slice(0,16); })();
+  return `<div class="feed">`+ sigs.map(s=>{
+    const fresh = s.at>=freshCut;
+    return `<div class="sig ${s.urgent?"urgent":""} ${fresh?"fresh":""}">
+      <div class="stamp">${hhmm(s.at)}<span class="src">${SRC_LABEL[s.source]}</span></div>
+      <div>
+        <div class="txt">${s.urgent?'<span class="bolt">⚡</span>':""}${esc(s.text)}${fresh?'<span class="newdot" title="new"></span>':""}</div>
+        ${(s.person||s.initiative)?`<div class="tags">
+          ${s.person?`<span class="tag who">${esc(s.person)}</span>`:""}
+          ${s.initiative?`<span class="tag init">${esc(initName(s.initiative))}</span>`:""}
+        </div>`:""}
+      </div>
+    </div>`;
+  }).join("") + `</div>`;
+}
+
+function renderMeetings(d, nowIso){
+  const ms=[...d.meetings].filter(m=>m.end>=nowIso).sort((a,b)=>a.start<b.start?-1:1);
+  if(ms.length===0){
+    return `<div class="empty">No more meetings today.</div>`;
+  }
+  let nextMarked=false;
+  return `<div class="mtgs">`+ ms.map(m=>{
+    const isNext = !nextMarked && m.start>=nowIso ? (nextMarked=true, true) : false;
+    const badge = m.status==="moved"?`<span class="badge moved">Moved</span>`
+      : m.status==="tentative"?`<span class="badge tentative">Tentative</span>`
+      : isNext?`<span class="badge next">Next</span>`:`<span class="badge">${esc((m.with&&m.with.length)?m.with.length+" ppl":"")}</span>`;
+    return `<div class="mtg ${isNext?"now":""}">
+      <div class="time">${hhmm(m.start)}<span class="end">${hhmm(m.end)}</span></div>
+      <div class="mt"><div class="t">${esc(m.title)}</div><div class="w">${esc((m.with||[]).join(", "))}${m.note?` · ${esc(m.note)}`:""}</div></div>
+      ${badge}
+    </div>`;
+  }).join("")+`</div>`;
+}
+
+function renderRisks(d){
+  const r=d.initiatives.filter(i=>i.status==="blocked"||i.status==="at_risk")
+    .sort((a,b)=> (a.status==="blocked"?0:1)-(b.status==="blocked"?0:1) || a.priority.localeCompare(b.priority));
+  if(r.length===0) return `<div class="empty">All initiatives are on track.</div>`;
+  return `<div class="risks">`+ r.map(i=>`
+    <div class="risk s-${i.status}">
+      <span class="stat">${i.status==="blocked"?"Blocked":"At risk"}</span>
+      <div class="ri"><div class="nm">${esc(i.name)} <span style="color:var(--ink-4);font-family:var(--mono);font-size:11px">${i.priority}</span></div>
+        ${i.note?`<div class="nt">${esc(i.note)}</div>`:""}</div>
+      <span class="own">${esc(i.owner)}</span>
+    </div>`).join("")+`</div>`;
+}
+
+function renderTasks(d, nowIso){
+  const today=nowIso.slice(0,10);
+  const rank={P0:0,P1:1,P2:2};
+  const t=[...d.tasks].sort((a,b)=>{
+    const ao=a.due&&a.due<today, bo=b.due&&b.due<today;
+    if(ao!==bo) return ao?-1:1;
+    if(rank[a.priority]!==rank[b.priority]) return rank[a.priority]-rank[b.priority];
+    return (a.due||"9999")<(b.due||"9999")?-1:1;
+  }).slice(0,6);
+  return `<div class="tasks">`+ t.map(x=>{
+    let due="", cls="";
+    if(x.due){ if(x.due<today){due="overdue";cls="over";} else if(x.due===today){due="today";cls="today";} else {due=x.due.slice(5).replace("-","/");} }
+    return `<div class="task">
+      <span class="pri ${x.priority}">${x.priority}</span>
+      <span class="tt">${esc(x.title)}${x.initiative?`<span class="lk">↳ ${esc(initName(x.initiative))}</span>`:""}</span>
+      <span class="due ${cls}">${due||"—"}</span>
+    </div>`;
+  }).join("")+`</div>`;
+}
+
+function renderFocus(d){
+  const f=d.focus;
+  return `<div class="focus">
+    <div class="frow"><div class="flbl">Top priorities</div><ul>${f.priorities.map(p=>`<li>${esc(p)}</li>`).join("")}</ul></div>
+    <div class="frow watch"><div class="flbl">Watching</div><ul>${f.watching.map(p=>`<li>${esc(p)}</li>`).join("")}</ul></div>
+    <div class="frow"><div class="flbl">Waiting on</div><ul>${f.waitingOn.map(w=>`<li>${esc(w.item)} <span class="w">— ${esc(w.who)}</span></li>`).join("")}</ul></div>
+  </div>`;
+}
+
+function renderFocusStrip(d){
+  const f=d.focus;
+  return `<div class="focus-strip">
+    <div class="fcell"><div class="flbl"><span class="fdot"></span>Top priorities</div>
+      <ul>${f.priorities.map(p=>`<li>${esc(p)}</li>`).join("")}</ul></div>
+    <div class="fcell"><div class="flbl watch"><span class="fdot"></span>Watching</div>
+      <ul>${f.watching.map(p=>`<li>${esc(p)}</li>`).join("")}</ul></div>
+    <div class="fcell"><div class="flbl wait"><span class="fdot"></span>Waiting on</div>
+      <ul>${f.waitingOn.map(w=>`<li>${esc(w.item)} <span class="w">— ${esc(w.who)}</span></li>`).join("")}</ul></div>
+  </div>`;
+}
+
+function renderEOD(d){
+  const e=d.endOfDay; if(!e) return "";
+  return `<div class="eod">
+    <div class="eh"><span class="moon">☾</span><h3>End of day</h3><span class="tm">summary · ${d.meta.asof}</span></div>
+    <div class="eb">
+      <div>
+        <div class="sum">${esc(e.summary)}</div>
+        <ul class="hl">${e.highlights.map(h=>`<li>${esc(h)}</li>`).join("")}</ul>
+      </div>
+      <div class="pf">
+        <div class="plbl">Proposed follow-ups</div>
+        ${e.proposedFollowups.map(p=>`<div class="pitem"><span class="pri ${p.priority}">${p.priority}</span><span class="pt">${esc(p.title)}</span><span class="add">+ add</span></div>`).join("")}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderReference(d){
+  const ppl=d.people;
+  const groupOrder={manager:0,report:1,stakeholder:2};
+  const sorted=[...ppl].sort((a,b)=>groupOrder[a.relation]-groupOrder[b.relation]);
+  const pplHtml=sorted.map(p=>`<div class="pp">
+      <span class="av">${initials(p.name)}</span>
+      <span class="pn">${esc(p.name)}<small>${esc(p.team||"")}</small></span>
+      <span class="rel ${p.relation}">${p.relation}</span>
+    </div>`).join("");
+  const roster=[...d.initiatives].sort((a,b)=>{const o={blocked:0,at_risk:1,on_track:2,done:3};return o[a.status]-o[b.status]||a.priority.localeCompare(b.priority);})
+    .map(i=>`<div class="rr"><span class="sd ${i.status}"></span><span class="rn">${esc(i.name)} <span style="color:var(--ink-4);font-size:10px">${i.priority}</span></span><span class="ro">${esc(i.owner)}</span></div>`).join("");
+  return `<details class="ref">
+    <summary><span class="chev">▸</span> Reference · people &amp; full initiative roster <span class="hint">${ppl.length} people · ${d.initiatives.length} initiatives</span></summary>
+    <div class="ref-body">
+      <div class="ref-col"><h4>People who matter</h4><div class="ppl">${pplHtml}</div></div>
+      <div class="ref-col"><h4>All active initiatives</h4><div class="roster">${roster}</div></div>
+    </div>
+  </details>`;
+}
+
+// ---------- compose ----------
+function render(){
+  const d=SNAPSHOTS[state]; const nowIso=NOW[state];
+  const GREET={morning:"Good morning",midday:"Good afternoon",evening:"Good evening"}[state];
+  $("#greeting").textContent=`${GREET}, ${d.meta.user.name}`;
+  $("#asof").textContent=`as of ${d.meta.asof}`;
+  $("#footmeta").textContent=`${state} snapshot · ${d.meta.asof} · auto-refreshes every 10 min`;
+  document.querySelectorAll("#stateSeg button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.state===state)));
+
+  const needsCount=d.needsAttention.length;
+  const sigCount=d.signals.length;
+
+  document.querySelectorAll("#arrangeSeg button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.arrange===arrange)));
+
+  // ── shared top: needs-you-now, then Focus lifted near the top ──
+  const top = `
+    ${renderEOD(d)}
+
+    <section class="zone" id="z-needs">
+      <div class="zone-head">
+        <h2>Needs you now</h2>
+        <span class="count ${needsCount?'alarm':''}">${needsCount?needsCount+' open':'clear'}</span>
+        <div class="layout-switch" role="group" aria-label="Top zone layout">
+          <button data-layout="triage" aria-pressed="${topLayout==='triage'}">Triage</button>
+          <button data-layout="hero" aria-pressed="${topLayout==='hero'}">Hero</button>
+        </div>
+      </div>
+      ${renderNeeds(d,nowIso)}
+    </section>
+
+    <section class="zone" style="margin-top:24px">
+      <div class="sub"><h3>Focus</h3><span class="meta">what you're steering</span><span class="rule"></span></div>
+      ${renderFocusStrip(d)}
+    </section>`;
+
+  const sigMeta = `<span class="meta">${sigCount} signal${sigCount===1?'':'s'}</span>`;
+
+  // ── arrangement A · RAIL: two columns, secondary sections collapsible ──
+  const rail = `
+    <div class="grid" style="margin-top:30px">
+      <div class="col">
+        ${collapsible("signals","What changed today", sigMeta, renderSignals(d,nowIso), sigCount+" hidden")}
+      </div>
+      <div class="col">
+        ${collapsible("meetings","Today — remaining","", renderMeetings(d,nowIso), "tucked")}
+        ${collapsible("risk","At risk","", renderRisks(d), "tucked")}
+        ${collapsible("tasks","Top open items","", renderTasks(d,nowIso), "tucked")}
+      </div>
+    </div>`;
+
+  // ── arrangement B · BANDS: horizontal bands, nothing runs long ──
+  const bands = `
+    <div class="grid" style="margin-top:30px">
+      <div class="col">
+        ${collapsible("signals","What changed today", sigMeta, renderSignals(d,nowIso), sigCount+" hidden")}
+      </div>
+      <div class="col">
+        ${collapsible("meetings","Today — remaining","", renderMeetings(d,nowIso), "tucked")}
+      </div>
+    </div>
+    <div class="matters" style="margin-top:30px">
+      <div>${collapsible("risk","At risk","", renderRisks(d), "tucked")}</div>
+      <div>${collapsible("tasks","Top open items","", renderTasks(d,nowIso), "tucked")}</div>
+    </div>`;
+
+  const app=$("#app");
+  app.innerHTML = top + (arrange==="bands" ? bands : rail) + renderReference(d);
+
+  // wire controls re-created each render
+  app.querySelectorAll(".layout-switch button").forEach(b=>b.addEventListener("click",()=>setLayout(b.dataset.layout)));
+  app.querySelectorAll("details.csec").forEach(el=>el.addEventListener("toggle",()=>{
+    localStorage.setItem("cc_sec_"+el.dataset.sec, el.open?"open":"closed");
+  }));
+}
+
+// state segmented control
+document.querySelectorAll("#stateSeg button").forEach(b=>b.addEventListener("click",()=>setState(b.dataset.state)));
+document.querySelectorAll("#arrangeSeg button").forEach(b=>b.addEventListener("click",()=>setArrange(b.dataset.arrange)));
+
+render();
+</script>
+</body>
+</html>
