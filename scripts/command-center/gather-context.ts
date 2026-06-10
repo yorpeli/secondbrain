@@ -101,6 +101,38 @@ async function buildWhoMatters(
   return parts.join('\n\n')
 }
 
+interface TaskRow { title: string; priority: string | null; due_date: string | null; initiative_id: string | null }
+
+async function buildMyTasks(supabase: ReturnType<typeof getSupabase>): Promise<string> {
+  const { data: yon, error: ye } = await supabase.from('people' as any).select('id').eq('slug', 'yonatan-orpeli').maybeSingle()
+  if (ye) throw ye
+  if (!yon) return ''
+  const { data: rows, error } = await supabase
+    .from('tasks' as any).select('title, priority, due_date, initiative_id')
+    .eq('owner_id', (yon as any).id).neq('status', 'done')
+  if (error) throw error
+  const tasks = (rows as unknown as TaskRow[]) ?? []
+  if (!tasks.length) return ''
+  // resolve initiative titles
+  const initIds = [...new Set(tasks.map((t) => t.initiative_id).filter(Boolean))] as string[]
+  const titleById = new Map<string, string>()
+  if (initIds.length) {
+    const { data: inits, error: initsErr } = await supabase
+      .from('initiatives' as any).select('id, title').in('id', initIds)
+    if (initsErr) console.warn('buildMyTasks: could not resolve initiative titles', initsErr)
+    for (const i of (inits as unknown as { id: string; title: string }[]) ?? []) titleById.set(i.id, i.title)
+  }
+  return tasks
+    .sort((a, b) => (PRIORITY_ORDER[a.priority ?? 'P3'] ?? 9) - (PRIORITY_ORDER[b.priority ?? 'P3'] ?? 9) || (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999'))
+    .map((t) => {
+      const segs = [`[${t.priority ?? 'P2'}] ${t.title}`]
+      if (t.due_date) segs.push(`due ${t.due_date}`)
+      if (t.initiative_id && titleById.has(t.initiative_id)) segs.push(titleById.get(t.initiative_id)!)
+      return `- ${segs.join(' · ')}`
+    })
+    .join('\n')
+}
+
 async function buildFocusDoc(date: string): Promise<string> {
   const supabase = getSupabase()
 
@@ -169,12 +201,16 @@ async function buildFocusDoc(date: string): Promise<string> {
   // 5. people who matter today (name-based salience for the MSFT capture agent)
   const whoMatters = await buildWhoMatters(supabase)
 
+  // 6. my open follow-up tasks (tasks table → dashboard tasks zone)
+  const myTasks = await buildMyTasks(supabase)
+
   return [
     `# Focus — ${date}`,
     '',
     section('Current Focus', currentFocus),
     section('Active Initiatives', initiativesBody),
     section('Open Action Items', actionItems),
+    section('My Open Tasks', myTasks),
     section('People who matter today', whoMatters),
     section('Portfolio Headline', headline),
   ].join('\n')
