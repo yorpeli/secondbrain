@@ -8,6 +8,13 @@
 - clm-war-room → initiatives/clm-war-room/  (read CLAUDE.md + memory.md first)
 -->
 
+## Watched Teams channels (always sweep these)
+<!-- The capture agent sweeps these group chats on every capture, plus 1:1s. e.g.:
+- CLM Product
+- CLM Leads
+- CLM Leadership
+-->
+
 ## External sources
 - KYC team repo (read-only, Azure DevOps) — Elad's "Product KYC Team", branch KYC_Team_Branch.
 

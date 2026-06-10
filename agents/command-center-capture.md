@@ -17,6 +17,9 @@ that is Skill C (a separate, confirm-gated step).
   today"). These define *what matters* — do not re-derive from scratch.
 - **Sweeps:** Teams (1:1 + channel chatter, meeting transcripts/recordings if
   reachable), SharePoint (doc changes in watched spaces), mail, calendar.
+  **Always sweep the group chats listed under `## Watched Teams channels` in
+  `routing.md`** (e.g. CLM Product, CLM Leads, CLM Leadership) on every capture — in
+  addition to 1:1s and any other relevant chatter.
   **Calendar is swept in BOTH directions:** the lookback window for *past* changes
   (what happened, cancellations/edits to meetings already passed) AND **now → end of
   today** for what's *coming up* (remaining meetings, and any cancellation/reschedule
@@ -34,8 +37,9 @@ Frictionless. Run several times a day. NO confirmation.
 
 1. `npm run command-center:capture -- window` → returns `{ start, end, reason }`.
    Sweep comms for `start..end` only.
-2. Read `people.md` (VIPs + harvested) + `01-focus.md` ("People who matter today").
-   Union them into your salience list.
+2. Read `people.md` (VIPs + harvested) + `routing.md` (incl. `## Watched Teams
+   channels`) + `01-focus.md` ("People who matter today"). Union people into your
+   salience list; note the watched channels to sweep in step 3.
 3. Sweep Teams + SharePoint + mail for the lookback window (`start..end`). Sweep
    **calendar twice**: the lookback window (past changes) AND `end` → end of today
    (upcoming meetings + any cancellation/reschedule of an upcoming meeting).
