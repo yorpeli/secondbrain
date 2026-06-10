@@ -1,124 +1,46 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { renderMarkdown } from '../../lib/md-to-html.js'
+import { assembleDashboard } from './dashboard-data.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..', '..')
 const CC = join(ROOT, 'command-center')
+const DEFAULT_REFRESH_SECONDS = 600
 
-const DEFAULT_REFRESH_SECONDS = 60
+export function todayIso(): string { return new Date().toISOString().slice(0, 10) }
 
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+function localStamp(): { generatedAt: string; hour: number } {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const generatedAt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+  return { generatedAt, hour: now.getHours() }
 }
 
-/**
- * Order a captures doc so the newest `## HH:MM` block is first — by parsing the
- * `HH:MM` in each block heading and sorting descending, NOT by file order. This
- * is robust to however the capture agent writes the file (append or prepend).
- * Blocks whose heading has no parseable HH:MM keep their original relative order
- * and sort after timestamped blocks. Any preamble before the first `## ` heading
- * is kept at the top.
- */
-function blockMinutes(heading: string): number | null {
-  // Match a leading "## HH:MM" (24h). Returns minutes-since-midnight, or null.
-  const m = heading.match(/^##\s+(\d{1,2}):(\d{2})\b/)
-  if (!m) return null
-  const h = Number(m[1])
-  const min = Number(m[2])
-  if (h > 23 || min > 59) return null
-  return h * 60 + min
-}
-
-export function orderCapturesNewestFirst(md: string): string {
-  const lines = md.replace(/\r\n/g, '\n').split('\n')
-  const blocks: string[][] = []
-  let preamble: string[] = []
-  let cur: string[] | null = null
-  for (const line of lines) {
-    if (/^##\s/.test(line)) {
-      if (cur) blocks.push(cur)
-      cur = [line]
-    } else if (cur) {
-      cur.push(line)
-    } else {
-      preamble.push(line)
-    }
-  }
-  if (cur) blocks.push(cur)
-
-  // Stable sort by HH:MM descending; un-timestamped blocks keep order, sort last.
-  const indexed = blocks.map((b, i) => ({ b, i, t: blockMinutes(b[0]) }))
-  indexed.sort((a, z) => {
-    if (a.t === null && z.t === null) return a.i - z.i
-    if (a.t === null) return 1
-    if (z.t === null) return -1
-    return z.t - a.t || a.i - z.i
-  })
-
-  const ordered = indexed
-    .map(({ b }) => b.join('\n').replace(/\n+$/, ''))
-    .join('\n\n')
-  const pre = preamble.join('\n').trim()
-  return [pre, ordered].filter(Boolean).join('\n\n')
-}
-
-interface DashboardParts {
-  template: string
-  date: string
-  focusMd: string | null
-  capturesMd: string | null
-  summaryMd: string | null
-  generatedAt: string
-  refreshSeconds: number
-}
-
-const EMPTY_FOCUS = '<p class="empty">No focus gathered yet — run "gather context".</p>'
-const EMPTY_CAPTURES = '<p class="empty">No signals captured yet today.</p>'
-const EMPTY_SUMMARY = '<p class="empty">No end-of-day summary yet.</p>'
-
-export function renderDashboard(p: DashboardParts): string {
-  const focusHtml = p.focusMd ? renderMarkdown(p.focusMd) : EMPTY_FOCUS
-  const capturesHtml = p.capturesMd
-    ? renderMarkdown(orderCapturesNewestFirst(p.capturesMd))
-    : EMPTY_CAPTURES
-  const summaryHtml = p.summaryMd ? renderMarkdown(p.summaryMd) : EMPTY_SUMMARY
-  return p.template
-    .replaceAll('{{DATE}}', p.date)
-    .replaceAll('{{GENERATED_AT}}', p.generatedAt)
-    .replaceAll('{{REFRESH_SECONDS}}', String(p.refreshSeconds))
-    .replace('{{FOCUS_HTML}}', focusHtml)
-    .replace('{{CAPTURES_HTML}}', capturesHtml)
-    .replace('{{SUMMARY_HTML}}', summaryHtml)
-}
-
-function readIfExists(path: string): string | null {
-  return existsSync(path) ? readFileSync(path, 'utf8') : null
-}
-
-/**
- * Read the template + daily files for `date`, render, and write dashboard.html.
- * Returns the output path. Used by the CLI and by gather-context (Skill A).
- */
+/** Read the day's agent files, assemble the Dashboard, inject into the template,
+ *  write dashboard.html. Returns the output path. Used by gather + capture. */
 export function writeDashboard(date: string): string {
+  // NOTE: scaffold copies the template copy-if-missing — if the template seam changes,
+  // delete command-center/templates/dashboard.template.html and re-run npm run command-center:scaffold
   const templatePath = join(CC, 'templates', 'dashboard.template.html')
   if (!existsSync(templatePath)) {
-    throw new Error(
-      `Dashboard template not found at ${templatePath}. Run: npm run command-center:scaffold`
-    )
+    throw new Error(`Dashboard template not found at ${templatePath}. Run: npm run command-center:scaffold`)
   }
   const dayDir = join(CC, 'daily', date)
   mkdirSync(dayDir, { recursive: true })
-  const html = renderDashboard({
-    template: readFileSync(templatePath, 'utf8'),
-    date,
-    focusMd: readIfExists(join(dayDir, '01-focus.md')),
-    capturesMd: readIfExists(join(dayDir, '02-captures.md')),
-    summaryMd: readIfExists(join(dayDir, '03-summary.md')),
-    generatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-    refreshSeconds: DEFAULT_REFRESH_SECONDS,
+  const read = (f: string): string | null => (existsSync(join(dayDir, f)) ? readFileSync(join(dayDir, f), 'utf8') : null)
+  const { generatedAt, hour } = localStamp()
+  const dashboard = assembleDashboard({
+    focusMd: read('01-focus.md') ?? '',
+    capturesMd: read('02-captures.md'),
+    summaryMd: read('03-summary.md'),
+    generatedAt, hour, date,
   })
+  const json = JSON.stringify(dashboard).replace(/<\/script>/gi, '<\\/script>')
+  const html = readFileSync(templatePath, 'utf8')
+    .replace('{{DATA_JSON}}', () => json)           // callback bypasses $-pattern interpolation
+    .replaceAll('{{GENERATED_AT}}', generatedAt)
+    .replaceAll('{{REFRESH_SECONDS}}', String(DEFAULT_REFRESH_SECONDS))
   const outPath = join(dayDir, 'dashboard.html')
   writeFileSync(outPath, html, 'utf8')
   return outPath
@@ -129,7 +51,6 @@ function parseDateArg(): string {
   return arg ? arg.slice('--date='.length) : todayIso()
 }
 
-// CLI entry: only run when invoked directly, not when imported.
 const invokedDirectly = process.argv[1] === fileURLToPath(import.meta.url)
 if (invokedDirectly) {
   const out = writeDashboard(parseDateArg())
