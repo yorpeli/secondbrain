@@ -109,8 +109,6 @@ export function derivePartOfDay(hour: number, hasSummary: boolean): 'morning' | 
   return 'evening'
 }
 
-const SRC_OF: Record<string, string> = { teams: 'teams', sharepoint: 'sharepoint', mail: 'email', 'mail/calendar': 'email', calendar: 'calendar' }
-
 export interface CaptureZones { needsAttention: DashNeed[]; signals: DashSignal[]; meetings: DashMeeting[] }
 
 /** Parse 02-captures.md into the live zones. `date` supplies the ISO day for `at`/`start`. */
@@ -170,6 +168,33 @@ export function parseCaptures(capturesMd: string | null, date: string): CaptureZ
   return zones
 }
 
+export function parseSummary(summaryMd: string | null): DashEOD | null {
+  if (!summaryMd || !summaryMd.trim()) return null
+  const summary = sectionBody(summaryMd, 'Narrative').split('\n\n')[0]?.trim() || sectionBody(summaryMd, 'Narrative').trim()
+  // highlights: the "People noted" names + any "closed" lines; fall back to first follow-up items
+  const highlights: string[] = []
+  for (const line of sectionBody(summaryMd, 'People noted').split('\n')) {
+    const m = line.match(/^-\s+\*\*(.+?)\*\*/)
+    if (m) highlights.push(m[1].trim())
+  }
+  // proposed follow-ups: parse the Follow-ups table rows → title + a default priority
+  const proposedFollowups: { title: string; priority: string }[] = []
+  let inTable = false
+  for (const raw of summaryMd.replace(/\r\n/g, '\n').split('\n')) {
+    const l = raw.trim()
+    if (!l.startsWith('|')) {
+      if (inTable && l === '') continue   // blank line inside a table — keep scanning
+      inTable = false
+      continue
+    }
+    const cells = l.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
+    if (cells[0] === '#' && /item/i.test(cells[1] || '')) { inTable = true; continue }
+    if (/^[-:\s]+$/.test(cells[0] || '')) continue
+    if (inTable && cells.length >= 2 && cells[1]) proposedFollowups.push({ title: cells[1], priority: 'P2' })
+  }
+  return { summary, highlights, proposedFollowups }
+}
+
 /** `generatedAt` is a local ISO stamp `YYYY-MM-DDTHH:MM` — `meta.asof` is sliced from it. */
 export interface AssembleInput { focusMd: string; capturesMd: string | null; summaryMd: string | null; generatedAt: string; hour: number; date: string }
 
@@ -185,6 +210,6 @@ export function assembleDashboard(inp: AssembleInput): Dashboard {
     initiatives: parseInitiatives(inp.focusMd),
     focus: parseFocus(inp.focusMd),
     people: parsePeople(inp.focusMd),
-    endOfDay: null,     // P3 — parseSummary
+    endOfDay: parseSummary(inp.summaryMd),
   }
 }

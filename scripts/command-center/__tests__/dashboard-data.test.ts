@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseFocus, parseInitiatives, parsePeople, parseTasks, derivePartOfDay, assembleDashboard, parseCaptures } from '../dashboard-data.js'
+import { parseFocus, parseInitiatives, parsePeople, parseTasks, derivePartOfDay, assembleDashboard, parseCaptures, parseSummary } from '../dashboard-data.js'
 
 const FOCUS_MD = [
   '# Focus — 2026-06-10', '',
@@ -121,5 +121,34 @@ describe('parseCaptures', () => {
   it('empty/absent captures → empty zones', () => {
     const z = parseCaptures(null, '2026-06-10')
     assert.deepEqual(z, { needsAttention: [], signals: [], meetings: [] })
+  })
+})
+
+describe('parseSummary', () => {
+  const SUM = [
+    '# Day Summary — 2026-06-05', '',
+    '## Narrative', '', 'A short day. Planning must move.', '',
+    '## Follow-ups',
+    '| # | Item | Person | Destination |',
+    '|---|------|--------|-------------|',
+    '| 1 | Reply to Sivan | Sivan | → vendor memory |',
+    '',
+    '## People noted',
+    '- **Ofer Koifman** — VP Demand Gen',
+  ].join('\n')
+  it('parses summary, highlights, follow-ups', () => {
+    const e = parseSummary(SUM)!
+    assert.match(e.summary, /Planning must move/)
+    assert.deepEqual(e.highlights, ['Ofer Koifman'])
+    assert.equal(e.proposedFollowups.length, 1)
+    assert.equal(e.proposedFollowups[0].title, 'Reply to Sivan')
+  })
+  it('absent summary → null', () => {
+    assert.equal(parseSummary(null), null)
+  })
+  it('survives a blank line between the separator and the data rows', () => {
+    const withBlank = SUM.replace('|---|------|--------|-------------|', '|---|------|--------|-------------|\n')
+    const e = parseSummary(withBlank)!
+    assert.equal(e.proposedFollowups.length, 1)
   })
 })
