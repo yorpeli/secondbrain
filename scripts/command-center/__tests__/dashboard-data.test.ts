@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseFocus, parseInitiatives, parsePeople, parseTasks, derivePartOfDay, assembleDashboard } from '../dashboard-data.js'
+import { parseFocus, parseInitiatives, parsePeople, parseTasks, derivePartOfDay, assembleDashboard, parseCaptures } from '../dashboard-data.js'
 
 const FOCUS_MD = [
   '# Focus — 2026-06-10', '',
@@ -92,5 +92,34 @@ describe('assembleDashboard', () => {
     const d = assembleDashboard({ focusMd: '', capturesMd: null, summaryMd: null, generatedAt: '2026-06-10T09:30', hour: 9, date: '2026-06-10' })
     assert.deepEqual(d.initiatives, [])
     assert.deepEqual(d.focus, { priorities: [], watching: [], waitingOn: [] })
+  })
+})
+
+describe('parseCaptures', () => {
+  const CAP = [
+    '# Captures — 2026-06-10', '',
+    '## 14:20 — sweep',
+    '**⚡ Needs attention:**',
+    '- VIP email from Yaron re: planning',
+    '**Teams:**',
+    '- Yaron ↔ Yonatan: planning this week',
+    '**SharePoint:**',
+    '- Deck updated',
+    '**Coming up today:**',
+    '- 16:00 Roadmap review',
+  ].join('\n')
+  it('routes labels to needs/signals/meetings with ISO at/start', () => {
+    const z = parseCaptures(CAP, '2026-06-10')
+    assert.equal(z.needsAttention.length, 1)
+    assert.match(z.needsAttention[0].title, /VIP email from Yaron/)
+    assert.equal(z.needsAttention[0].at, '2026-06-10T14:20')
+    assert.equal(z.signals.filter((s) => s.source === 'teams').length, 1)
+    assert.equal(z.signals.filter((s) => s.source === 'sharepoint').length, 1)
+    assert.equal(z.meetings.length, 1)
+    assert.equal(z.meetings[0].start, '2026-06-10T16:00')
+  })
+  it('empty/absent captures → empty zones', () => {
+    const z = parseCaptures(null, '2026-06-10')
+    assert.deepEqual(z, { needsAttention: [], signals: [], meetings: [] })
   })
 })

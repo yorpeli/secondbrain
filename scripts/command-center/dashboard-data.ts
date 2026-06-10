@@ -109,16 +109,78 @@ export function derivePartOfDay(hour: number, hasSummary: boolean): 'morning' | 
   return 'evening'
 }
 
+const SRC_OF: Record<string, string> = { teams: 'teams', sharepoint: 'sharepoint', mail: 'email', 'mail/calendar': 'email', calendar: 'calendar' }
+
+export interface CaptureZones { needsAttention: DashNeed[]; signals: DashSignal[]; meetings: DashMeeting[] }
+
+/** Parse 02-captures.md into the live zones. `date` supplies the ISO day for `at`/`start`. */
+export function parseCaptures(capturesMd: string | null, date: string): CaptureZones {
+  const zones: CaptureZones = { needsAttention: [], signals: [], meetings: [] }
+  if (!capturesMd) return zones
+  const lines = capturesMd.replace(/\r\n/g, '\n').split('\n')
+  let blockAt = `${date}T08:00`
+  let label: string | null = null
+  let nIdx = 0
+  let sIdx = 0
+  const labelOf = (raw: string): string | null => {
+    const m = raw.match(/^\*\*(.+?):\*\*\s*(.*)$/)
+    return m ? m[1].toLowerCase().replace(/[⚡\s]+/g, ' ').trim() : null
+  }
+  const pushNeed = (text: string) => {
+    if (!text.trim()) return
+    // source is a placeholder — needs items aren't channel-attributed yet (TODO: thread block source when the capture format stabilizes)
+    zones.needsAttention.push({ id: `n${nIdx++}`, kind: 'escalation', severity: 'high', title: text.replace(/\*\*/g, '').trim(), source: 'teams', at: blockAt })
+  }
+  const pushSignal = (src: string, text: string) => {
+    if (!text.trim()) return
+    zones.signals.push({ id: `s${sIdx++}`, at: blockAt, source: src, text: text.replace(/\*\*/g, '').trim() })
+  }
+  const pushMeeting = (text: string) => {
+    const m = text.match(/(\d{1,2}:\d{2})\s+(.+)/)
+    if (!m) return
+    const start = `${date}T${m[1].padStart(5, '0')}`
+    zones.meetings.push({ id: `mt${zones.meetings.length}`, start, end: start, title: m[2].trim(), status: 'confirmed' })
+  }
+
+  for (const raw of lines) {
+    const bm = raw.match(/^##\s+(\d{1,2}:\d{2})\b/)
+    if (bm) { blockAt = `${date}T${bm[1].padStart(5, '0')}`; label = null; continue }
+    const lbl = labelOf(raw)
+    if (lbl !== null) {
+      label = lbl
+      const m = raw.match(/^\*\*.+?:\*\*\s*(.*)$/)
+      const inline = m ? m[1].trim() : ''
+      if (inline) routeLine(label, inline)
+      continue
+    }
+    const bullet = raw.match(/^\s*-\s+(.*)$/)
+    if (bullet && label) routeLine(label, bullet[1])
+  }
+
+  function routeLine(lbl: string, text: string) {
+    if (/needs attention/.test(lbl)) pushNeed(text)
+    else if (/coming up/.test(lbl)) pushMeeting(text)
+    else if (/^teams/.test(lbl)) pushSignal('teams', text)
+    else if (/^sharepoint/.test(lbl)) pushSignal('sharepoint', text)
+    else if (/^mail/.test(lbl)) pushSignal('email', text)
+    else if (/^calendar/.test(lbl)) pushSignal('calendar', text)
+  }
+
+  zones.signals.sort((a, b) => (a.at < b.at ? 1 : -1)) // newest first
+  return zones
+}
+
 /** `generatedAt` is a local ISO stamp `YYYY-MM-DDTHH:MM` — `meta.asof` is sliced from it. */
 export interface AssembleInput { focusMd: string; capturesMd: string | null; summaryMd: string | null; generatedAt: string; hour: number; date: string }
 
 export function assembleDashboard(inp: AssembleInput): Dashboard {
   const hasSummary = !!(inp.summaryMd && inp.summaryMd.trim())
+  const cap = parseCaptures(inp.capturesMd, inp.date)
   return {
     meta: { user: USER, generatedAt: inp.generatedAt, partOfDay: derivePartOfDay(inp.hour, hasSummary), asof: inp.generatedAt.slice(11, 16) },
-    needsAttention: [], // P2 — parseCaptures
-    signals: [],        // P2
-    meetings: [],       // P2
+    needsAttention: cap.needsAttention,
+    signals: cap.signals,
+    meetings: cap.meetings,
     tasks: parseTasks(inp.focusMd),
     initiatives: parseInitiatives(inp.focusMd),
     focus: parseFocus(inp.focusMd),
