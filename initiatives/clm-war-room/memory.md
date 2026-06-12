@@ -49,6 +49,11 @@
   unassigned items, and watch the items not discussed today (Redirects, Server errors).
 
 ## Open Threads
+- ✅ **A11 DELIVERED (Jun 12):** Aviv + Tally's always-on AI monitoring dashboard is LIVE
+  (rollout %, funnel anomalies, bugs, KYC & ops; hourly) — showcased in the **Jun 12 PGL
+  announcement** (sent, well received; `docs/2026-06-12-pgl-leadership-announcement.md`).
+  **A12 open:** Yonatan to share the live dashboard links with PGL (week of Jun 15).
+- **Cutover firmed:** 75% Mon Jun 15 → 100% Tue Jun 16 (was "100% Jun 15"). July 1 = compliance.
 - War-room start day (this week vs. 6/15) + which physical room — Nadia/Mor to confirm.
 - Daniel to produce June 15 readiness checklists for advance approval.
 - Bug-monitoring view for the room TV — Monitoring master (R-11, Daniel, Jun 11) must be
