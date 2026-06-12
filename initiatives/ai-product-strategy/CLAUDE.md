@@ -58,4 +58,7 @@ None — this pillar is greenfield.
 |------|---------|
 | `CLAUDE.md` | This file — pillar charter, context, and operating rules |
 | `memory.md` | Working memory across Claude Code sessions (local only; not synced) |
-| `docs/` | Working artifacts as they accumulate (create on demand) |
+| `docs/hbs-case-convergences.md` | Six cross-case patterns from the HBS GenAI course pre-work — the evidence base (per-pattern quotes, Payoneer bridges, mapping to the three net-new artifacts) |
+| `docs/patterns-to-business-outcomes.md` | Each pattern → business outcomes at two altitudes (CLM / Payoneer) + June 2026 market research → three candidate business moves |
+| `docs/agentic-era-market-map.md` | Future-back: three 2030 market maps (eCom, money movement, B2B trade) → playable areas → Payoneer plays in 4 tiers, scored by right-to-win + convergence test vs the inside-out work |
+| `docs/` | Further working artifacts as they accumulate (create on demand) |

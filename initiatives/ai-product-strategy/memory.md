@@ -1,13 +1,18 @@
 # AI Product Strategy — Working Memory
 
 ## Last Session
-- **Date**: 2026-05-29
-- **What happened**: Pillar folder created as local staging.
-- **Next steps**: Await pending architecture session on how pillars are modeled in Supabase.
+- **Date**: 2026-06-12
+- **What happened**: Read all HBS GenAI course pre-work cases (8 cases + reskilling reading) via parallel digests; synthesized six cross-case convergence patterns into `docs/hbs-case-convergences.md` — feeder material for the investment thesis, prioritization framework, and bet portfolio. Pattern 1 (autonomy ladder = convergent evolution of blast radius L0–L4 across Gamma/Microsoft/Unilever/Harvey) came from Yonatan's prep work and anchors the set.
+- **Next steps**: Use the convergences doc as the skeleton for drafting the three net-new artifacts. Key correction to carry: the "business strategy powered by AI" quote is Steve McCrystal (Unilever CETO), not Stanley McChrystal.
+- **Also this session (2026-06-12)**: Wrote `docs/patterns-to-business-outcomes.md` — each pattern tied to business outcomes at two altitudes (CLM concrete / Payoneer strategic), backed by three market-research sweeps (competitor AI strategies, agentic-commerce trust layer, compliance-AI benchmarks). Lands on **three business moves**: (1) win the front door (funnel compression — table stakes, Airwallex is the bar), (2) sell the trust we operate (AI-scaled KYCaaS — white space, Wise Platform proves demand), (3) own agent-era trust for cross-border B2B (KYA bound to KYC on payout/AR rails — unclaimed quadrant). Key market facts: Revolut PRAGMA = proof of the Pattern-2 play; dLocal 75% automated merchant reviews [AWS-documented]; Hyperwallet has no AI story; nobody binds agent verification to licenses across 190 countries.
+
+- **Also (2026-06-12, later)**: Future-back exercise per Yonatan's request — `docs/agentic-era-market-map.md`. Three 2030 market maps (eCom/marketplaces, cross-border money movement, B2B trade; dual horizon: 2030 map / 2026-27 entry points) → 14 playable areas → Payoneer plays in 4 tiers. Tier 0 (forced): agent-callable rails — MCP server, machine-readable pricing/SLA feeds (Airwallex shipped AgentOS; Payoneer absent). Tier 1: agent-payable verified seller network + verification/trust as product (both independently re-derive inside-out Moves 2-3 — convergence test passed). Tier 2: SMB financial agent; financing at the agent-order moment (virgin white space). Burning platform finding: closing pools (FX spread, payout fees, float) ARE Payoneer's core revenue — pivot is forced, not optional. Key tripwires: Accio Work payment-rail decisions (Alibaba owns SMB demand-side agent, 230K businesses), FATF guidance late 2026, Intuit/Xero/WhatsApp agents becoming the SMB payment UI.
+- **Yonatan's edits to convergences doc**: he sharpened Pattern 2 himself — "From Cost reduction to AI-Data-Capture"; "the manual, heavily regulated work is our moat." Pattern 2 is his anchor; treat it as the centerpiece of the investment thesis.
 
 ## Open Threads
-- Draft the AI investment thesis, bet portfolio, and prioritization framework (all net-new).
-- Decide how reference feeders [[kyc-as-product]] and [[air-squared]] inform the strategy as patterns.
+- Draft the AI investment thesis, bet portfolio, and prioritization framework (all net-new) — `docs/hbs-case-convergences.md` maps patterns → artifacts in its closing table.
+- Decide how reference feeders [[kyc-as-product]] and [[air-squared]] inform the strategy as patterns. (Note: kyc-as-product = the Customer Zero → productize arc, Pattern 6.)
+- Two live discomforts to keep open through the HBS course (Jul 7–10): org-level hiding places (Gamma ARR-per-FTE) and absorption capacity as the binding constraint (Salesforce/Lin).
 
 ## Context to Remember
 - This is a **pillar**, a grain above a normal initiative.
