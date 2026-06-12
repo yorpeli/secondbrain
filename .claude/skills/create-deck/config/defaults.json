@@ -1,0 +1,16 @@
+{
+  "output_directory": "output",
+  "naming_pattern": "{topic}_{template}_{date}",
+  "date_format": "%Y-%m-%d",
+  "slide_dimensions": {
+    "width_inches": 13.333,
+    "height_inches": 7.5
+  },
+  "content_sources": {
+    "primary": "supabase",
+    "notes": "Content is sourced from Supabase tables (context_store, ppp_sections, initiatives, research_results, people, agent_log) rather than local files. Claude uses MCP tools to query the database."
+  },
+  "max_bullets_per_slide": 6,
+  "max_chars_per_bullet": 100,
+  "temp_file_path": "/tmp/deck_content_{timestamp}.json"
+}

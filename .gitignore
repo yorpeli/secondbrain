@@ -15,8 +15,9 @@ initiatives/clm-war-room/docs/
 .env.local
 .env.*.local
 
-# Claude Code (user-local config)
-.claude/
+# Claude Code (user-local config stays ignored; skills are versioned)
+.claude/*
+!.claude/skills/
 
 # IDE
 .vscode/

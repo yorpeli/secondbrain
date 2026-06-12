@@ -1,0 +1,115 @@
+{
+  "name": "Payoneer",
+  "colors": {
+    "primary": {
+      "charcoal_black": "#1E1E28",
+      "pure_white": "#FFFFFF"
+    },
+    "secondary": {
+      "midnight_blue": "#002373",
+      "electric_blue": "#0033FF",
+      "neon_purple": "#977DFF",
+      "hazy_pink": "#FFCCF2"
+    },
+    "neutral": {
+      "light_gray": "#E5E5E5",
+      "muted_text": "#666666",
+      "container_fill": "#FAFAFA",
+      "shadow": "#E0E0E0"
+    }
+  },
+  "typography": {
+    "font_family": "Avenir Next LT Pro",
+    "fallback": "Arial",
+    "sizes": {
+      "title": 48,
+      "slide_title": 32,
+      "section_header": 12,
+      "body": 16,
+      "caption": 12,
+      "badge": 10
+    }
+  },
+  "color_ratio": {
+    "primary_percentage": "90%",
+    "secondary_percentage": "10%",
+    "guidelines": [
+      "Use either charcoal black or white as dominant background, consistantly across the deck. change only for meaningful impact on slide",
+      "Apply secondary colors as accents only",
+      "Electric blue for key highlights and CTAs",
+      "Neon purple for secondary emphasis",
+      "Avoid more than 2 secondary colors per slide",
+      "Use glass containers instead of pastel-filled boxes"
+    ]
+  },
+  "design_principles": [
+    "Minimalistic - less is more",
+    "Product-led - focus on substance",
+    "Authentic - clear and honest",
+    "Monochrome with strategic accent colors",
+    "Glass-like containers with subtle shadows",
+    "Dark title slides for impact, light content for readability"
+  ],
+  "glass_components": {
+    "card": {
+      "gradient_start": "#FFFFFF",
+      "gradient_end": "#F2FAFF",
+      "gradient_angle": 315,
+      "border_color": "#D9D9D9",
+      "border_weight_pt": 2.0,
+      "shadow_blur_pt": 100,
+      "shadow_distance_pt": 20,
+      "shadow_alpha_pct": 12,
+      "shadow_color": "#002373",
+      "corner_radius_pct": 9.4
+    },
+    "border_only_card": {
+      "fill": null,
+      "border_color": "#E5E5E5",
+      "border_weight_pt": 1.0
+    }
+  },
+  "badge_styles": {
+    "primary": {
+      "fill": "#002373",
+      "text_color": "#FFFFFF"
+    },
+    "secondary": {
+      "fill": "#977DFF",
+      "text_color": "#FFFFFF"
+    },
+    "outline": {
+      "fill": "#FAFAFA",
+      "text_color": "#1E1E28",
+      "border_color": "#1E1E28"
+    },
+    "neutral": {
+      "fill": "#F5F5F5",
+      "text_color": "#666666"
+    }
+  },
+  "slide_themes": {
+    "dark": {
+      "background": "#1E1E28",
+      "title_color": "#FFFFFF",
+      "body_color": "#E5E5E5",
+      "accent_color": "#0033FF"
+    },
+    "light": {
+      "background": "#FFFFFF",
+      "title_color": "#1E1E28",
+      "body_color": "#1E1E28",
+      "accent_color": "#0033FF"
+    }
+  },
+  "slide_defaults": {
+    "background_color": "#FFFFFF",
+    "title_color": "#1E1E28",
+    "body_color": "#1E1E28",
+    "accent_color": "#0033FF",
+    "table_header_bg": "#1E1E28",
+    "table_header_text": "#FFFFFF",
+    "table_row_alt_bg": "#F5F5F5",
+    "accent_line_width_inches": 0.8
+  }
+}

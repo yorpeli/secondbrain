@@ -1,0 +1,127 @@
+{
+  "comparison": {
+    "description": "Compare multiple competitors, options, or approaches",
+    "use_cases": [
+      "Competitor analysis presentations",
+      "Vendor evaluation",
+      "Feature comparison",
+      "Option assessment"
+    ],
+    "slides": [
+      {
+        "name": "title",
+        "type": "title",
+        "required": true
+      },
+      {
+        "name": "executive_summary",
+        "type": "content",
+        "required": true,
+        "description": "High-level summary of comparison and key findings"
+      },
+      {
+        "name": "entity_slides",
+        "type": "content",
+        "required": true,
+        "repeatable": true,
+        "description": "One slide per entity being compared"
+      },
+      {
+        "name": "comparison_table",
+        "type": "table",
+        "required": true,
+        "description": "Side-by-side comparison table"
+      },
+      {
+        "name": "recommendations",
+        "type": "content",
+        "required": true,
+        "description": "Conclusions and recommendations"
+      }
+    ],
+    "task_relevance": "low"
+  },
+  "overview": {
+    "description": "Summary or overview of a topic, feature, or initiative",
+    "use_cases": [
+      "Feature overview",
+      "Project summary",
+      "Initiative briefing",
+      "Topic introduction"
+    ],
+    "slides": [
+      {
+        "name": "title",
+        "type": "title",
+        "required": true
+      },
+      {
+        "name": "key_points",
+        "type": "content",
+        "required": true,
+        "description": "3-5 key points or takeaways"
+      },
+      {
+        "name": "details",
+        "type": "content",
+        "required": true,
+        "repeatable": true,
+        "description": "Expanded details on each key area"
+      },
+      {
+        "name": "summary",
+        "type": "content",
+        "required": true,
+        "description": "Summary and next steps"
+      }
+    ],
+    "task_relevance": "medium"
+  },
+  "status": {
+    "description": "Project or task status update",
+    "use_cases": [
+      "Sprint review",
+      "Project status update",
+      "Weekly sync",
+      "Milestone review"
+    ],
+    "slides": [
+      {
+        "name": "title",
+        "type": "title",
+        "required": true
+      },
+      {
+        "name": "status_overview",
+        "type": "content",
+        "required": true,
+        "description": "High-level status metrics and summary"
+      },
+      {
+        "name": "completed",
+        "type": "content",
+        "required": true,
+        "description": "Completed items since last update"
+      },
+      {
+        "name": "in_progress",
+        "type": "content",
+        "required": true,
+        "description": "Currently in-progress items"
+      },
+      {
+        "name": "blockers",
+        "type": "content",
+        "required": false,
+        "description": "Blockers and risks"
+      },
+      {
+        "name": "next_steps",
+        "type": "content",
+        "required": true,
+        "description": "Next steps and upcoming milestones"
+      }
+    ],
+    "task_relevance": "high"
+  }
+}
