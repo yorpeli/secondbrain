@@ -8,7 +8,13 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VIEW_PREFIX } from '../config/constants.js';
+import {
+  VIEW_PREFIX,
+  LOOKER_MODEL,
+  CLM_MAIN_VIEW,
+  CLM_MAIN_POPULATION_FILTER,
+  CLM_MAIN_REQUIRED_FILTERS,
+} from '../config/constants.js';
 import type { LookerQueryBody, LookerLookConfig, CountryTiers } from './types.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -186,6 +192,53 @@ export function getDefaultFilters(lookId: string | number): Record<string, strin
   }
 
   return defaults;
+}
+
+// ─── clm_main Semantic Layer ──────────────────────────────────
+
+/**
+ * Add the clm_main view prefix to a field name if not already present.
+ */
+export function prefixClmMainField(field: string): string {
+  if (field.includes('.')) return field;
+  return `${CLM_MAIN_VIEW}.${field}`;
+}
+
+/**
+ * Build a query against the clm_main semantic layer.
+ *
+ * Applies the layer's contract automatically (see .claude/skills/clm-main/SKILL.md):
+ * - Required filters: Is_CLM_Registration=Yes, is_bot=No (override via `filters` to opt out,
+ *   e.g. `{ Is_CLM_Registration: 'No' }` for 4STEP)
+ * - Mandatory population filter_expression (approved OR (not blocked AND not closed-by-risk));
+ *   disable only with `includeFullPopulation: true` for explicit blocked/risk analysis
+ */
+export function buildClmMainQuery(options: {
+  fields: string[];
+  filters?: Record<string, string>;
+  sorts?: string[];
+  limit?: string;
+  includeFullPopulation?: boolean;
+}): LookerQueryBody {
+  const filters: Record<string, string> = { ...CLM_MAIN_REQUIRED_FILTERS };
+  for (const [key, value] of Object.entries(options.filters ?? {})) {
+    filters[prefixClmMainField(key)] = value;
+  }
+
+  const query: LookerQueryBody = {
+    model: LOOKER_MODEL,
+    view: CLM_MAIN_VIEW,
+    fields: options.fields.map(prefixClmMainField),
+    filters,
+    sorts: options.sorts || [],
+    limit: options.limit || '500',
+  };
+
+  if (!options.includeFullPopulation) {
+    query.filter_expression = CLM_MAIN_POPULATION_FILTER;
+  }
+
+  return query;
 }
 
 // ─── Country Helpers ──────────────────────────────────────────

@@ -4,9 +4,25 @@
  * All hardcoded values from the Looker2 project in one place.
  */
 
-// Looker model/view
+// Looker model/view (legacy explore — still used for GLPS/4Step comparison and rollout status)
 export const VIEW_PREFIX = 'clm_population_main_dashboard';
 export const LOOKER_MODEL = 'product';
+
+// clm_main semantic layer (preferred explore for CLM-population analysis).
+// Contract: .claude/skills/clm-main/SKILL.md
+export const CLM_MAIN_VIEW = 'clm_main';
+
+// Mandatory population logic: all approved accounts, plus non-approved accounts
+// that are neither blocked nor closed by risk. Must be a filter_expression —
+// flat is_blocked/is_closed_by_risk_ind filters wrongly drop approved-then-blocked accounts.
+export const CLM_MAIN_POPULATION_FILTER =
+  '${clm_main.account_approval_ind} = yes OR (${clm_main.is_blocked} = no AND ${clm_main.is_closed_by_risk_ind} = no)';
+
+// Required field-level defaults for clm_main
+export const CLM_MAIN_REQUIRED_FILTERS: Record<string, string> = {
+  'clm_main.Is_CLM_Registration': 'Yes',
+  'clm_main.is_bot': 'No',
+};
 
 // Cohort filters (Looker native date syntax)
 export const MATURE_COHORT_FILTER = '4 weeks ago for 4 weeks';

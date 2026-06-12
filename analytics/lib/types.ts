@@ -200,6 +200,8 @@ export interface LookerQueryBody {
   view: string;
   fields: string[];
   filters: Record<string, string>;
+  /** Looker filter expression for logic that can't be expressed as flat field filters (e.g. the clm_main population OR-logic). */
+  filter_expression?: string;
   sorts?: string[];
   limit?: string;
 }

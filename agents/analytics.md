@@ -14,7 +14,8 @@ On startup, scan `context/*.md` frontmatter and load files tagged with `analytic
 
 ## Tools Available
 
-- **Looker API**: Query the `clm_population_main_dashboard` view in the `product` model
+- **Looker API — `clm_main` semantic layer (preferred)**: the analytics team's curated explore in the `product` model. Contract and field reference: `.claude/skills/clm-main/SKILL.md`. Build queries with `buildClmMainQuery()` (`analytics/lib/query-builder.ts`) — it enforces the required filters and the mandatory population `filter_expression`. Use for all CLM-population analysis: rates (predefined measures — never hand-calculate), funnel CVRs, time-to metrics, cohorts, `kyc_flow` segmentation, experiment indicators, revenue.
+- **Looker API — legacy `clm_population_main_dashboard` view**: still required for GLPS-adjusted 4Step comparison (`scan-opportunities`, `compare`) and the rollout-status Look (7806). Caution: its default filters include blocked/closed-by-risk non-approved accounts in the denominator, so its approval rates run ~2–6pp lower than `clm_main`'s (validated 2026-06-11, `scripts/validate-clm-main-explore.ts`). Don't mix rates across the two explores in one comparison.
 - **Supabase MCP**: Log findings to `agent_log`, pick up tasks from `agent_tasks`
 - **Local computation**: GLPS-adjusted approval rates, trend analysis, segment comparison
 
