@@ -1,13 +1,13 @@
 import 'dotenv/config'
-import { writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getSupabase } from '../../lib/supabase.js'
 import { writeDashboard, todayIso } from './build-dashboard.js'
+import { upsertFocus } from './store.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..', '..')
-const CC = join(ROOT, 'command-center')
 
 interface InitiativeRow {
   slug: string
@@ -223,15 +223,12 @@ function parseDateArg(): string {
 
 async function main(): Promise<void> {
   const date = parseDateArg()
-  const dayDir = join(CC, 'daily', date)
-  mkdirSync(dayDir, { recursive: true })
 
   const doc = await buildFocusDoc(date)
-  const focusPath = join(dayDir, '01-focus.md')
-  writeFileSync(focusPath, doc, 'utf8')
-  console.log(`focus written: ${focusPath}`)
+  await upsertFocus(date, doc)
+  console.log(`focus written: command_center_days.${date}`)
 
-  const dashPath = writeDashboard(date)
+  const dashPath = await writeDashboard(date)
   console.log(`dashboard written: ${dashPath}`)
 }
 

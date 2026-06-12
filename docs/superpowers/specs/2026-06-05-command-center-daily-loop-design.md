@@ -1,7 +1,11 @@
 # Command Center — Daily Loop Design
 
 **Date:** 2026-06-05
-**Status:** Approved design — ready for implementation planning
+**Status:** SUPERSEDED by `2026-06-12-command-center-supabase-backbone.md` —
+the file-relay transport was replaced by Supabase tables once unified sessions
+(MSFT + Supabase in one Claude) made the no-shared-access assumption false.
+The loop's content (capture format, EOD distillation, write-back rules,
+dashboard) carries over.
 **Author:** Yonatan + Claude Code (Supabase session)
 
 ## Problem

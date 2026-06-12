@@ -111,6 +111,23 @@ export function derivePartOfDay(hour: number, hasSummary: boolean): 'morning' | 
 
 export interface CaptureZones { needsAttention: DashNeed[]; signals: DashSignal[]; meetings: DashMeeting[] }
 
+export interface CaptureBlockRow { captured_at: string; headline: string; needs_attention: string | null; body_md: string }
+
+/** Reconstruct the `## HH:MM — headline` block stream from capture rows so
+ *  parseCaptures keeps working unchanged. `tz` defaults to the render machine's
+ *  local zone (pass e.g. 'UTC' in tests for determinism). */
+export function capturesToMarkdown(rows: CaptureBlockRow[], tz?: string): string {
+  const fmt = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz })
+  return rows
+    .map((r) => {
+      const lines = [`## ${fmt.format(new Date(r.captured_at))} — ${r.headline}`]
+      if (r.needs_attention?.trim()) lines.push(`**⚡ Needs attention:** ${r.needs_attention.trim()}`)
+      lines.push(r.body_md.trim())
+      return lines.join('\n')
+    })
+    .join('\n\n')
+}
+
 /** Parse 02-captures.md into the live zones. `date` supplies the ISO day for `at`/`start`. */
 export function parseCaptures(capturesMd: string | null, date: string): CaptureZones {
   const zones: CaptureZones = { needsAttention: [], signals: [], meetings: [] }

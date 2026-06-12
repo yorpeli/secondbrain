@@ -114,14 +114,14 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 | "refresh the review", "rebuild the review page" | `npm run initiative-review` + open (render-only from current Supabase data + existing highlights). |
 | "re-analyze X", "add X to the review" | Dispatch the analysis sub-agent for that slug, merge into `highlights.json`, re-render. |
 
-**Command Center — natural-language trigger (Yonatan never runs the CLI; you do):** The `command-center/` workspace is the shared local handoff between this (Supabase) session and the MSFT Claude Code session. See [docs/superpowers/specs/2026-06-05-command-center-daily-loop-design.md](docs/superpowers/specs/2026-06-05-command-center-daily-loop-design.md).
+**Command Center — natural-language trigger (Yonatan never runs the CLI; you do):** The daily loop's backbone is Supabase (`command_center_days` + `command_center_captures`, durable docs in `context_store` keys `command_center_routing`/`command_center_people`). Any session with both MSFT and Supabase access runs the whole loop; a session with only one side runs its arc. The rendered `dashboard.html` is local scratch — the DB is the record. See [docs/superpowers/specs/2026-06-12-command-center-supabase-backbone.md](docs/superpowers/specs/2026-06-12-command-center-supabase-backbone.md) and [agents/command-center-capture.md](agents/command-center-capture.md).
 
 | Yonatan says (or similar) | You do |
 |---|---|
-| "gather context", "morning brief", "start the day" | First run: `npm run command-center:scaffold`. Then `npm run command-center:gather` → `open command-center/daily/$(date +%F)/dashboard.html`. Skim `01-focus.md`; curate if useful and re-render with `npm run command-center:dashboard -- --date=$(date +%F)`. |
-| "refresh the dashboard" | `npm run command-center:dashboard -- --date=$(date +%F)` + open. |
-| "scan" / "capture" / "what's new" *(MSFT session)* | Follow `agents/command-center-capture.md` capture mode: `command-center:capture -- window` → sweep Teams/SharePoint/mail/calendar → append a block to `02-captures.md` → `command-center:capture -- done --date=$(date +%F)`. |
-| "close out the day" / "wrap up" *(MSFT session)* | Follow `agents/command-center-capture.md` close mode: draft `03-summary.md`, show Yonatan, get approval, write it, then `command-center:capture -- done --date=$(date +%F)`. |
+| "gather context", "morning brief", "start the day" | `npm run command-center:gather` → open/send `command-center/daily/$(date +%F)/dashboard.html`. Skim the focus doc (`command_center_days.focus_md`); curate if useful and re-render with `npm run command-center:dashboard -- --date=$(date +%F)`. |
+| "refresh the dashboard" | `npm run command-center:dashboard -- --date=$(date +%F)` + open/send. |
+| "scan" / "capture" / "what's new" | Follow `agents/command-center-capture.md` capture mode: `command-center:capture -- window` → sweep Teams/SharePoint/mail/calendar via MSFT MCP tools → `command-center:capture -- add --payload=<json>` (inserts the capture row + re-renders). No confirmation needed. |
+| "close out the day" / "wrap up" | Follow `agents/command-center-capture.md` close mode: draft the summary from the day's capture rows, show Yonatan, get approval, `command-center:day -- summary --file=<md>`; then reconcile approved deltas to their destinations with provenance and log them via `command-center:day -- reconcile --file=<md>` (closes the day). |
 
 Default scope: all active, tiered (full cards for substantive memory docs; a "not analyzed — too sparse" banner for thin/empty ones). `blocked` initiatives render in a greyed **"On Hold"** group at the bottom (cards kept). Closing/parking an initiative is a status change — `completed` drops it off entirely; `blocked` moves it to On Hold. The HTML + a data-layer JSON land in `output/initiatives/`.
 
@@ -226,7 +226,7 @@ Elad Schnarch's KYC/KYB team maintains a shared context repo on Azure DevOps (`P
 
 ## Database Overview
 
-The database has 27 tables organized into five domains. For full column definitions, see [docs/schema.md](docs/schema.md).
+The database has 29 tables organized into five domains. For full column definitions, see [docs/schema.md](docs/schema.md).
 
 1. **Core Entities** — `people`, `teams`, `team_members`, `initiatives`, `initiative_stakeholders`, `tasks`, `task_dependencies`, `products`
 2. **Meetings & Notes** — `meetings`, `meeting_attendees`, `meeting_action_items`, `content_sections`, `performance_reviews`
@@ -234,7 +234,7 @@ The database has 27 tables organized into five domains. For full column definiti
 4. **Quarterly Plans** — `quarterly_plans`, `quarterly_plan_items`, `quarterly_plan_deliverables`
 5. **Agent Infrastructure** — `agent_log`, `agent_tasks`, `agent_registry`, `research_results`, `project_decisions`, `agent_coordination`
 
-Plus: `context_store` (key-value working memory), `conversations_log`, `embeddings` (vector search), `tags`/`entity_tags`.
+Plus: `context_store` (key-value working memory), `conversations_log`, `embeddings` (vector search), `tags`/`entity_tags`, and the command-center daily loop (`command_center_days`, `command_center_captures` — distilled comms, **never embedded**).
 
 ### Database Views
 

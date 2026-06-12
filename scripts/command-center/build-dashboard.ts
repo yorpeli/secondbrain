@@ -1,7 +1,8 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { assembleDashboard } from './dashboard-data.js'
+import { assembleDashboard, capturesToMarkdown } from './dashboard-data.js'
+import { getDay, listCaptures } from './store.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..', '..')
@@ -17,27 +18,28 @@ function localStamp(): { generatedAt: string; hour: number } {
   return { generatedAt, hour: now.getHours() }
 }
 
-/** Read the day's agent files, assemble the Dashboard, inject into the template,
- *  write dashboard.html. Returns the output path. Used by gather + capture. */
-export function writeDashboard(date: string): string {
-  // NOTE: scaffold copies the template copy-if-missing — if the template seam changes,
-  // delete command-center/templates/dashboard.template.html and re-run npm run command-center:scaffold
-  const templatePath = join(CC, 'templates', 'dashboard.template.html')
-  if (!existsSync(templatePath)) {
-    throw new Error(`Dashboard template not found at ${templatePath}. Run: npm run command-center:scaffold`)
-  }
+/** Workspace copy if scaffolded (restylable in place), else the bundled asset —
+ *  so rendering works in fresh containers without a scaffold step. */
+function templatePath(): string {
+  const workspace = join(CC, 'templates', 'dashboard.template.html')
+  return existsSync(workspace) ? workspace : join(__dirname, 'assets', 'dashboard.template.html')
+}
+
+/** Read the day's docs + captures from Supabase, assemble the Dashboard, inject
+ *  into the template, write dashboard.html. Returns the output path. */
+export async function writeDashboard(date: string): Promise<string> {
+  const [day, captures] = await Promise.all([getDay(date), listCaptures(date)])
   const dayDir = join(CC, 'daily', date)
   mkdirSync(dayDir, { recursive: true })
-  const read = (f: string): string | null => (existsSync(join(dayDir, f)) ? readFileSync(join(dayDir, f), 'utf8') : null)
   const { generatedAt, hour } = localStamp()
   const dashboard = assembleDashboard({
-    focusMd: read('01-focus.md') ?? '',
-    capturesMd: read('02-captures.md'),
-    summaryMd: read('03-summary.md'),
+    focusMd: day?.focus_md ?? '',
+    capturesMd: captures.length ? capturesToMarkdown(captures) : null,
+    summaryMd: day?.summary_md ?? null,
     generatedAt, hour, date,
   })
   const json = JSON.stringify(dashboard).replace(/<\/script>/gi, '<\\/script>')
-  const html = readFileSync(templatePath, 'utf8')
+  const html = readFileSync(templatePath(), 'utf8')
     .replace('{{DATA_JSON}}', () => json)           // callback bypasses $-pattern interpolation
     .replaceAll('{{GENERATED_AT}}', generatedAt)
     .replaceAll('{{REFRESH_SECONDS}}', String(DEFAULT_REFRESH_SECONDS))
@@ -53,6 +55,7 @@ function parseDateArg(): string {
 
 const invokedDirectly = process.argv[1] === fileURLToPath(import.meta.url)
 if (invokedDirectly) {
-  const out = writeDashboard(parseDateArg())
-  console.log(`dashboard written: ${out}`)
+  writeDashboard(parseDateArg())
+    .then((out) => console.log(`dashboard written: ${out}`))
+    .catch((err) => { console.error(err); process.exit(1) })
 }

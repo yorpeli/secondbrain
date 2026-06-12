@@ -1,6 +1,6 @@
 # Database Schema Reference
 
-> Full column definitions for all 24 tables. For a summary overview, see [CLAUDE.md](../CLAUDE.md#database-overview).
+> Full column definitions for all 29 tables. For a summary overview, see [CLAUDE.md](../CLAUDE.md#database-overview).
 
 ---
 
@@ -297,6 +297,40 @@ Threaded message board between Claude Code (`claude-code`), Claude Chat (`claude
 ```sql
 SELECT * FROM agent_coordination WHERE status = 'open' ORDER BY priority, created_at;
 ```
+
+---
+
+## Command Center (Daily Loop)
+
+The daily comms loop's backbone (v2 — replaced the gitignored `command-center/` file relay). Holds distilled Teams/SharePoint/mail/calendar content. **Never embedded.** See `docs/superpowers/specs/2026-06-12-command-center-supabase-backbone.md`.
+
+### `command_center_days`
+One row per day — the per-day documents.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `day` | date UNIQUE | The day |
+| `focus_md` | text | Morning focus doc, assembled from Supabase by `gather-context.ts` |
+| `summary_md` | text | EOD narrative + proposed follow-ups (confirm-gated) |
+| `reconcile_md` | text | Audit trail of what was pushed where, with provenance |
+| `status` | text | `open` · `closed` (closed by the reconcile step) |
+| `focus_generated_at` / `summary_written_at` / `reconciled_at` | timestamptz | Arc timestamps |
+
+### `command_center_captures`
+Append-only — one row per capture sweep. Never updated or deleted.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `day` | date | Groups under the day |
+| `captured_at` | timestamptz | When the sweep ran |
+| `window_start` / `window_end` | timestamptz | Sweep window covered; nullable (historical file-era rows). `max(window_end)` drives the next lookback |
+| `headline` | text | One-line headline of the window |
+| `needs_attention` | text | The ⚡ line; NULL when none |
+| `body_md` | text | `**Teams:** / **SharePoint:** / **Mail:** / **Calendar:**` sections |
+| `people` / `initiatives` / `tags` | text[] | Slug arrays (no FKs, matching the tags convention) |
+| `source` | text | Which surface captured (`claude-code` default) |
+
+Durable layer lives in `context_store`: `command_center_routing` (where to read what matters) and `command_center_people` (manual VIPs + harvested people deltas).
 
 ---
 
