@@ -121,7 +121,10 @@ than cramming structured records into `context_store` jsonb).
 |---|---|
 | `id` uuid pk | |
 | `mode` | `reply` (v1 — full predict→reconcile loop) or `initiated` (Phase 2 — observation only; `predicted_reply`/`delta`/`resolution`/`confidence` null; excluded from accuracy metrics, included in distill) |
-| `thread_id` / `message_id` | the incoming email + its conversation id (for `initiated`: the sent message itself, no incoming trigger) |
+| `thread_id` | Outlook `conversationId` — the join key for matching reply ↔ trigger (via `read_resource`; subject+participants fallback if absent). For `initiated`: the sent message's conversation |
+| `message_id` | Graph item `id` of the incoming message (for `initiated`: the sent message) |
+| `internet_message_id` | RFC `Message-ID` header — stable, portable cross-reference |
+| `web_link` | Outlook deep link (`webLink`) for click-back provenance |
 | `channel` | `email` (v1); `teams` later |
 | `as_of` timestamptz | the email's arrival time — the blindness cutoff (for `initiated`: the send time) |
 | `trigger_text` | verbatim *relevant span* of incoming email + thread-to-date (quoted history/signatures stripped); placeholder if sensitive |
