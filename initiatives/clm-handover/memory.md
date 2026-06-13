@@ -9,7 +9,7 @@
   - **Spine**: Approved **Approach A — the two reframes** (compliance→platform, platform→acquisition engine), with the full reference section set folded underneath.
   - **Scope**: CLM only. Excludes Foundry / AI-Team-OS / DLC / cross-company AI. AIR stays in.
   - **Yonatan's adds**: (1) Licensing as a strategic moat for AI — forward pillar in Reframe 2. (2) Agent-onboarding MCP/A2A protocol — forward-innovation appendix; Yonatan has a doc to drop in.
-  - **DB**: Local-only. No Supabase records created.
+  - **DB**: [2026-06-13] Now in Supabase — initiative row + canonical memory doc (`8d029522-a835-49b0-830d-411c9fce2b2a`), embedded. The shareable thesis only; `docs/private-annex.md` stays strictly local, never embedded.
 - **Next steps**: Start drafting. Claude.ai recommended leading with Reframe 2 (the acquisition-flow thesis) since it anchors everything — confirm with Yonatan where to start.
 
 ## Open Threads

@@ -3,12 +3,12 @@
 ## Initiative Context
 
 - **Initiative slug**: `clm-handover`
-- **Initiative ID**: _(local-only for now — no Supabase record created)_
-- **Status**: Active (high)
+- **Initiative ID**: `8d029522-a835-49b0-830d-411c9fce2b2a`
+- **Status**: Active (high) — `P1`
 - **Owner**: Yonatan Orpeli (VP Product, CLM)
 - **Primary audience**: Yaron Zakai-Or (SVP Product) — upward summary
 - **Secondary audience**: CLM product leaders (6 direct reports) — shareable north-star
-- **Supabase memory doc ID**: _(none — kept local per Yonatan's instruction)_
+- **In Supabase since 2026-06-13.** Canonical knowledge = the DB memory doc (`content_sections`, `section_type='memory'`), embedded. **Privacy:** only the shareable thesis is in the DB; the sensitive personnel layer stays in `docs/private-annex.md` (local only, never embedded).
 
 ## What This Is
 
@@ -32,7 +32,7 @@ Help shape, draft, and refine this document with Yonatan. Specifically:
 - **CLM only** — do not drift into Foundry or non-CLM AI initiatives.
 - **Strategic over numeric in brainstorm phase** — all figures are `[verify]` placeholders until Yonatan confirms or we pull them at draft time. The freshest system data (Mar 12 PPP, Apr 2 current_focus) is ~8–11 weeks stale.
 - **Thesis, not status report** — this argues a point of view, it doesn't inventory status.
-- **Local-first** — no Supabase writes for this initiative unless Yonatan asks.
+- **DB-canonical, with a privacy carve-out** — the shareable thesis lives in the Supabase memory doc (canonical, embedded); update it as the work evolves and re-embed. The sensitive personnel layer (`docs/private-annex.md`) stays strictly local and is **never** written to Supabase or embedded.
 
 ## Stakeholders
 
