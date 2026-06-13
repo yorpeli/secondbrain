@@ -11,43 +11,31 @@ All working artifacts — drafts, research, frameworks, meeting notes, decision 
 - **Read freely**: Initiative memory docs, people, org context, other initiative data — anything in the Second Brain DB that helps your work.
 - **Write only when explicitly asked**: Never write to Supabase (initiative memory, content_sections, project_decisions, agent_log) unless the user specifically requests it or confirms it's needed.
 - **Ask before DB writes**: If you believe a Supabase update is warranted, explain what you want to write and why, then wait for confirmation.
-- **Exception — workspace sync**: Writes to `workspace-context` and `workspace-memory` rows are automatic (see Workspace Sync below).
+- **Exception — the canonical memory doc**: The initiative's DB memory doc (`content_sections`, `section_type = 'memory'`) is the canonical knowledge home and is meant to be written as knowledge accrues — update it (and re-embed) without round-tripping for confirmation on routine knowledge capture. See "Knowledge is Supabase-canonical" below.
 
 ### Stay In Your Folder
 - Create files only within your initiative's directory (e.g., `initiatives/{name}/docs/`, `initiatives/{name}/memory.md`)
 - Never create files elsewhere in the Second Brain repo as part of initiative work
 - Exception: updating PM agent context files (`pm_team/*/context.md`) or other cross-system files when explicitly asked
 
-### Memory
-Each initiative has a local `memory.md` for Claude Code working memory across sessions — what was discussed, user preferences, draft state, open threads. This is separate from the Supabase initiative memory doc (which is the structured, curated source of truth).
+### Knowledge is Supabase-canonical (Decision 2026-06-13)
 
-### Workspace Sync (Claude Code ↔ Claude AI)
+The curated initiative **memory doc lives in Supabase** — `content_sections`, `section_type = 'memory'`, embedded as `initiative_memory`. It is the single source of truth for an initiative's knowledge, writable from both Claude Code and Claude AI, and the only copy that's canonical. See `docs/superpowers/specs/2026-06-13-initiative-knowledge-db-canonical.md`.
 
-Each initiative's `CLAUDE.md` and `memory.md` are synced to Supabase via `content_sections` rows with `section_type = 'workspace-context'` and `section_type = 'workspace-memory'`. This allows Claude AI Projects to read and update the same content.
+**No bidirectional file sync.** The old `memory.md ↔ workspace-memory` / `CLAUDE.md ↔ workspace-context` two-way sync is **retired** — it drifted, and one Claude AI edit silently truncated an append-only decision log. Do **not** write knowledge back through the local files.
 
-**On session start** (when you begin working on an initiative):
-1. Read the initiative's `workspace-memory` and `workspace-context` rows from `content_sections` using the initiative's `entity_id` (found in the initiative's `CLAUDE.md` frontmatter under "Initiative ID").
-2. Compare `updated_at` from Supabase with the local file's content.
-3. If Supabase content is different from local (meaning Claude AI updated it), overwrite the local file with the Supabase content. Inform the user what changed.
+- **`memory.md`** (where a folder keeps one) is a **pull-only** convenience mirror — refresh it *from* the DB doc to read locally; never treat it as the canonical copy and never push it back. When knowledge changes, **update the DB memory doc** (and re-run `npm run embed:initiative-memory -- --force` so it stays queryable).
+- **`CLAUDE.md`** is a **thin local index** (identity, IDs, stakeholders pointer, working-files list). Local-only, not synced, not knowledge.
+- **`docs/`** holds working artifacts (drafts, research, meeting notes) — canonical *locally*, not embedded. When a doc produces durable knowledge, distill it into the DB memory doc (the bridge principle); the raw doc stays local as provenance.
 
-```sql
-SELECT section_type, content, updated_at FROM content_sections
-WHERE entity_id = '{initiative_id}' AND section_type IN ('workspace-context', 'workspace-memory');
-```
-
-**On every edit to `memory.md` or `CLAUDE.md`:**
-After writing the local file, immediately upsert the corresponding Supabase row:
+Reading the canonical knowledge:
 
 ```sql
-UPDATE content_sections
-SET content = '{new_content}', date = CURRENT_DATE, updated_at = now()
-WHERE entity_id = '{initiative_id}' AND section_type = '{workspace-memory|workspace-context}';
+SELECT content FROM content_sections
+WHERE entity_id = '{initiative_id}' AND section_type = 'memory';
 ```
 
-**Rules:**
-- This sync is automatic — no user confirmation needed (it's the exception to the "ask before DB writes" rule).
-- Only sync `memory.md` → `workspace-memory` and `CLAUDE.md` → `workspace-context`. Other files (docs/, meetings/) are not synced.
-- The `entity_id` is always in the initiative's `CLAUDE.md` under "Initiative ID". Never hardcode UUIDs.
+The `entity_id` is in the initiative's `CLAUDE.md` under "Initiative ID". Never hardcode UUIDs.
 
 ## Shared Resources
 

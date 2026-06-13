@@ -66,6 +66,62 @@
 - Yonatan owns the entire Foundry. Claude's role expanded to help manage both pillars.
 - Itai Haetzni is the Community lead (new stakeholder)
 
+### 2026-03-25 — Community plan review & feedback to Itai
+- Reviewed Itai's Communit-AI plan document (governance, channels, events, operating rhythm, measurement, launch phases)
+- Context: Itai reports to Mor (AI Transformation). Community keeps transformation language + layers in enablement/skills framing.
+- Sent structured feedback covering 7 points: (1) dual positioning language, (2) start minimal — earn complexity, (3) define Academy↔Community content flywheel, (4) tie event spend to expected value (~$86K total), (5) commit to 2-3 concrete metrics from day one, (6) seed content plan for first weeks, (7) positioning & comms section needed earlier than Phase 4
+- Waiting on Itai's revised version
+
+### 2026-05-03 — Session 12 design (Yonatan teaching)
+- **Session 12: Use Case Design for Team Workflows** — Yonatan taking it himself (lead was TBD)
+- Time: 90 min (cut from syllabus 120)
+- Audience: Product track only, ~15 PMs solo
+
+**Thesis evolved during design:**
+- Started: "personal AI = context in your head, team AI = context outside your head"
+- Final: "personal AI = context in your head; team AI = context AND memory outside your head — written, shared, growing"
+- Two artifacts in folder: context files (slow-changing, onboarding) + memory.md (fast-changing, earned through use)
+
+**Tools — three on the ladder, two hands-on:**
+- Cowork: hands-on. Drafting + memory loop.
+- Cursor: mention only on ladder + comparison table. Bridge to Session 13.
+- Lovable: hands-on. Publish rung. Real URL with data.
+
+**Feature for the exercise:** "Payment Received Insights" — dashboard showing receipt patterns + competitive savings comparison vs PayPal/Wise. Pivot from generic spending to payment-received angle to lean into Payoneer differentiation.
+
+**Pack drafted (8 files, fictional Payments Hub team):**
+- CLAUDE.md (with memory protocol — agent asks 3 questions after each task, appends to memory.md)
+- team.md, stakeholders.md, brand.md, customers.md, competitive.md, feature-brief.md (with [OPEN] gaps)
+- memory.md (stubbed scaffolding)
+- Pack location: /mnt/user-data/outputs/team-context/ (in Claude code-execution env)
+
+**Flow (revised):**
+- 0:00–0:10 Open + thesis (context + memory)
+- 0:10–0:40 Cowork: demo → discover doc → memory loop → iterate to PRD → pair share
+- 0:40–0:50 Lovable demo (paste own PRD → mockup → connect data → publish to URL)
+- 0:50–1:12 Lovable hands-on (each PM does same with their own PRD)
+- 1:12–1:15 Showcase 2-3 URLs
+- 1:15–1:30 Wrap (two artifacts slide, before/after, ambassador kit, Session 13 bridge)
+
+**Pivots during design:**
+- Started: relay (2 teams × 3 sub-teams). Cut: too much coordination overhead, only-deep-in-one-phase exposure.
+- Pivoted: solo work, each PM has own folder + memory.md, watches both grow. Pair-share between phases keeps room alive.
+- Cut Cursor hands-on after dry run revealed pack quality means Cowork can carry the drafting load, and Lovable needs more time for cloud+publish.
+
+**Dry run completed:** Yonatan ran Phase 1 in Cowork himself with the pack. Worked as expected. Memory.md updated correctly via the protocol in CLAUDE.md.
+
+**Lovable pre-checks done:** publish flow + database connection both validated.
+
+**Deck plan (13 slides — to be built next):**
+1. Title  2. Thesis (context + memory)  3. Surface area "bigger than PRDs"  4. The ladder (3 rungs, 2 hands-on)  5-7. Phase briefs  8. Showcase frame  9. Same starter, different mockups (live screenshots)  10. Folder before/after  11. NEW: Two artifacts (context + memory)  12. Ambassador kit + 5 folders to write next week  13. Onward to Session 13.
+
+**Open items for Session 12 prep:**
+- Build the deck (13 slides, dark theme throughout, Payoneer brand)
+- Draft pre-work email (1 week before)
+- Build ambassador kit (pack templates + Cowork starter + Lovable starter + 30-min team intro guide)
+- Pre-build Lovable starter with brand applied
+- Confirm Lovable enterprise deploy + Supabase connection on day-of laptop
+
 ## Current State
 - **Academy — Product track**: 14 sessions, 9 leads assigned, 5 TBD (4, 10, 11, 12, 14). All content: not started.
 - **Academy — Engineering track**: 23 sessions, 12 leads assigned, 11 TBD. All content: not started.
@@ -103,6 +159,7 @@
 - [ ] Yonatan: talk to CISO about security sessions (enablement framing)
 - [ ] Omer: reach out to PM session leads to start content development
 - [ ] Finalize registration plan and announcement materials by March 22
+- [ ] Follow up with Itai on Community plan revisions
 
 ## Open Questions
 - What subset of sessions forms the first class? (decide with Tal)
@@ -114,6 +171,7 @@
 - Noah Lerner (4) and Omer Wolf (5) carry heavy load — should there be a cap?
 - Builders L2/L3 and Masters design not started (both tracks)
 - Community/peer support format?
+- How does Academy content flow into Community? (flagged to Itai, needs dedicated section)
 - Connection to DLC framework and AI-Native Team Structure JDs
 - Was Noa B. losing Product Session 4 intentional?
 

@@ -106,6 +106,14 @@ Fifteen agents across two teams, each with a CLI entry point or definition doc. 
 | Outlook Agent | `outlook-agent` | `outlook/` + `agents/outlook-agent.md` | Claude-for-Outlook bridge — pull-only email/calendar lookups via agent_tasks, results promoted to initiative memory with provenance |
 | Initiative Review | `initiative-review` | `agents/initiative-review.md` + `scripts/initiative-review/` | Visual portfolio review — gathers active initiatives + memory docs, dispatches analysis sub-agents for TL;DR/recommendation cards, renders a self-contained offline HTML review page |
 
+**Analytics / CLM data — natural-language trigger (canonical data flow):** Any question about CLM registrations, approval rates, funnel conversion, document submission, FFT/activation, time-to-approval, cohorts, or country/device/segment breakdowns goes through the **`clm-main` skill** (`.claude/skills/clm-main/SKILL.md`) — the analytics team's semantic-layer contract. The skill auto-triggers; invoke it before answering. In code, query via `buildClmMainQuery()` / the helpers in `analytics/lib/clm-main-metrics.ts` (they enforce the required filters, the mandatory population `filter_expression`, and predefined rate measures — never hand-divide rates, never flat-filter `is_blocked`). Apply the skill's autonomous-agent defaults (mature window, `fft_rate_from_approval`, `chosen_country_name`) and state them in the answer.
+
+| Yonatan says (or similar) | You do |
+|---|---|
+| "what's the approval rate for X", "funnel for Y", "break down Z by device/country/segment", any CLM metric | Use the `clm-main` skill; build the query with `buildClmMainQuery()`; report the defaults you applied. |
+| "run the country diagnostic / opportunity scan / CLM-vs-4Step compare / deep-dive" | `npm run analytics:run -- diagnose\|scan-opportunities\|compare\|deep-dive <country>`. CLM side is on `clm_main`; 4Step/GLPS + rollout stay on the legacy explore. |
+| "did the clm_main fields change?", "is the analytics data flow still working?" | `npm run analytics:drift-check` (canary query over every field the flow depends on). For an old-vs-new population delta, `npm run analytics:validate-explore`. |
+
 **Initiative Review — natural-language trigger (Yonatan never runs the CLI; you do):** When Yonatan says any of the below, run it for him and handle the rest conversationally. See [agents/initiative-review.md](agents/initiative-review.md) for the full procedure and the analysis sub-agent prompt template.
 
 | Yonatan says (or similar) | You do |
@@ -403,17 +411,25 @@ The Initiative Tracker agent (`agents/initiative-tracker.md`) keeps memory docs 
 
 ### Initiative Workspaces
 
-Initiatives with significant local materials use a self-contained workspace under `initiatives/{slug}/`. Each workspace can optionally embed its own PM agent alongside its docs and context.
+**Knowledge is Supabase-canonical; local folders hold artifacts only.** (Decision 2026-06-13, refines the 2026-04-02 workspace decision — see `docs/superpowers/specs/2026-06-13-initiative-knowledge-db-canonical.md`.) One canonical home **per type of content**:
 
-**Directory structure:**
+- **Knowledge** — the curated initiative memory doc lives in Supabase `content_sections` (`section_type = 'memory'`), embedded as `initiative_memory`, consumed via `searchByType`. Single source of truth, writable from both Claude.ai and Claude Code. This is the non-negotiable home — Claude.ai can't read local files.
+- **Working artifacts** — drafts, research, slides, meeting notes — live in local `initiatives/{slug}/docs/`, where git history and in-place editing earn their keep. Not embedded.
+- **`CLAUDE.md`** — a thin local folder index (IDs, stakeholders pointer, working-files list). Navigation aid, not knowledge. Not synced.
+
+A local folder is **optional** — create one only when an initiative has genuine local material to work on; most initiatives are fine DB-only (memory doc, no folder).
+
+**Bridge principle:** when a local doc produces durable knowledge, distill it into the embedded memory doc. Raw docs stay local as provenance.
+
+**Directory structure (folders that keep one):**
 
 ```
 initiatives/{slug}/
-  CLAUDE.md            # Initiative identity, IDs, stakeholders, working files index
-  memory.md            # Working memory across Claude Code sessions (synced to DB)
+  CLAUDE.md            # Thin index: identity, IDs, stakeholders pointer, working files list
+  memory.md            # OPTIONAL pull-only mirror of the DB memory doc (read convenience; never the canonical copy)
   context.md           # Domain reference knowledge (benchmarks, frameworks, competitive intel)
   agent.md             # PM agent definition — what to monitor, commands, PPP mappings
-  docs/                # All working artifacts (research, drafts, meeting notes, materials)
+  docs/                # All working artifacts (research, drafts, meeting notes, materials) — canonical, local
 ```
 
 **Two types of initiatives coexist:**
@@ -427,18 +443,15 @@ Both types share the same DB backbone (initiative record, memory doc, stakeholde
 
 **Knowledge access patterns:**
 
-- **Local agent (within its own initiative):** Reads files directly — `context.md`, `docs/*.md`, `memory.md`. No embeddings needed for self-access. `CLAUDE.md` serves as the index of what exists.
-- **External agents (discovering other initiatives):** Search Supabase embeddings via `searchByType(query, ['initiative_context'])`. Local `context.md` and `docs/*.md` files are chunked and embedded (entity type `initiative_context`) so other agents can discover relevant knowledge without reading local files.
+- **Local agent (within its own initiative):** Reads local `context.md` / `docs/*.md` directly for artifacts; reads the **DB memory doc** (or its pull-only `memory.md` mirror) for canonical knowledge. `CLAUDE.md` is the index of what exists locally.
+- **Any agent (discovering other initiatives):** Search Supabase embeddings via `searchByType(query, ['initiative_memory'])` — the curated memory doc is the single embedded knowledge surface. (The `initiative_context` entity type — raw local docs chunked for discovery — is **dormant/retired**: it was never populated, and durable knowledge belongs in the memory doc instead. See the bridge principle above.)
 
-**Workspace Sync:** `memory.md` and `CLAUDE.md` are bidirectionally synced with Supabase `content_sections` (section types `workspace-memory` and `workspace-context`). This allows Claude.ai Projects to read and update the same content. See `initiatives/CLAUDE.md` for sync protocol details.
+**No bidirectional sync.** The DB memory doc is canonical. Retired the old `memory.md ↔ workspace-memory` / `CLAUDE.md ↔ workspace-context` two-way sync (it drifted; one Claude.ai edit was lossy). `memory.md`, where kept, is a **pull-only** convenience mirror — read it, but write knowledge to the DB doc, not back through the file. `CLAUDE.md` is local-only and not synced.
 
-**Creating a new workspace initiative:**
-1. Copy `initiatives/_template/` to `initiatives/{slug}/`
-2. Create the initiative row in DB (if it doesn't exist)
-3. Create `workspace-memory` and `workspace-context` content_section rows
-4. Populate `CLAUDE.md` with real IDs from the DB
-5. Add `context.md` and `agent.md` as domain knowledge and materials are loaded
-6. Run embedding generation for the initiative's local files
+**Creating a new initiative:**
+1. Create the initiative row + memory doc (`content_sections`, `section_type = 'memory'`) in the DB — this is the canonical home and works with no folder.
+2. Only if there's genuine local material to work on: copy `initiatives/_template/` to `initiatives/{slug}/`, populate `CLAUDE.md` (thin index) with real IDs from the DB, add `context.md` / `agent.md` / `docs/` as materials are loaded.
+3. Run `npm run embed:initiative-memory` (and `embed:initiative`) so the knowledge is queryable. Re-run after substantive memory-doc edits (`-- --force`).
 
 ---
 

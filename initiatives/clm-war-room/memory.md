@@ -42,10 +42,14 @@
     "in dev." Root bottleneck: single shared QA/sandbox + Banking deploy-queue. **12:00
     decision** on a workaround; Selfie top priority, **testable by Sun Jun 7**.
   - ⚠️ Unassigned: OCR testing owner (A6); infra single-environment owner (Yaron Weiss noted).
+- **Email drafted (2026-06-06)** → `docs/2026-06-07-email-aviv-tally-ai-analytics.md`. To Aviv
+  Calev + Tally Bachar (cc Mor, Nadia): request an always-on AI analytics agent + live AI-driven
+  war-room dashboard (per-country, auto-flagging), live before Jun 15 + a mockup ASAP. Logged as
+  A11; both added as stakeholders; Tally Bachar created in the system. To send Sun Jun 7.
 - **Next steps**: Confirm war-room start day + physical room (Nadia/Mor); Daniel to produce
   pre-approvable June 15 checklists (use the go/no-go draft); wire the bug monitor/TV
   (Monitoring master R-11); chase Einat for the Selfie test plan; reflect status to Yaron.
-  **Tomorrow's standup:** carry A1–A10, check Selfie 12:00-decision outcome, chase the 2
+  **Tomorrow's standup:** carry A1–A11, check Selfie 12:00-decision outcome, chase the 2
   unassigned items, and watch the items not discussed today (Redirects, Server errors).
 
 ## Open Threads
@@ -71,3 +75,6 @@
 - Govern, don't duplicate: pull track status from `clm-full-rollout`, don't re-enter it.
 - Incident / decision / timeline logs in the memory doc are append-only.
 - Daniel Grin holds the go/no-go call; Yonatan wants visibility, not to override.
+- **Daily loop:** paste the Teams standup summary → full note to docs/YYYY-MM-DD-daily-standup.md,
+  distill into memory doc (Incident Log / Action Tracker / Decisions / Timeline), compute the
+  delta vs. prior day + whiteboard, flag 🔴 and ⚠️ unassigned, and chase 📌 WATCH items.
