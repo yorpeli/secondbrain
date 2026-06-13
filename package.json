@@ -27,7 +27,8 @@
     "command-center:dashboard": "tsx scripts/command-center/build-dashboard.ts",
     "command-center:gather": "tsx scripts/command-center/gather-context.ts",
     "command-center:capture": "tsx scripts/command-center/capture.ts",
-    "command-center:day": "tsx scripts/command-center/day.ts"
+    "command-center:day": "tsx scripts/command-center/day.ts",
+    "comms-learning": "tsx scripts/comms-learning/run.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
