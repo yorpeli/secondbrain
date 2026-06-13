@@ -31,7 +31,7 @@ export async function listPredictions(opts: { unreconciledOnly?: boolean } = {})
 
 export interface ReconcilePatch {
   actual_reply: string | null
-  delta: Record<string, unknown>
+  delta: Record<string, unknown> | null
   resolution: Resolution
   why?: string | null
 }

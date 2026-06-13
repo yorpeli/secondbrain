@@ -20,9 +20,11 @@ export function confidenceScore(e: RuleEvidence): number {
 }
 
 export function isPromotable(e: RuleEvidence): boolean {
+  const total = e.support + e.contradict
+  const rawConsistency = total === 0 ? 0 : e.support / total
   return (
     e.support >= THRESHOLDS.support &&
-    consistencyOf(e) >= THRESHOLDS.consistency &&
+    rawConsistency >= THRESHOLDS.consistency &&
     e.diversity >= THRESHOLDS.diversity
   )
 }

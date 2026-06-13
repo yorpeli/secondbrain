@@ -47,7 +47,9 @@ For each worklist item:
    `confidenceScore` / `statusFor` (scripts/comms-learning/confidence.ts).
 3. Write rules: `npm run comms-learning -- rules:add --payload=<file>` (set `type`
    style|decision, `data_dependency`, computed `confidence`/`support`/`consistency`/
-   `diversity`/`status`). Decision-type rules also belong in `decision_journal`.
+   `diversity`/`status`). Derive the rule's confidence band consistently from
+   `confidenceScore` (high ≥ 0.67, med ≥ 0.34, else low) so prediction-time gating is
+   stable. Decision-type rules also belong in `decision_journal`.
 
 ## Report
 - `resolution` distribution (match / edited / out_of_band / no_reply).
