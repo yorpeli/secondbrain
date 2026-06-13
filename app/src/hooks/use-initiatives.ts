@@ -46,6 +46,7 @@ export function useInitiatives() {
       const { data: dashboardData, error: dashError } = await supabase
         .from('v_initiative_dashboard' as never)
         .select('*')
+        .eq('kind', 'initiative') // exclude pillars (a grain above initiatives)
         .order('priority')
         .order('title')
 

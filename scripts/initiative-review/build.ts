@@ -33,6 +33,7 @@ interface InitiativeRow {
   status: string
   priority: string | null
   assigned_agent: string | null
+  kind: string
 }
 
 interface MemoryRow {
@@ -205,7 +206,7 @@ async function fetchData(): Promise<ReviewItem[]> {
 
   const { data: inits, error: e1 } = await sb
     .from('initiatives')
-    .select('id, slug, title, status, priority, assigned_agent')
+    .select('id, slug, title, status, priority, assigned_agent, kind')
     .in('status', ['active', 'blocked'])
   if (e1) throw e1
 
@@ -290,13 +291,15 @@ function isOnHold(it: ReviewItem): boolean {
 }
 
 const SECTION_RANK: Record<string, number> = {
-  P0: 0, P1: 1, P2: 2, P3: 3, 'On Hold': 9,
+  Pillars: -1, P0: 0, P1: 1, P2: 2, P3: 3, 'On Hold': 9,
 }
 
 function buildHtml(items: ReviewItem[], buildDate: string): string {
   const groups: Record<string, ReviewItem[]> = {}
   for (const it of items) {
-    const section = isOnHold(it) ? 'On Hold' : it.priority ?? 'P3'
+    // Pillars are a grain above initiatives — surface them in their own top
+    // section as parent containers rather than mixing them into P0–P3.
+    const section = it.kind === 'pillar' ? 'Pillars' : isOnHold(it) ? 'On Hold' : it.priority ?? 'P3'
     ;(groups[section] ||= []).push(it)
   }
   const groupKeys = Object.keys(groups).sort(

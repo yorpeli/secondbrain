@@ -65,6 +65,7 @@ async function buildWhoMatters(
     .from('initiatives' as any)
     .select('id, title')
     .eq('status', 'active')
+    .eq('kind', 'initiative') // exclude pillars (a grain above initiatives)
   if (aiErr) throw aiErr
   const titleById = new Map<string, string>(
     ((actInits as unknown as InitiativeIdRow[]) ?? []).map((i) => [i.id, i.title])
