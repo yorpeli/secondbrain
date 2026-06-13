@@ -2,21 +2,22 @@
 id: pillar-ai-foundry
 type: pillar
 title: AI Foundry
-status: local-staging
+status: active
 owner: yonatan-orpeli
 created: 2026-05-29
-migration_status: not-in-supabase
+migration_status: in-supabase
+entity_id: 8c9889b1-e14e-4fa0-b810-9505a00f8b88
 rehomes_from:
   - ai-academy-product
 ---
 
 # AI Foundry — Pillar Workspace
 
-> **⚠️ LOCAL STAGING — NOT IN SUPABASE.** This is a **pillar**: a grain *above* a normal initiative that will eventually hold multiple initiatives. It is intentionally not modeled in the database yet (modeling deferred to a pending architecture session).
+> **Pillar — modeled in Supabase (2026-06-13).** This is a **pillar**: a grain *above* a normal initiative that holds multiple initiatives (`initiatives.kind = 'pillar'`; children linked via `parent_id`). Initiative ID: `8c9889b1-e14e-4fa0-b810-9505a00f8b88`.
 >
-> **Override of `initiatives/CLAUDE.md`:** The workspace-sync protocol does **not** apply here. There is no `entity_id`, no `initiatives` row, and no `content_sections` rows. Do **not** read/upsert `workspace-context` or `workspace-memory`, do **not** create DB records, and do **not** migrate this folder to Supabase — unless Yonatan explicitly asks. Filesystem only.
+> Per the DB-canonical model (`docs/superpowers/specs/2026-06-13-initiative-knowledge-db-canonical.md`): the **canonical knowledge is the Supabase memory doc** (`content_sections`, `section_type = 'memory'`). This folder holds working artifacts; this `CLAUDE.md` is a thin index; `memory.md` is a **pull-only mirror** — write knowledge to the DB memory doc (and re-embed), not back through the files.
 >
-> Note: the existing AI Academy lives in Supabase as [[ai-academy-product]] (workspace folder `foundry/`). That record is untouched; it re-homes under this pillar only when the architecture is decided.
+> Note: the existing AI Academy ([[ai-academy-product]], workspace folder `foundry/`) is now a **child** of this pillar, linked via `parent_id`.
 
 ## Objective
 

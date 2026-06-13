@@ -441,6 +441,8 @@ initiatives/{slug}/
 
 Both types share the same DB backbone (initiative record, memory doc, stakeholders) and the same PM team shared layers (clm-context, workflows, playbook).
 
+**Grain — initiatives vs. pillars (`initiatives.kind`):** The `initiatives` table holds two grains, distinguished by the `kind` column (`'initiative'` default, or `'pillar'`). A **pillar** is a parent container that holds multiple initiatives (e.g. `ai-foundry`, `ai-product-strategy`, `bu-ai-transformation`, `guild`); its children point to it via `parent_id`. Pillars have their own canonical memory doc + embeddings just like initiatives. **When a consumer wants only normal initiatives (dashboards, initiative-review, portfolio rollups), filter `WHERE kind = 'initiative'`** so pillars don't show up as if they were initiatives. To list a pillar's children: `WHERE parent_id = '{pillar_id}'`. (Schema added 2026-06-13 — migration `initiatives_add_kind_and_parent`.)
+
 **Knowledge access patterns:**
 
 - **Local agent (within its own initiative):** Reads local `context.md` / `docs/*.md` directly for artifacts; reads the **DB memory doc** (or its pull-only `memory.md` mirror) for canonical knowledge. `CLAUDE.md` is the index of what exists locally.

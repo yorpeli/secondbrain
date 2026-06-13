@@ -2,10 +2,11 @@
 id: pillar-guild
 type: pillar
 title: Guild
-status: local-staging
+status: active
 owner: yonatan-orpeli
 created: 2026-05-29
-migration_status: not-in-supabase
+migration_status: in-supabase
+entity_id: 070ae6a8-23f8-4418-b726-dd42fe9f2711
 rehomes_from:
   - ai-powered-pm-team
   - pm-workshop-2026
@@ -14,7 +15,7 @@ rehomes_from:
 
 # Guild — Pillar Workspace
 
-> **⚠️ LOCAL STAGING — NOT IN SUPABASE.** This is a **pillar**: a grain *above* a normal initiative that will eventually hold multiple initiatives. It is intentionally not modeled in the database yet (modeling deferred to a pending architecture session).
+> **Pillar — modeled in Supabase (2026-06-13).** This is a **pillar**: a grain *above* a normal initiative that holds multiple initiatives (`initiatives.kind = 'pillar'`; children linked via `parent_id`). Initiative ID: `070ae6a8-23f8-4418-b726-dd42fe9f2711`.
 >
 > **Override of `initiatives/CLAUDE.md`:** The workspace-sync protocol does **not** apply here. There is no `entity_id`, no `initiatives` row, and no `content_sections` rows. Do **not** read/upsert `workspace-context` or `workspace-memory`, do **not** create DB records, and do **not** migrate this folder to Supabase — unless Yonatan explicitly asks. Filesystem only.
 

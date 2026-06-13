@@ -2,19 +2,20 @@
 id: pillar-bu-ai-transformation
 type: pillar
 title: BU AI Transformation
-status: local-staging
+status: active
 owner: yonatan-orpeli
 created: 2026-05-29
-migration_status: not-in-supabase
+migration_status: in-supabase
+entity_id: f39103e3-5443-4a4a-a28d-110d512e3af3
 rehomes_from:
   - dlc-ai-era
 ---
 
 # BU AI Transformation (incl. AI DLC) — Pillar Workspace
 
-> **⚠️ LOCAL STAGING — NOT IN SUPABASE.** This is a **pillar**: a grain *above* a normal initiative that will eventually hold multiple initiatives. It is intentionally not modeled in the database yet (modeling deferred to a pending architecture session).
+> **Pillar — modeled in Supabase (2026-06-13).** This is a **pillar**: a grain *above* a normal initiative that holds multiple initiatives (`initiatives.kind = 'pillar'`; children linked via `parent_id`). Initiative ID: `f39103e3-5443-4a4a-a28d-110d512e3af3`. Expect one sub-initiative per BU engagement.
 >
-> **Override of `initiatives/CLAUDE.md`:** The workspace-sync protocol does **not** apply here. There is no `entity_id`, no `initiatives` row, and no `content_sections` rows. Do **not** read/upsert `workspace-context` or `workspace-memory`, do **not** create DB records, and do **not** migrate this folder to Supabase — unless Yonatan explicitly asks. Filesystem only.
+> Per the DB-canonical model (`docs/superpowers/specs/2026-06-13-initiative-knowledge-db-canonical.md`): the **canonical knowledge is the Supabase memory doc** (`content_sections`, `section_type = 'memory'`). This folder holds working artifacts; this `CLAUDE.md` is a thin index; `memory.md` is a **pull-only mirror** — write knowledge to the DB memory doc (and re-embed), not back through the files.
 
 ## Objective
 
