@@ -20,6 +20,10 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
       threads (the old `order:newest` + client-filter approach paged through read mail AND missed deep unread,
       e.g. a 5-day-old "would appreciate your guidance" ask). Note: a free-text `query` pages by **`cursor`**,
       not `offset`, and `order` is not compatible (results are recency/relevance-ranked, not strict newest).
+      ⚠️ **Page the cursor to exhaustion — do NOT cap.** Unread is recency-ranked, so old-but-unread items sink
+      *below* recent ones; stopping early silently drops them (2026-06-14: a 30-item cap missed unread May
+      messages in an Au10tix thread). An unread sweep is also blind to **read-but-unanswered** threads (you
+      opened the latest but never replied) — catching those needs a Sent-side check, out of scope here.
       **Drop Teams notification emails** (`no-reply@teams.mail.microsoft` / `@odspnotify`) — lossy shadows
       (clipped ~1-line preview); Teams is scanned directly in (b), so they'd only duplicate + truncate.
    b. **Teams** — the MCP has **no native unread flag** and **broad/content-only `chat_message_search`
@@ -59,6 +63,8 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
 4. **Draft** the suggested reply applying the rulebook (pinned executive-voice + terse/probe/route).
    Set `disposition`, `needs_data` (flag, don't fetch — see grounding below), `confidence`,
    `why`, and a curated **`memory_brief`** ("nothing material in memory" if not load-bearing).
+   ⚠️ For **scheduling / meeting** items, check the meeting date isn't already **past** before drafting a
+   confirm — a stale confirm is noise (2026-06-14: a war-room-sync confirm was drafted after the meeting had passed).
 5. **Build `items.json`** — `[{ email:{subject,from,date,to,excerpt,webLink, channel?, thread_summary?},
    thread:ThreadInput, suggestion:{disposition,needs_data,confidence,text,why, lang?,lang_alt?,text_alt?, memory_brief} }]`.
    `channel`: `outlook`|`teams`|`meeting` (drives the leading icon + open button). For Hebrew drafts set
@@ -95,6 +101,8 @@ sanctioned grounding path; **don't hand-write ad-hoc SQL** and don't build a sep
 - **Grounding = the vector search we already built** (`searchByType`) — surface what you pulled in the card; never ground in blind backtest.
 - **Judgment refines the permissive gate.** "Needs a response?" is decided at the read step (reply / monitor / open-loop /
   done) — the assistant must NOT manufacture work. Saying "you're clear" is a valid, trust-building result.
+- **Page unread to exhaustion + check time-sensitivity.** Don't cap the sweep (old-but-unread sinks below recent);
+  and for meeting/scheduling items, drop confirms whose date already passed.
 
 ## Files
 `run.ts` (CLI: classify · context:assemble/probe · predictions:* · rules:*) · `classify.ts` (triage gate — keeps fresh+reply, drops noise/sensitive; `--backtest` = Re:-only `needsPrediction`)

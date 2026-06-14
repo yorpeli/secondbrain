@@ -96,7 +96,8 @@ needs a response?"**, run this and open the HTML (he never runs the CLI; you do)
    clipped preview; scan Teams directly instead):
    - **Email** — `outlook_email_search` with **`query:"isRead:false"`** (folderName "Inbox") — filters to
      unread **server-side** (no client scan, no blind spot for deep unread). Free-text query pages by `cursor`,
-     not `offset`; `order` n/a. **Drop** `no-reply@teams.mail.microsoft` / `@odspnotify` notifications.
+     not `offset`; `order` n/a. **Page to exhaustion — don't cap** (old-but-unread is recency-ranked, sinks below
+     recent). **Drop** `no-reply@teams.mail.microsoft` / `@odspnotify` notifications.
    - **Teams** — `chat_message_search` over a 24-48h window (`afterDateTime`); keep messages **from others**
      (not Yonatan) in a **1:1 chat or a whitelisted CLM-leadership group**, where **he hasn't replied after**
      (no-reply heuristic — no native unread flag). Scope: **all 1:1s + CLM-leadership groups only**. Fetch
