@@ -1,4 +1,5 @@
 {
+  "_legacy_note": "These Looks query the legacy clm_population_main_dashboard explore. As of 2026-06-11 CLM-population analysis (rates, funnel, time-to, cohorts) comes from the clm_main semantic layer (.claude/skills/clm-main/SKILL.md). The legacy explore + these Looks remain in use ONLY for the 4Step GLPS-adjusted comparison (6823) and rollout status (7806).",
   "description": "Master registry of all Looker Looks used by the analytics system",
   "last_updated": "2026-01-30",
   "total_looks": 4,

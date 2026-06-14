@@ -1,4 +1,5 @@
 {
+  "_legacy_note": "LEGACY (clm_population_main_dashboard explore). As of 2026-06-11 the CLM funnel/rates come from the clm_main semantic layer (.claude/skills/clm-main/SKILL.md + analytics/lib/clm-main-metrics.ts). This file is retained ONLY for the 4Step GLPS-adjusted comparison and rollout methodology, which still live on the legacy explore. Do not use the CLM-side field names/workarounds here for new CLM analysis — use clm_main.",
   "description": "Registration funnel definitions for CLM (new) and 4Step (old) systems",
 
   "primary_metric": {

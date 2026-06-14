@@ -5,11 +5,17 @@
  *
  * 5 queries: rollout, CLM mature, 4Step mature, CLM weekly (12w), CLM recent (2w)
  * Produces: volume trend, funnel health, warning detection, verdict, narrative.
+ *
+ * HYBRID (2026-06-11): CLM mature/recent/weekly run on the clm_main semantic layer
+ * (lib/clm-main-metrics.ts). Rollout status and 4Step (GLPS) stay on the legacy
+ * clm_population_main_dashboard explore. CLM rates read ~2-6pp higher than the
+ * legacy CLM side — opportunity verdicts shift accordingly (see agents/analytics.md).
  */
 
 import * as looker from '../lib/looker-client.js';
 import { stripViewPrefix, calculateAccountsApprovedGLPS } from '../lib/data-utils.js';
 import { formatPct, formatNum, sparkline, getWeeksAgo } from '../lib/formatting.js';
+import { fetchClmCountry, fetchClmWeekly } from '../lib/clm-main-metrics.js';
 import {
   VIEW_PREFIX,
   LOOKER_MODEL,
@@ -55,32 +61,6 @@ async function fetchRolloutStatus(countryName: string): Promise<LookerRow | null
   return data[0] || null;
 }
 
-async function fetchCLMMature(countryName: string): Promise<LookerRow | null> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [
-      `${VIEW_PREFIX}.accounts_created_clm`,
-      `${VIEW_PREFIX}.clm_finished_segmentation`,
-      `${VIEW_PREFIX}.submitted_all_docs_step`,
-      `${VIEW_PREFIX}.accounts_approved`,
-      `${VIEW_PREFIX}.fft_dynamic_measure`,
-    ],
-    filters: {
-      [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
-      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
-      [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
-      [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
-      [`${VIEW_PREFIX}.is_bot`]: '0',
-      [`${VIEW_PREFIX}.is_blocked`]: '0',
-      [`${VIEW_PREFIX}.country_name`]: countryName,
-    },
-    limit: '10',
-  });
-  const data = stripViewPrefix(result.results);
-  return data[0] || null;
-}
-
 async function fetch4StepMature(countryName: string): Promise<LookerRow | null> {
   const result = await looker.createAndRunQuery({
     model: LOOKER_MODEL,
@@ -109,73 +89,7 @@ async function fetch4StepMature(countryName: string): Promise<LookerRow | null> 
   return data[0] || null;
 }
 
-async function fetchCLMWeekly(countryName: string): Promise<LookerRow[]> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [
-      `${VIEW_PREFIX}.ah_creation_date_week`,
-      `${VIEW_PREFIX}.accounts_created_clm`,
-      `${VIEW_PREFIX}.clm_finished_segmentation`,
-      `${VIEW_PREFIX}.submitted_all_docs_step`,
-      `${VIEW_PREFIX}.accounts_approved`,
-      `${VIEW_PREFIX}.fft_dynamic_measure`,
-    ],
-    filters: {
-      [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
-      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
-      [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
-      [`${VIEW_PREFIX}.ah_creation_date_date`]: WEEKLY_TREND_FILTER,
-      [`${VIEW_PREFIX}.is_bot`]: '0',
-      [`${VIEW_PREFIX}.is_blocked`]: '0',
-      [`${VIEW_PREFIX}.country_name`]: countryName,
-    },
-    sorts: [`${VIEW_PREFIX}.ah_creation_date_week`],
-    limit: '20',
-  });
-  return stripViewPrefix(result.results);
-}
-
-async function fetchCLMRecent(countryName: string): Promise<LookerRow | null> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [
-      `${VIEW_PREFIX}.accounts_created_clm`,
-      `${VIEW_PREFIX}.clm_finished_segmentation`,
-      `${VIEW_PREFIX}.submitted_all_docs_step`,
-      `${VIEW_PREFIX}.accounts_approved`,
-      `${VIEW_PREFIX}.fft_dynamic_measure`,
-    ],
-    filters: {
-      [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
-      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
-      [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
-      [`${VIEW_PREFIX}.ah_creation_date_date`]: RECENT_FILTER,
-      [`${VIEW_PREFIX}.is_bot`]: '0',
-      [`${VIEW_PREFIX}.is_blocked`]: '0',
-      [`${VIEW_PREFIX}.country_name`]: countryName,
-    },
-    limit: '10',
-  });
-  const data = stripViewPrefix(result.results);
-  return data[0] || null;
-}
-
 // ─── Analysis ─────────────────────────────────────────────────
-
-function buildCLMMetrics(row: LookerRow): CLMMetrics {
-  const created = (row.accounts_created_clm as number) || 0;
-  return {
-    created,
-    approved: (row.accounts_approved as number) || 0,
-    ftl: (row.fft_dynamic_measure as number) || 0,
-    approval_rate: created > 0 ? ((row.accounts_approved as number) || 0) / created : 0,
-    ftl_rate: created > 0 ? ((row.fft_dynamic_measure as number) || 0) / created : 0,
-    seg_rate: created > 0 ? ((row.clm_finished_segmentation as number) || 0) / created : 0,
-    docs_rate: created > 0 ? ((row.submitted_all_docs_step as number) || 0) / created : 0,
-  };
-}
 
 function build4StepMetrics(row: LookerRow, findings?: Finding[]): FourStepMetrics {
   const created = (row.accounts_created as number) || 0;
@@ -298,17 +212,15 @@ export async function run(options: DeepDiveOptions): Promise<DeepDiveResult> {
     };
   }
 
-  const [clmMatureRaw, fsMatureRaw, clmWeekly, clmRecentRaw] = await Promise.all([
-    fetchCLMMature(country),
+  const [clmMature, fsMatureRaw, clmWeekly, clmRecent] = await Promise.all([
+    fetchClmCountry(country, MATURE_COHORT_FILTER),
     fetch4StepMature(country),
-    fetchCLMWeekly(country),
-    fetchCLMRecent(country),
+    fetchClmWeekly(country, WEEKLY_TREND_FILTER),
+    fetchClmCountry(country, RECENT_FILTER),
   ]);
 
   const findings: Finding[] = [];
-  const clmMature = clmMatureRaw ? buildCLMMetrics(clmMatureRaw) : null;
   const fsMature = fsMatureRaw ? build4StepMetrics(fsMatureRaw, findings) : null;
-  const clmRecent = clmRecentRaw ? buildCLMMetrics(clmRecentRaw) : null;
   const tier = String(rollout.country_business_tier);
   const rolloutPct = (rollout.clm_rollout_percentage as number) || 0;
 
@@ -327,7 +239,7 @@ export async function run(options: DeepDiveOptions): Promise<DeepDiveResult> {
   const volumeTrend = clmWeekly.map(w => ({
     week: w.ah_creation_date_week as string,
     weeks_ago: getWeeksAgo(w.ah_creation_date_week as string),
-    created: (w.accounts_created_clm as number) || 0,
+    created: (w.accounts_created as number) || 0,
   })).sort((a, b) => b.weeks_ago - a.weeks_ago);
 
   let volumeChange: number | undefined;

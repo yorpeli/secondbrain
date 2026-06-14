@@ -1,10 +1,19 @@
 ---
-summary: Looker API guide for CLM funnel — model/view, all funnel measures, 47 filters with defaults, key Look IDs, query patterns
+summary: "LEGACY Looker guide for the clm_population_main_dashboard explore — superseded for CLM query mechanics by the clm_main skill; retained for 4Step GLPS, rollout, auth notes"
 topics: [looker, data-analysis, clm-funnel, metrics, api]
 agents: [analytics]
 ---
 
 # Looker — CLM Funnel Data Guide
+
+> ⚠️ **STATUS (2026-06-11): superseded for query mechanics.** The canonical way to query
+> CLM data is now the **`clm_main` semantic layer** — see `.claude/skills/clm-main/SKILL.md`
+> and `analytics/lib/clm-main-metrics.ts` (`buildClmMainQuery()`), which enforce the required
+> filters, the mandatory population logic, and predefined rate measures. The model/view
+> (`clm_population_main_dashboard`), field names, filters, and Look IDs below describe the
+> **legacy explore**, retained only for the 4Step GLPS comparison and rollout status (and 4Step
+> itself is being retired ~2026-06). Auth/connection notes and CLM business framing remain useful;
+> do **not** use the legacy CLM field names below for new analysis.
 
 > How to pull CLM funnel data from Looker via API.
 > For general analytical context, see `CLM-Data-Context.md`.

@@ -1,21 +1,31 @@
 /**
  * Country Diagnostic Analysis
  *
- * Ported from Looker2/scripts/diagnose-country.js
+ * Migrated to the clm_main semantic layer (2026-06-11). CLM-only analysis — no
+ * 4Step/GLPS — so it runs entirely on clm_main via lib/clm-main-metrics.ts.
  *
- * 5 queries: baseline, by AH type, by device, by combination, weekly trend
+ * 5 queries: baseline, by AH type, by device, by combination, weekly trend.
  * Identifies issues by comparing segments to baseline, detecting red/yellow flags.
+ *
+ * Changes vs the legacy clm_population_main_dashboard version:
+ *   - kyc_flow='D2P' replaces the banned registration_program_calc='Payoneer D2P'
+ *   - chosen_country_name replaces country_name
+ *   - mandatory population filter_expression replaces flat is_blocked=0
+ *   - predefined approval_rate / full_document_submission_rate measures
+ *   - account_holder_type / device_category_type replace the dynamic_dimension hack
  */
 
-import * as looker from '../lib/looker-client.js';
-import { stripViewPrefix } from '../lib/data-utils.js';
-import { formatPct, sparkline, getWeeksAgo } from '../lib/formatting.js';
+import { formatPct, getWeeksAgo } from '../lib/formatting.js';
 import {
-  VIEW_PREFIX,
-  LOOKER_MODEL,
+  fetchClmCountry,
+  fetchClmByDimension,
+  fetchClmWeekly,
+  rowToClmMetrics,
+  type ClmCountryMetrics,
+} from '../lib/clm-main-metrics.js';
+import {
   MATURE_COHORT_FILTER,
   WEEKLY_TREND_FILTER,
-  CLM_STEPS,
   DIAGNOSTIC_THRESHOLDS as TH,
 } from '../config/constants.js';
 import type {
@@ -34,125 +44,19 @@ interface DiagnoseOptions {
   minVolume?: number;
 }
 
-// ─── Queries ──────────────────────────────────────────────────
-
-function clmFields(): string[] {
-  return [
-    ...CLM_STEPS.map(s => `${VIEW_PREFIX}.${s.field}`),
-    `${VIEW_PREFIX}.fft_dynamic_measure`,
-  ];
-}
-
-const BASE_FILTERS = (country: string): Record<string, string> => ({
-  [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
-  [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
-  [`${VIEW_PREFIX}.country_name`]: country,
-  [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
-  [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
-  [`${VIEW_PREFIX}.is_bot`]: '0',
-  [`${VIEW_PREFIX}.is_blocked`]: '0',
-});
-
-async function fetchOverallBaseline(country: string): Promise<LookerRow | null> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: clmFields(),
-    filters: BASE_FILTERS(country),
-    limit: '1',
-  });
-  return stripViewPrefix(result.results)[0] || null;
-}
-
-async function fetchByAHType(country: string): Promise<LookerRow[]> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [`${VIEW_PREFIX}.entity_type`, ...clmFields()],
-    filters: BASE_FILTERS(country),
-    sorts: [`${VIEW_PREFIX}.accounts_created_clm desc`],
-    limit: '10',
-  });
-  return stripViewPrefix(result.results);
-}
-
-async function fetchByDevice(country: string): Promise<LookerRow[]> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [`${VIEW_PREFIX}.dynamic_dimension`, ...clmFields()],
-    filters: {
-      ...BASE_FILTERS(country),
-      [`${VIEW_PREFIX}.dimension_selector`]: 'device type',
-    },
-    sorts: [`${VIEW_PREFIX}.accounts_created_clm desc`],
-    limit: '10',
-  });
-  return stripViewPrefix(result.results);
-}
-
-async function fetchByCombination(country: string): Promise<LookerRow[]> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [
-      `${VIEW_PREFIX}.entity_type`,
-      `${VIEW_PREFIX}.dynamic_dimension`,
-      ...clmFields(),
-    ],
-    filters: {
-      ...BASE_FILTERS(country),
-      [`${VIEW_PREFIX}.dimension_selector`]: 'device type',
-    },
-    sorts: [`${VIEW_PREFIX}.accounts_created_clm desc`],
-    limit: '20',
-  });
-  return stripViewPrefix(result.results);
-}
-
-async function fetchWeeklyTrend(country: string): Promise<LookerRow[]> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [`${VIEW_PREFIX}.ah_creation_date_week`, ...clmFields()],
-    filters: {
-      ...BASE_FILTERS(country),
-      [`${VIEW_PREFIX}.ah_creation_date_date`]: WEEKLY_TREND_FILTER,
-    },
-    sorts: [`${VIEW_PREFIX}.ah_creation_date_week`],
-    limit: '20',
-  });
-  return stripViewPrefix(result.results);
-}
-
 // ─── Analysis ─────────────────────────────────────────────────
 
-interface BaselineRates {
-  created: number;
-  seg_rate: number;
-  docs_rate: number;
-  approval_rate: number;
-  ftl_rate: number;
-}
-
-function calculateRates(row: LookerRow): BaselineRates | null {
-  const created = (row.accounts_created_clm as number) || 0;
-  if (created === 0) return null;
-  return {
-    created,
-    seg_rate: ((row.clm_finished_segmentation as number) || 0) / created,
-    docs_rate: ((row.submitted_all_docs_step as number) || 0) / created,
-    approval_rate: ((row.accounts_approved as number) || 0) / created,
-    ftl_rate: ((row.fft_dynamic_measure as number) || 0) / created,
-  };
+/** Rates for a clm_main row, or null when the segment has no created accounts. */
+function ratesOrNull(row: LookerRow): ClmCountryMetrics | null {
+  const m = rowToClmMetrics(row);
+  return m.created > 0 ? m : null;
 }
 
 function analyzeSegment(
   segmentName: string,
-  segmentData: LookerRow,
-  baseline: BaselineRates,
+  rates: ClmCountryMetrics | null,
+  baseline: ClmCountryMetrics,
 ): SegmentAnalysis {
-  const rates = calculateRates(segmentData);
   if (!rates || rates.created < TH.MIN_SEGMENT_VOLUME) {
     return {
       segment: segmentName,
@@ -200,7 +104,7 @@ function analyzeTrend(weeklyData: LookerRow[]): TrendAnalysis {
 
   const allWeeks = weeklyData
     .map(row => {
-      const rates = calculateRates(row);
+      const rates = ratesOrNull(row);
       return rates
         ? {
             week: row.ah_creation_date_week as string,
@@ -281,15 +185,15 @@ function analyzeTrend(weeklyData: LookerRow[]): TrendAnalysis {
 export async function run(options: DiagnoseOptions): Promise<DiagnoseResult> {
   const { country } = options;
 
-  const [overallData, ahTypeData, deviceData, comboData, weeklyData] = await Promise.all([
-    fetchOverallBaseline(country),
-    fetchByAHType(country),
-    fetchByDevice(country),
-    fetchByCombination(country),
-    fetchWeeklyTrend(country),
+  const [baseline, ahTypeData, deviceData, comboData, weeklyData] = await Promise.all([
+    fetchClmCountry(country, MATURE_COHORT_FILTER),
+    fetchClmByDimension(country, ['account_holder_type'], MATURE_COHORT_FILTER, '10'),
+    fetchClmByDimension(country, ['device_category_type'], MATURE_COHORT_FILTER, '10'),
+    fetchClmByDimension(country, ['account_holder_type', 'device_category_type'], MATURE_COHORT_FILTER, '20'),
+    fetchClmWeekly(country, WEEKLY_TREND_FILTER),
   ]);
 
-  if (!overallData || !((overallData.accounts_created_clm as number) > 0)) {
+  if (!baseline || baseline.created === 0) {
     return {
       command: { type: 'diagnose', country },
       summary: `${country}: No CLM data found.`,
@@ -306,14 +210,16 @@ export async function run(options: DiagnoseOptions): Promise<DiagnoseResult> {
     };
   }
 
-  const baseline = calculateRates(overallData)!;
-
-  const byAHType = ahTypeData.map(row => analyzeSegment((row.entity_type as string) || 'Unknown', row, baseline));
-  const byDevice = deviceData.map(row => analyzeSegment((row.dynamic_dimension as string) || 'Unknown', row, baseline));
+  const byAHType = ahTypeData.map(row =>
+    analyzeSegment((row.account_holder_type as string) || 'Unknown', ratesOrNull(row), baseline),
+  );
+  const byDevice = deviceData.map(row =>
+    analyzeSegment((row.device_category_type as string) || 'Unknown', ratesOrNull(row), baseline),
+  );
   const byCombination = comboData.map(row => {
-    const ahType = (row.entity_type as string) || 'Unknown';
-    const device = (row.dynamic_dimension as string) || 'Unknown';
-    return analyzeSegment(`${ahType} + ${device}`, row, baseline);
+    const ahType = (row.account_holder_type as string) || 'Unknown';
+    const device = (row.device_category_type as string) || 'Unknown';
+    return analyzeSegment(`${ahType} + ${device}`, ratesOrNull(row), baseline);
   });
   const trend = analyzeTrend(weeklyData);
 

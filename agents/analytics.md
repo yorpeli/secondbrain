@@ -28,7 +28,19 @@ npx tsx analytics/run.ts compare <country> [--detailed]
 npx tsx analytics/run.ts deep-dive <country>
 npx tsx analytics/run.ts diagnose <country>
 npx tsx analytics/run.ts check-tasks
+npm run analytics:drift-check         # canary: do the clm_main fields the flow depends on still resolve?
+npm run analytics:validate-explore    # old-vs-new population/rate delta on a mature window
 ```
+
+### Data flow & the 2026-06-11 clm_main migration
+
+The CLM side of all four analyses now runs on the `clm_main` semantic layer via `analytics/lib/clm-main-metrics.ts` (`diagnose` is fully clm_main; `compare`/`deep-dive`/`scan-opportunities` are **hybrid** — CLM from clm_main, 4Step GLPS + rollout from the legacy explore). Consequences to keep in mind:
+
+- **CLM approval/doc rates read ~2–6pp higher** than the pre-migration numbers, because the corrected population logic stops counting blocked/closed-by-risk non-approved accounts in the denominator, and `chosen_country_name` ties the denominator to post-signup country selection. This is a correction, not an improvement in the funnel.
+- **Opportunity verdicts shifted toward opportunity.** `compare`/`scan-opportunities` compute `delta = CLM − 4Step`; raising the CLM side widens the delta, so more countries land in STRONG/WEAK. The thresholds in `config/constants.ts` (`OPPORTUNITY_THRESHOLDS.STRONG = +2%`) were calibrated against the deflated CLM rates — **treat current verdicts as directional and flag that thresholds likely need recalibration** before leaning on them for rollout decisions.
+- **CLM vs 4Step is not perfectly apples-to-apples**: the CLM side carries the corrected population; the 4Step side keeps its GLPS methodology on the legacy explore (the only place GLPS exists). FFT on the CLM side is any-FFT (`fft_rate_from_registration`), vs 30-day FFT on 4Step. Both are secondary to approval.
+- **`registration_program_calc` is banned on clm_main** — the CLM population is selected with `kyc_flow = 'D2P'`.
+- Run `analytics:drift-check` if a clm_main query suddenly errors — it pinpoints a renamed/removed field.
 
 **Agent task (from other agents or humans):**
 ```sql

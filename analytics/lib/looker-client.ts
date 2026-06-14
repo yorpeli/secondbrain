@@ -133,6 +133,38 @@ export async function authenticate(): Promise<string> {
 }
 
 /**
+ * Get an explore's LookML metadata, including its full field list.
+ * Used by the clm_main drift-check to detect when the team's semantic layer changes.
+ */
+export async function getExploreFields(
+  model: string,
+  explore: string,
+): Promise<{ dimensions: string[]; measures: string[] }> {
+  const cfg = getConfig();
+  const token = await authenticate();
+
+  const response = await fetchWithRetry(
+    `https://${cfg.baseUrl}/api/4.0/lookml_models/${model}/explores/${explore}`,
+    {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+
+  const data = (await response.json()) as {
+    fields?: {
+      dimensions?: { name: string }[];
+      measures?: { name: string }[];
+    };
+  };
+
+  return {
+    dimensions: (data.fields?.dimensions ?? []).map(f => f.name),
+    measures: (data.fields?.measures ?? []).map(f => f.name),
+  };
+}
+
+/**
  * Get a Look's details including query information.
  */
 export async function getLook(lookId: string | number): Promise<Record<string, unknown>> {

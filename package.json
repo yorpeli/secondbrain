@@ -7,6 +7,8 @@
     "typecheck": "tsc --noEmit",
     "gen:types": "supabase gen types typescript --project-id tjlcdwsckbbkedyzrzda > lib/database.types.ts",
     "analytics:run": "tsx analytics/run.ts",
+    "analytics:drift-check": "tsx scripts/clm-main-drift-check.ts",
+    "analytics:validate-explore": "tsx scripts/validate-clm-main-explore.ts",
     "dataviz:run": "tsx data-viz/run.ts",
     "dataviz:demo": "tsx data-viz/run.ts demo",
     "team-lead:run": "tsx pm_team/team-lead/run.ts",
@@ -28,7 +30,8 @@
     "command-center:gather": "tsx scripts/command-center/gather-context.ts",
     "command-center:capture": "tsx scripts/command-center/capture.ts",
     "command-center:day": "tsx scripts/command-center/day.ts",
-    "comms-learning": "tsx scripts/comms-learning/run.ts"
+    "comms-assistant": "tsx comms-assistant/run.ts",
+    "comms-learning": "tsx comms-assistant/run.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

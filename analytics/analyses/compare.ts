@@ -5,11 +5,20 @@
  *
  * detailed=false → quick comparison (2 queries, approval + FTL delta)
  * detailed=true  → adds weekly trends, mid-funnel steps, trend analysis
+ *
+ * HYBRID (2026-06-11): the CLM side runs on the clm_main semantic layer
+ * (lib/clm-main-metrics.ts, corrected population + predefined rates). The 4Step
+ * side stays on the legacy clm_population_main_dashboard explore because the
+ * GLPS-adjusted approval metric only exists there. Both sides use the same cohort
+ * window so the comparison stays time-aligned. CLM approval rates therefore read
+ * ~2-6pp higher than the legacy CLM-side did — opportunity thresholds may warrant
+ * recalibration (see agents/analytics.md).
  */
 
 import * as looker from '../lib/looker-client.js';
 import { stripViewPrefix, calculateAccountsApprovedGLPS } from '../lib/data-utils.js';
 import { formatPct, formatNum, getWeeksAgo } from '../lib/formatting.js';
+import { fetchClmCountry, fetchClmWeekly } from '../lib/clm-main-metrics.js';
 import {
   VIEW_PREFIX,
   LOOKER_MODEL,
@@ -35,33 +44,8 @@ interface CompareOptions {
 }
 
 // ─── Queries ──────────────────────────────────────────────────
-
-async function fetchCLM(countryName: string): Promise<LookerRow | null> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [
-      `${VIEW_PREFIX}.accounts_created_clm`,
-      `${VIEW_PREFIX}.clm_finished_segmentation`,
-      `${VIEW_PREFIX}.submitted_all_docs_step`,
-      `${VIEW_PREFIX}.accounts_approved`,
-      `${VIEW_PREFIX}.fft_dynamic_measure`,
-    ],
-    filters: {
-      [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
-      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
-      [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
-      [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
-      [`${VIEW_PREFIX}.is_bot`]: '0',
-      [`${VIEW_PREFIX}.is_blocked`]: '0',
-      [`${VIEW_PREFIX}.country_name`]: countryName,
-    },
-    limit: '10',
-  });
-
-  const data = stripViewPrefix(result.results);
-  return data[0] || null;
-}
+// CLM side → clm_main via fetchClmCountry / fetchClmWeekly.
+// 4Step side → legacy explore (GLPS table-calc lives only there).
 
 async function fetch4Step(countryName: string): Promise<LookerRow | null> {
   const result = await looker.createAndRunQuery({
@@ -90,32 +74,6 @@ async function fetch4Step(countryName: string): Promise<LookerRow | null> {
 
   const data = stripViewPrefix(result.results);
   return data[0] || null;
-}
-
-async function fetchCLMWeekly(countryName: string): Promise<LookerRow[]> {
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [
-      `${VIEW_PREFIX}.ah_creation_date_week`,
-      `${VIEW_PREFIX}.accounts_created_clm`,
-      `${VIEW_PREFIX}.accounts_approved`,
-      `${VIEW_PREFIX}.fft_dynamic_measure`,
-    ],
-    filters: {
-      [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
-      [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
-      [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
-      [`${VIEW_PREFIX}.ah_creation_date_date`]: TREND_FILTER,
-      [`${VIEW_PREFIX}.is_bot`]: '0',
-      [`${VIEW_PREFIX}.is_blocked`]: '0',
-      [`${VIEW_PREFIX}.country_name`]: countryName,
-    },
-    sorts: [`${VIEW_PREFIX}.ah_creation_date_week`],
-    limit: '20',
-  });
-
-  return stripViewPrefix(result.results);
 }
 
 async function fetch4StepWeekly(countryName: string): Promise<LookerRow[]> {
@@ -147,24 +105,6 @@ async function fetch4StepWeekly(countryName: string): Promise<LookerRow[]> {
 }
 
 // ─── Processing ───────────────────────────────────────────────
-
-function buildCLMMetrics(row: LookerRow): CLMMetrics {
-  const created = (row.accounts_created_clm as number) || 0;
-  const approved = (row.accounts_approved as number) || 0;
-  const ftl = (row.fft_dynamic_measure as number) || 0;
-  const seg = (row.clm_finished_segmentation as number) || 0;
-  const docs = (row.submitted_all_docs_step as number) || 0;
-
-  return {
-    created,
-    approved,
-    ftl,
-    approval_rate: created > 0 ? approved / created : 0,
-    ftl_rate: created > 0 ? ftl / created : 0,
-    seg_rate: created > 0 ? seg / created : 0,
-    docs_rate: created > 0 ? docs / created : 0,
-  };
-}
 
 function build4StepMetrics(row: LookerRow, findings?: Finding[]): FourStepMetrics {
   const created = (row.accounts_created as number) || 0;
@@ -198,12 +138,16 @@ function classifyOpportunity(approvalDelta: number): OpportunityStatus {
   return 'NO_OPPORTUNITY';
 }
 
-function buildWeeklyDataPoints(rows: LookerRow[], createdField: string): WeeklyDataPoint[] {
+/** Build weekly points from clm_main weekly rows (predefined approval_rate when present). */
+function buildClmWeeklyDataPoints(rows: LookerRow[]): WeeklyDataPoint[] {
   return rows.map(row => {
     const week = row.ah_creation_date_week as string;
-    const created = (row[createdField] as number) || 0;
+    const created = (row.accounts_created as number) || 0;
     const approved = (row.accounts_approved as number) || 0;
-    const ftl = (row.fft_dynamic_measure as number) || 0;
+    const ftl = (row.fft_accounts as number) || 0;
+    const approval_rate = 'approval_rate' in row
+      ? (row.approval_rate as number) || 0
+      : created > 0 ? approved / created : 0;
 
     return {
       week,
@@ -211,7 +155,7 @@ function buildWeeklyDataPoints(rows: LookerRow[], createdField: string): WeeklyD
       created,
       approved,
       ftl,
-      approval_rate: created > 0 ? approved / created : 0,
+      approval_rate,
       ftl_rate: created > 0 ? ftl / created : 0,
     };
   });
@@ -222,18 +166,20 @@ function buildWeeklyDataPoints(rows: LookerRow[], createdField: string): WeeklyD
 export async function run(options: CompareOptions): Promise<CompareResult> {
   const { country, detailed = false } = options;
 
-  // Always fetch mature baselines
-  const fetchOps: Promise<unknown>[] = [fetchCLM(country), fetch4Step(country)];
+  // Always fetch mature baselines. CLM side → clm_main; 4Step side → legacy explore.
+  const fetchOps: Promise<unknown>[] = [
+    fetchClmCountry(country, MATURE_COHORT_FILTER),
+    fetch4Step(country),
+  ];
   if (detailed) {
-    fetchOps.push(fetchCLMWeekly(country), fetch4StepWeekly(country));
+    fetchOps.push(fetchClmWeekly(country, TREND_FILTER), fetch4StepWeekly(country));
   }
 
   const results = await Promise.all(fetchOps);
-  const clmData = results[0] as LookerRow | null;
+  const clm = (results[0] as CLMMetrics | null) ?? null;
   const fsData = results[1] as LookerRow | null;
 
   const findings: Finding[] = [];
-  const clm = clmData ? buildCLMMetrics(clmData) : null;
   const fourStep = fsData ? build4StepMetrics(fsData, findings) : null;
 
   let delta: { approval: number; ftl: number } | null = null;
@@ -253,7 +199,7 @@ export async function run(options: CompareOptions): Promise<CompareResult> {
 
   if (detailed) {
     const clmWeekly = results[2] as LookerRow[];
-    weeklyTrends = buildWeeklyDataPoints(clmWeekly, 'accounts_created_clm');
+    weeklyTrends = buildClmWeeklyDataPoints(clmWeekly);
 
     const matureWeeks = weeklyTrends.filter(w => w.weeks_ago >= 8);
     if (matureWeeks.length >= 2) {

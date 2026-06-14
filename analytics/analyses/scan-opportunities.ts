@@ -9,11 +9,20 @@
  * - Fetches all countries in bulk (3 queries) to minimize API usage
  * - Filters locally to Tier 0/1/2
  * - Calculates GLPS-adjusted approval rate for 4Step
+ *
+ * HYBRID (2026-06-11): the CLM-mature query runs on the clm_main semantic layer
+ * (lib/clm-main-metrics.ts, corrected population + predefined rates). Rollout status
+ * and the 4Step (GLPS) query stay on the legacy clm_population_main_dashboard explore.
+ * Join key is the country name (legacy country_name ↔ clm_main chosen_country_name).
+ * CLM approval rates read ~2-6pp higher than the legacy CLM side, so the
+ * CLM-vs-4Step delta — and the opportunity status — shifts toward opportunity;
+ * thresholds may warrant recalibration (see agents/analytics.md).
  */
 
 import * as looker from '../lib/looker-client.js';
 import { stripViewPrefix, calculateAccountsApprovedGLPS } from '../lib/data-utils.js';
 import { formatPct, formatNum } from '../lib/formatting.js';
+import { fetchClmAllCountries, rowToClmMetrics, type ClmCountryMetrics } from '../lib/clm-main-metrics.js';
 import {
   VIEW_PREFIX,
   LOOKER_MODEL,
@@ -67,37 +76,6 @@ async function fetchRolloutStatus(entityType?: string): Promise<LookerRow[]> {
   return stripViewPrefix(result.results);
 }
 
-async function fetchCLMMature(entityType?: string): Promise<LookerRow[]> {
-  const filters: Record<string, string> = {
-    [`${VIEW_PREFIX}.is_clm_registration`]: 'CLM',
-    [`${VIEW_PREFIX}.registration_program_calc`]: 'Payoneer D2P',
-    [`${VIEW_PREFIX}.map_payments`]: 'Exclude',
-    [`${VIEW_PREFIX}.ah_creation_date_date`]: MATURE_COHORT_FILTER,
-    [`${VIEW_PREFIX}.is_bot`]: '0',
-    [`${VIEW_PREFIX}.is_blocked`]: '0',
-    [`${VIEW_PREFIX}.country_name`]: '-NULL',
-  };
-  if (entityType) filters[`${VIEW_PREFIX}.entity_type`] = entityType;
-
-  const result = await looker.createAndRunQuery({
-    model: LOOKER_MODEL,
-    view: VIEW_PREFIX,
-    fields: [
-      `${VIEW_PREFIX}.country_name`,
-      `${VIEW_PREFIX}.accounts_created_clm`,
-      `${VIEW_PREFIX}.clm_finished_segmentation`,
-      `${VIEW_PREFIX}.submitted_all_docs_step`,
-      `${VIEW_PREFIX}.accounts_approved`,
-      `${VIEW_PREFIX}.fft_dynamic_measure`,
-    ],
-    filters,
-    sorts: [`${VIEW_PREFIX}.country_name`],
-    limit: '500',
-  });
-
-  return stripViewPrefix(result.results);
-}
-
 async function fetch4StepMature(entityType?: string): Promise<LookerRow[]> {
   const filters: Record<string, string> = {
     [`${VIEW_PREFIX}.is_clm_registration`]: '4STEP',
@@ -137,9 +115,10 @@ function joinData(
   rolloutData: LookerRow[],
   clmData: LookerRow[],
   fourStepData: LookerRow[],
-): { country_name: string; tier: number; rollout_pct: number; clm: LookerRow | null; four_step: LookerRow | null }[] {
-  const clmByCountry: Record<string, LookerRow> = {};
-  for (const row of clmData) clmByCountry[row.country_name as string] = row;
+): { country_name: string; tier: number; rollout_pct: number; clm: ClmCountryMetrics | null; four_step: LookerRow | null }[] {
+  // clm_main rows are keyed by chosen_country_name (matches legacy country_name strings).
+  const clmByCountry: Record<string, ClmCountryMetrics> = {};
+  for (const row of clmData) clmByCountry[row.chosen_country_name as string] = rowToClmMetrics(row);
 
   const fourStepByCountry: Record<string, LookerRow> = {};
   for (const row of fourStepData) fourStepByCountry[row.country_name as string] = row;
@@ -179,24 +158,9 @@ function calculateMetrics(
     };
 
     if (row.clm) {
-      const created = (row.clm.accounts_created_clm as number) || 0;
-      const approved = (row.clm.accounts_approved as number) || 0;
-      const ftl = (row.clm.fft_dynamic_measure as number) || 0;
-      const seg = (row.clm.clm_finished_segmentation as number) || 0;
-      const docs = (row.clm.submitted_all_docs_step as number) || 0;
-
-      result.clm = {
-        created,
-        approved,
-        ftl,
-        approval_rate: created > 0 ? approved / created : 0,
-        ftl_rate: created > 0 ? ftl / created : 0,
-        seg_rate: created > 0 ? seg / created : 0,
-        docs_rate: created > 0 ? docs / created : 0,
-      };
-
-      if (created < minVolume) {
-        result.warnings.push(`LOW_CLM_VOLUME (${created})`);
+      result.clm = row.clm;
+      if (row.clm.created < minVolume) {
+        result.warnings.push(`LOW_CLM_VOLUME (${row.clm.created})`);
       }
     } else {
       result.warnings.push('NO_CLM_DATA');
@@ -261,7 +225,7 @@ export async function run(options: ScanOptions = {}): Promise<ScanResult> {
 
   const [rolloutData, clmData, fourStepData] = await Promise.all([
     fetchRolloutStatus(options.entityType),
-    fetchCLMMature(options.entityType),
+    fetchClmAllCountries(MATURE_COHORT_FILTER, options.entityType),
     fetch4StepMature(options.entityType),
   ]);
 
