@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comms Triage</title>
+<!-- Editable triage template. render-triage.ts fills the title, subtitle, list and detail
+     placeholders below. Card/list markup is generated in render-triage.ts; this file owns the
+     shell, styling, theme + interactions — safe to restyle. -->
+<style>
+:root{
+  --bg:#f3f4f6;--panel:#ffffff;--side:#fafafa;--border:#e5e7eb;--soft:#f0f0f0;
+  --text:#111827;--muted:#6b7280;--faint:#9ca3af;--accent:#111827;--liactive:#eef2ff;--inputbg:#ffffff;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+[data-theme="dark"]{
+  --bg:#0f1115;--panel:#181b22;--side:#14171d;--border:#2a2f3a;--soft:#23272f;
+  --text:#e5e7eb;--muted:#9aa3b2;--faint:#6b7280;--accent:#3b82f6;--liactive:#1f2530;--inputbg:#0f1115}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--panel)}
+.top h1{font-size:16px;margin:0} .top .sub{color:var(--muted);font-size:12px;margin-left:10px}
+.toggle{font-size:12px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:7px;padding:6px 11px;cursor:pointer}
+.app{flex:1;display:flex;min-height:0}
+.side{width:300px;flex-shrink:0;overflow:auto;border-right:1px solid var(--border);background:var(--side)}
+.li{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--soft);padding:12px 16px;cursor:pointer;color:var(--text)}
+.li:hover{background:var(--liactive)} .li.active{background:var(--liactive);box-shadow:inset 3px 0 0 var(--accent)}
+.li-subj{font-size:13px;font-weight:600;line-height:1.35;margin-bottom:3px}
+.cicon{display:inline-flex;vertical-align:-2px;margin-right:6px;flex-shrink:0}
+.cicon svg{width:14px;height:14px}
+.li-subj .cicon svg{width:13px;height:13px} .subj .cicon svg{width:17px;height:17px}
+.li-meta{font-size:11px;color:var(--muted)} .li-badges{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.main{flex:1;overflow:auto;padding:22px}
+.detail{display:none} .detail.show{display:block}
+.ch{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.subj{font-weight:650;font-size:17px} .meta{color:var(--muted);font-size:12px;margin-top:4px}
+.cols{display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:18px}
+.col{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px}
+h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.excerpt{font-size:13px;line-height:1.55;color:var(--text);white-space:pre-wrap;max-height:60vh;overflow:auto}
+.lbl{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);margin:14px 0 6px}
+.lbl.tog{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}
+.lbl.tog:hover{color:var(--muted)}
+.car{font-size:8px;display:inline-block;transition:transform .15s}
+.lbl.tog:not(.collapsed) .car{transform:rotate(90deg)}
+.sec{margin-top:2px}
+.hidden{display:none}
+.morebtn{font-size:10px;border:1px solid var(--border);background:var(--panel);color:var(--muted);border-radius:999px;padding:1px 8px;cursor:pointer;margin-left:5px;vertical-align:middle}
+.people{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.chip{font-size:11px;border:1px solid;border-radius:999px;padding:2px 8px}
+.rl{margin:0;padding-left:16px} .rl li{font-size:12px;color:var(--text);margin-bottom:3px;opacity:.85}
+.rule{font-size:12px;color:var(--text);margin-bottom:7px;line-height:1.45} .wb{color:#fff;font-size:9px;text-transform:uppercase;border-radius:4px;padding:1px 5px;margin-right:4px}
+.snip{font-size:11px;color:var(--text);opacity:.8;margin-bottom:6px;line-height:1.4} .prov{color:var(--faint)}
+.brief{font-size:12px;line-height:1.5;color:var(--text)} .brief.muted{color:var(--faint);font-style:italic}
+.brief-sum{font-weight:600;margin-bottom:6px} .brief-pts{margin:0;padding-left:18px} .brief-pts li{margin-bottom:4px;line-height:1.45}
+.tsum{font-size:12px;line-height:1.5;color:var(--text);background:var(--soft);border-radius:8px;padding:10px 12px;opacity:.92}
+.src{font-size:10px;color:var(--faint);margin-top:7px;line-height:1.4;word-break:break-word}
+.muted{color:var(--faint);font-size:12px}
+.langtog{display:flex;align-items:center;gap:7px;justify-content:flex-end;margin-bottom:7px}
+.langnote{font-size:10px;color:var(--faint);margin-right:auto}
+.langbtn{font-size:10px;border:1px solid var(--border);background:var(--panel);color:var(--muted);padding:3px 10px;cursor:pointer;text-transform:uppercase;letter-spacing:.04em}
+.langbtn:first-of-type{border-radius:6px 0 0 6px} .langbtn:last-of-type{border-radius:0 6px 6px 0;border-left:none}
+.langbtn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.draft{width:100%;font-family:inherit;font-size:13px;line-height:1.55;border:1px solid var(--border);border-radius:8px;padding:11px;resize:vertical;background:var(--inputbg);color:var(--text)}
+.draft[dir="rtl"]{text-align:right}
+.row{display:flex;align-items:center;gap:10px;margin-top:9px}
+.why{font-size:13px;line-height:1.55;color:var(--text);margin-top:12px;padding:12px 14px;background:var(--soft);border-left:3px solid var(--accent);border-radius:0 8px 8px 0}
+.why-lbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;margin-bottom:5px}
+.btn{font-size:12px;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:7px;padding:6px 11px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn.copy,.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.badge{font-size:10px;border-radius:5px;padding:2px 7px;text-transform:uppercase;letter-spacing:.03em}
+.dp{background:#eef2ff;color:#3730a3} .cf{background:#ecfdf5;color:#065f46} .nd{background:#fef2f2;color:#991b1b}
+[data-theme="dark"] .dp{background:#1e2540;color:#a5b4fc}[data-theme="dark"] .cf{background:#0e2b22;color:#6ee7b7}[data-theme="dark"] .nd{background:#3a1d1d;color:#fca5a5}
+</style></head><body>
+<div class="top"><div><h1>{{TITLE}}<span class="sub">{{SUBTITLE}}</span></h1></div>
+  <button class="toggle" onclick="toggleTheme()" id="tg">🌙 Dark</button></div>
+<div class="app">
+  <nav class="side">{{LIST}}</nav>
+  <main class="main">{{DETAILS}}</main>
+</div>
+<script>
+function sel(i){document.querySelectorAll('.detail').forEach(d=>d.classList.remove('show'));document.getElementById('d'+i).classList.add('show');
+  document.querySelectorAll('.li').forEach(l=>l.classList.remove('active'));document.getElementById('li'+i).classList.add('active');}
+function togSec(el){el.classList.toggle('collapsed');el.nextElementSibling.classList.toggle('hidden');}
+function togMore(id,btn,n){var e=document.getElementById(id);var h=e.classList.toggle('hidden');btn.textContent=h?('+'+n+' more'):'show less';}
+function setLang(i,which,btn){var t=document.getElementById('t'+i);var cur=t.getAttribute('data-cur')||'a';
+  t.setAttribute('data-'+cur,t.value);                       // preserve edits in the current language
+  var v=t.getAttribute('data-'+which)||'';t.value=v;t.setAttribute('data-cur',which);
+  t.setAttribute('dir',/[֐-׿]/.test(v)?'rtl':'ltr');
+  var g=btn.parentElement;g.querySelectorAll('.langbtn').forEach(function(b){b.classList.remove('on')});btn.classList.add('on');}
+function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('tg').textContent=t==='dark'?'☀️ Light':'🌙 Dark';localStorage.setItem('triageTheme',t);}
+function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
+applyTheme(localStorage.getItem('triageTheme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+sel(0);
+</script></body></html>

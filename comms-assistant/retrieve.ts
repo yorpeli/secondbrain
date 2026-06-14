@@ -275,7 +275,7 @@ export async function searchNarrative(
   const topK = opts?.topK ?? 3
   // comms_predictions / comms_rules are NEVER searched (privacy). Lower threshold + higher limit
   // because subject-line queries are short; we trim to topK after the as-of filter.
-  const raw = await searchByType(query, types as string[], { threshold: 0.3, limit: 40 })
+  const raw = await searchByType(query, types as string[], { threshold: 0.4, limit: 40 })
   if (!raw.length) return { snippets: [], leakRisk: false }
 
   const tsMap = await sourceTimestamps(raw)

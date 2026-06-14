@@ -27,7 +27,7 @@ narrative semantic):
 - **Spine — rules**: `comms_rules` scope-match (SQL). assert / whisper / track by confidence.
 - **T1 — identity**: `people` / `v_org_tree` exact lookup → who, role, relation to Yonatan.
 - **T2 — ownership**: `context_store` key `comms_org_ownership` (load-whole) → KYC∈CLM, reporting chain, red-lines.
-- **T3 — narrative**: `searchByType` over memory/agent_log/PPP, capped, low-trust, last.
+- **T3 — narrative**: `searchByType` over memory/agent_log/PPP (threshold 0.4, capped, low-trust, last). The sub-agent **curates** it into a 1-3 line `memory_brief` (what actually bears on this email / what he should know), not a raw snippet dump — the triage card shows the brief + a faint sources line, "nothing material in memory" when empty.
 Prompt precedence: thread → rules → T1/T2 → T3.
 
 ## Data
@@ -88,7 +88,40 @@ Live wiring: `classify`, `context:assemble`, `context:probe`.
 DB: `predictions:add|list|reconcile`, `rules:list|add|supersede|pin`.
 Still to build: a `reconcile`/`distill` helper for Pass B (today done agent-side as in the backtest).
 
+## Triage sweep (repeatable) — natural-language trigger
+When Yonatan says **"sweep my unread"**, **"triage my inbox"**, **"morning triage"**, or **"what
+needs a response?"**, run this and open the HTML (he never runs the CLI; you do):
+
+1. **Gather from two first-class sources** (don't draft from Teams *notification emails* — they carry only a
+   clipped preview; scan Teams directly instead):
+   - **Email** — `outlook_email_search` with **`query:"isRead:false"`** (folderName "Inbox") — filters to
+     unread **server-side** (no client scan, no blind spot for deep unread). Free-text query pages by `cursor`,
+     not `offset`; `order` n/a. **Drop** `no-reply@teams.mail.microsoft` / `@odspnotify` notifications.
+   - **Teams** — `chat_message_search` over a 24-48h window (`afterDateTime`); keep messages **from others**
+     (not Yonatan) in a **1:1 chat or a whitelisted CLM-leadership group**, where **he hasn't replied after**
+     (no-reply heuristic — no native unread flag). Scope: **all 1:1s + CLM-leadership groups only**. Fetch
+     bodies via `read_resource teams:///chats/{chatId}/messages/{id}`; tag the card `channel:'teams'`.
+2. **Classify** — `npm run comms-assistant -- classify --payload=<EmailMeta[].json>` → the **triage gate
+   keeps fresh + reply** emails needing a response, dropping only noise (bot senders, calendar/RSVP, app
+   notifications, OOO, meeting invites, broadcast DLs) and flagging sensitive (never drafted). First-time
+   sends are first-class — not gated on `Re:`. (`--backtest` = Re:-only `needsPrediction`, learning loop only.)
+   Apply the same noise/sensitive judgment to Teams survivors. Drop breakdown logged (no silent truncation).
+3. **Per survivor** — `read_resource` for full body + participants + @mentions → build a
+   `ThreadInput` (**omit `asOf`** = live; for Teams synthesize a short `subject` topic line). Draft the
+   suggested reply applying the active rulebook (the **pinned executive-voice** rule + terse/probe/route
+   etc.); set `disposition` + `needs_data` + a curated **`memory_brief`** (what from memory bears on this;
+   "nothing material" if not). For Hebrew drafts, supply `text` + `text_alt` (EN) for the HE/EN toggle.
+   For data-dependent threads, flag `needs_data` — don't fetch unless he asks (assist mode).
+4. **Build** `items.json` (array of `{email, thread, suggestion}`) and **render**:
+   `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`
+5. **Open** the page; walk it with him. (When persistence is wired, also write each card to
+   `comms_predictions` so the outbox sweep reconciles what he sends.)
+
+The page look is the editable template **`templates/triage.html`** — restyle freely; the card data
+comes from `render-triage.ts` + the retrieval layer.
+
 ## Files
-`run.ts` (CLI) · `classify.ts` (noise/sensitive gate) · `retrieve.ts` (tiered context — scaffold)
-· `store.ts` `asof.ts` `delta.ts` `confidence.ts` `types.ts` · `prompts/prediction-subagent.md`
+`run.ts` (CLI) · `classify.ts` (noise/sensitive gate) · `retrieve.ts` (tiered context) ·
+`render-triage.ts` (triage HTML renderer) · `templates/triage.html` (editable page look) ·
+`store.ts` `asof.ts` `delta.ts` `confidence.ts` `types.ts` · `prompts/prediction-subagent.md`
 · `RUNBOOK.md` (v1 backtest procedure).

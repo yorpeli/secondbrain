@@ -84,16 +84,20 @@ async function main() {
       break
     }
     case 'classify': {
-      // Pass-A step 1. --payload=<json array of EmailMeta>. Returns survivors (needsPrediction)
-      // + a drop breakdown so the agent never silently truncates the sweep.
+      // Triage gate. --payload=<json array of EmailMeta>. Keeps anything that needs a response
+      // (fresh OR reply) and drops only noise/sensitive, with a breakdown so nothing is silently cut.
+      // (Pass --backtest to use the Re:-only needsPrediction gate instead, for the learning loop.)
       const items = payload() as EmailMeta[]
+      const backtest = flag('backtest')
       const scored = items.map((m) => ({ meta: m, c: classifyEmail(m) }))
-      const kept = scored.filter((s) => s.c.needsPrediction)
+      const survived = (s: { c: ReturnType<typeof classifyEmail> }) => backtest ? s.c.needsPrediction : s.c.needsResponse
+      const kept = scored.filter(survived)
       const dropped: Record<string, number> = {}
-      for (const s of scored) if (!s.c.needsPrediction) dropped[s.c.reason] = (dropped[s.c.reason] ?? 0) + 1
+      for (const s of scored) if (!survived(s)) dropped[s.c.reason] = (dropped[s.c.reason] ?? 0) + 1
       console.log(JSON.stringify({
+        gate: backtest ? 'backtest (Re:-only)' : 'triage (fresh + reply)',
         total: items.length, kept: kept.length, droppedTotal: items.length - kept.length, dropped,
-        keep: kept.map((s) => ({ subject: s.meta.subject, sender: s.meta.sender, reason: s.c.reason })),
+        keep: kept.map((s) => ({ subject: s.meta.subject, sender: s.meta.sender, kind: s.c.isReply ? 'reply' : 'fresh', reason: s.c.reason })),
         sensitive: scored.filter((s) => s.c.isSensitive).map((s) => s.meta.subject),
       }, null, 2))
       break
