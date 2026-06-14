@@ -51,16 +51,23 @@ The Node CLI has **no Graph access**; MSFT reads happen here in the agent sessio
 4. **Assemble context** — `npm run comms-assistant -- context:assemble --file=<ThreadInput.json>`
    → the `ContextBundle` (T1/T2/spine/T3).
 5. **Predict (sub-agent)** — dispatch a sub-agent with `prompts/prediction-subagent.md` + the
-   bundle. It returns `{disposition, predicted_reply, predicted_stance, confidence,
-   confidence_score, context_available}`.
+   bundle. It returns `{action:{type,target,channel?,secondary?}, disposition, predicted_reply,
+   predicted_stance, needs_data, confidence, confidence_score, context_available}` — it **chooses the
+   action + target** (reply/redirect/sidebar/route/task/escalate/schedule/monitor/none), then drafts
+   the message for action types that produce one.
 6. **Store** — map to a `PredictionRow` and `npm run comms-assistant -- predictions:add
-   --payload=<row.json>` (`mode:'reply'`, `actual_reply/resolution:null`, identifiers from the
-   message). `ignore`/`delegate` dispositions still store a row (with `predicted_reply` null).
+   --payload=<row.json>` (`mode:'reply'`, `action_type`/`action_target` set, `disposition` alias,
+   `actual_reply/resolution:null`, identifiers from the message). `task`/`monitor`/`none` actions still
+   store a row (with `predicted_reply` null).
 
 ## Pass B — reconcile + distill (later sweep, to build)
 Read Sent Items → match to open predictions (thread_id / subject+participants) → `delta` (style
-+ stance) → `resolution` → ask "why?" on stance changes (batched into CC close-out) →
-`predictions:reconcile`; then cluster → `confidenceScore`/`statusFor` → `rules:add`/`supersede`.
++ stance + **action**: did he take the suggested `action_type`, aimed at the suggested `action_target`?
+`actionDelta()` captures the diff — incl. "no in-thread reply / briefed leaders" = `redirect`, "messaged
+a third party" = `sidebar`) → `resolution` → ask "why?" on stance/action changes (batched into CC
+close-out) → `predictions:reconcile`; then cluster → `confidenceScore`/`statusFor` → `rules:add`/`supersede`.
+**Action-selection patterns feed `comms_rules` type `decision`** (higher value than phrasing), scoped by
+`{topic, channel}` — they graduate watch→active→assert like style rules.
 
 ## Predict vs Assist — two modes, and the analytics hook
 These are **different products** and conflating them hurts prediction (proven on the CLM payer
@@ -107,16 +114,30 @@ needs a response?"**, run this and open the HTML (he never runs the CLI; you do)
    notifications, OOO, meeting invites, broadcast DLs) and flagging sensitive (never drafted). First-time
    sends are first-class — not gated on `Re:`. (`--backtest` = Re:-only `needsPrediction`, learning loop only.)
    Apply the same noise/sensitive judgment to Teams survivors. Drop breakdown logged (no silent truncation).
-3. **Per survivor** — `read_resource` for full body + participants + @mentions → build a
-   `ThreadInput` (**omit `asOf`** = live; for Teams synthesize a short `subject` topic line). Draft the
-   suggested reply applying the active rulebook (the **pinned executive-voice** rule + terse/probe/route
-   etc.); set `disposition` + `needs_data` + a curated **`memory_brief`** (what from memory bears on this;
-   "nothing material" if not). For Hebrew drafts, supply `text` + `text_alt` (EN) for the HE/EN toggle.
-   For data-dependent threads, flag `needs_data` — don't fetch unless he asks (assist mode).
-4. **Build** `items.json` (array of `{email, thread, suggestion}`) and **render**:
+3. **Capture each survivor (orchestrator, SERIAL)** — `read_resource` the full body + participants +
+   @mentions for every survivor, **one at a time**. This is the throttle-bound step (Graph ~80/min;
+   parallel reads trip a 429) and it **stays in the orchestrator session** — it owns the MSFT MCP. Build a
+   `ThreadInput` per thread (`{subject, participants[], mentions?, bodyToDate}`, **omit `asOf`** = live; for
+   Teams synthesize a short `subject`). Long threads spill to a saved file → slice the top with python, don't
+   re-read. (Subagents must NOT call MSFT — they often can't see the claude.ai MCP in headless runs anyway.)
+4. **Fan out one subagent per thread (PARALLEL, no MSFT)** — dispatch a subagent per captured thread with
+   `prompts/prediction-subagent.md` + the thread text + its `ThreadInput`. Each subagent: runs
+   `context:assemble` for its thread (DB only — `searchByType`/T1/T2/spine, parallel-safe), **chooses the
+   action + target** (`action.type` ∈ reply/redirect/sidebar/route/task/escalate/schedule/monitor/none,
+   `action.target`) applying the rulebook (**pinned executive-voice**; **`route` = name the owner, don't
+   publicly instruct**; `redirect` = brief leaders, not the thread; default `monitor`/`none` over busywork),
+   drafts `text` for message-producing actions (`task`/`monitor`/`none` = no text), sets `needs_data` (flag,
+   don't fetch) + a curated **`memory_brief`**, and **returns the `{email, thread, suggestion}` item as strict
+   JSON**. Hebrew → `text` + `text_alt`(EN). Why split this way: capture is serial-and-MSFT-bound, so it stays
+   in one place; reasoning + drafting is the expensive part, so it fans out — and the orchestrator's context
+   never fills with raw 60KB–800KB bodies.
+5. **Collect → build → render (orchestrator)** — gather the subagents' JSON into `items.json` (array of
+   `{email, thread, suggestion}`) and **render**:
    `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`
-5. **Open** the page; walk it with him. (When persistence is wired, also write each card to
-   `comms_predictions` so the outbox sweep reconciles what he sends.)
+   (render-triage re-runs `assembleContext` per item for the People/Guardrails/Rules columns, so subagents
+   only need to return `suggestion`.)
+6. **Open** the page; walk it with him. (When persistence is wired, also write each card to
+   `comms_predictions` — incl. `action_type`/`action_target` — so the outbox sweep reconciles what he does.)
 
 The page look is the editable template **`templates/triage.html`** — restyle freely; the card data
 comes from `render-triage.ts` + the retrieval layer.

@@ -76,6 +76,7 @@ export interface OwnershipMap {
   clmScope: string
   reportingChain: string[]
   redLines: string[]
+  referenceFacts?: Record<string, unknown>   // load-whole reference facts (e.g. office geography) — always surfaced to drafting
   updatedAt?: string
 }
 
@@ -198,6 +199,7 @@ export async function loadOwnership(_asOf?: string): Promise<OwnershipMap | null
   return {
     domains: c.domains ?? {}, clmScope: c.clmScope ?? '',
     reportingChain: c.reportingChain ?? [], redLines: c.redLines ?? [],
+    referenceFacts: c.referenceFacts ?? undefined,
     updatedAt: data.updated_at,
   }
 }
@@ -275,7 +277,15 @@ export async function searchNarrative(
   const topK = opts?.topK ?? 3
   // comms_predictions / comms_rules are NEVER searched (privacy). Lower threshold + higher limit
   // because subject-line queries are short; we trim to topK after the as-of filter.
-  const raw = await searchByType(query, types as string[], { threshold: 0.4, limit: 40 })
+  // T3 is augmentation, not the spine — if embeddings are unreachable (network/OpenAI), degrade to
+  // no-narrative rather than failing the whole bundle. T1/T2/rules (Supabase) still populate.
+  let raw: Awaited<ReturnType<typeof searchByType>>
+  try {
+    raw = await searchByType(query, types as string[], { threshold: 0.4, limit: 40 })
+  } catch (e) {
+    console.error(`[retrieve] T3 narrative search failed (${(e as Error).message}); continuing without narrative`)
+    return { snippets: [], leakRisk: false }
+  }
   if (!raw.length) return { snippets: [], leakRisk: false }
 
   const tsMap = await sourceTimestamps(raw)

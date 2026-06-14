@@ -50,7 +50,10 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    the meeting-invite rule reads it (body that *opens into* the Teams join block = invite/noise; substantive
    text before the block = real ask, kept — e.g. a "let's schedule…" mail that embeds an invite). Surface the
    drop breakdown (no silent truncation).
-3. **Per survivor** — `read_resource` (`mail:///messages/{id}`) for the full body + participants + @mentions.
+3. **Capture each survivor — orchestrator, SERIAL.** `read_resource` (`mail:///messages/{id}`) the full body +
+   participants + @mentions, **one at a time**. This is the throttle-bound step (Graph ~80/min; parallel reads
+   trip a 429) and it **stays in the orchestrator** (the session that owns the MSFT MCP). Subagents must NOT call
+   MSFT (they often can't see the claude.ai MCP in headless runs anyway).
    ⚠️ Long threads exceed the tool's token cap and spill to a saved file — slice the top of the
    message with `python3 -c "...json.load...re.sub('<[^>]+>',' ',html)...[:1800]"` rather than re-reading.
    For **Teams** survivors (step 1b) set the card `channel:'teams'` and `webLink` to the message `webUrl`;
@@ -60,13 +63,25 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    you'll answer the wrong question. See the 2026-06-14 AI-portfolio miss, where the email cut the ask at "...ומי".)
    Build a `ThreadInput` (`retrieve.ts`): `{subject, participants[], mentions?, bodyToDate}` — **omit `asOf`** (= live).
    (Teams messages have no subject — synthesize a short topic line for `subject` from the message.)
-4. **Draft** the suggested reply applying the rulebook (pinned executive-voice + terse/probe/route).
-   Set `disposition`, `needs_data` (flag, don't fetch — see grounding below), `confidence`,
-   `why`, and a curated **`memory_brief`** ("nothing material in memory" if not load-bearing).
+4. **Fan out one subagent per thread — PARALLEL, no MSFT** (each runs `context:assemble` for its thread = DB
+   only, parallel-safe; reasons via `prompts/prediction-subagent.md`; returns its `{email, thread, suggestion}`
+   item as strict JSON). The split: capture is serial + MSFT-bound (orchestrator); reasoning + drafting is the
+   expensive part (fans out) — so the orchestrator's context never fills with raw 60KB–800KB bodies. Each
+   subagent **chooses the action, then drafts it** — the response to a comm is often an **action aimed elsewhere**,
+   not an in-thread reply. Pick a primary `action` `{type, target, channel?, secondary?}` —
+   `reply | redirect | sidebar | route | task | escalate | schedule | monitor | none` — and name its **target**
+   (who/what it's aimed at). Apply the rulebook (pinned executive-voice + terse/probe/route; **`route` = name
+   the owner, hand off, do NOT publicly instruct**; `redirect` = brief your leaders, not the thread). Draft the
+   message for action types that produce one (reply/redirect/sidebar/route/escalate/schedule); `task`/`monitor`/
+   `none` carry **no `text`**. Set `needs_data` (flag, don't fetch — see grounding below), `confidence`, `why`,
+   and a curated **`memory_brief`** ("nothing material in memory" if not load-bearing). Keep `disposition` as the
+   legacy alias of `action.type`. Default to `monitor`/`none` over manufacturing work — "you're clear" is valid.
    ⚠️ For **scheduling / meeting** items, check the meeting date isn't already **past** before drafting a
    confirm — a stale confirm is noise (2026-06-14: a war-room-sync confirm was drafted after the meeting had passed).
 5. **Build `items.json`** — `[{ email:{subject,from,date,to,excerpt,webLink, channel?, thread_summary?},
-   thread:ThreadInput, suggestion:{disposition,needs_data,confidence,text,why, lang?,lang_alt?,text_alt?, memory_brief} }]`.
+   thread:ThreadInput, suggestion:{action:{type,target,channel?,secondary?}, disposition, needs_data, confidence,
+   text, why, lang?,lang_alt?,text_alt?, memory_brief} }]`. The card shows a prominent **▸ TYPE → target** line
+   above the draft; `text:null` actions render the action line + `why` with no textarea.
    `channel`: `outlook`|`teams`|`meeting` (drives the leading icon + open button). For Hebrew drafts set
    `text`+`text_alt`(EN)+`lang`/`lang_alt` for the **HE⇄EN toggle**. `memory_brief` = a string OR
    `{summary, points[]}` (structured, scannable). Full card anatomy: the `render-triage.ts` header comment.
@@ -99,13 +114,25 @@ sanctioned grounding path; **don't hand-write ad-hoc SQL** and don't build a sep
   **folder-read whitelisted chats** by ID. Serial calls only (~80/min throttle). Chat type from the ID; no chat-name field.
 - **1:1s:** seed chat IDs into `comms_teams_whitelist.one_on_one_chat_ids`, then folder-read directly. No keyword needed.
 - **Grounding = the vector search we already built** (`searchByType`) — surface what you pulled in the card; never ground in blind backtest.
+- **Orchestrator captures serial; subagents reason in parallel.** MSFT reads (`read_resource`) are throttle-bound
+  (~80/min, parallel → 429) and stay in the orchestrator session that owns the MSFT MCP. Fan out one subagent per
+  *captured* thread for the expensive part (assembleContext + action-choice + drafting); they touch DB only and
+  return a `suggestion` JSON. Keeps raw 60KB–800KB bodies out of the orchestrator's context and judges every thread
+  through the same `prediction-subagent.md`. Don't let subagents call MSFT (parallel 429; and headless runs can't see it).
+- **Office geography is a load-whole fact.** Payoneer/Yonatan's office = **Glilot**; Au10tix = **Hod Hasharon**. Lives in
+  `comms_org_ownership.referenceFacts.offices` (T2, always in drafting context) — `אצלנו` = Glilot, not the vendor's site.
+- **Suggest the ACTION, not just a reply.** The response to a comm is frequently an action aimed *elsewhere* —
+  `redirect` to your leaders, `sidebar` a third party, `route` to the owner (named, not instructed), `task`, `monitor`.
+  Reply-to-sender is one option among many; the highest-value thing to learn is action selection + targeting, not
+  phrasing. The card leads with **▸ TYPE → target**. (2026-06-14: Meital→sidebar Tal; UBO→redirect to leaders, no
+  in-thread reply; Elena→route to Ido without publicly instructing.)
 - **Judgment refines the permissive gate.** "Needs a response?" is decided at the read step (reply / monitor / open-loop /
-  done) — the assistant must NOT manufacture work. Saying "you're clear" is a valid, trust-building result.
+  done) — the assistant must NOT manufacture work. Saying "you're clear" (action `monitor`/`none`) is a valid, trust-building result.
 - **Page unread to exhaustion + check time-sensitivity.** Don't cap the sweep (old-but-unread sinks below recent);
   and for meeting/scheduling items, drop confirms whose date already passed.
 
 ## Files
 `run.ts` (CLI: classify · context:assemble/probe · predictions:* · rules:*) · `classify.ts` (triage gate — keeps fresh+reply, drops noise/sensitive; `--backtest` = Re:-only `needsPrediction`)
 · `retrieve.ts` (tiered context: T1 identity / T2 ownership / T3 narrative + rule spine; `assembleContext`, `ThreadInput`, `ContextBundle`)
-· `render-triage.ts` (triage HTML — channel icons, HE⇄EN toggle, collapsible context, structured brief) · `templates/triage.html` (page look)
-· `store.ts` `asof.ts` `delta.ts` `confidence.ts` `types.ts` · `prompts/prediction-subagent.md` · `RUNBOOK.md` (v1 backtest).
+· `render-triage.ts` (triage HTML — **▸ action line**, channel icons, HE⇄EN toggle, collapsible context, structured brief) · `templates/triage.html` (page look)
+· `store.ts` `asof.ts` `delta.ts` (`actionDelta` — suggested-vs-actual action diff) `confidence.ts` `types.ts` (`SuggestedAction`/`ActionType`) · `prompts/prediction-subagent.md` · `RUNBOOK.md` (v1 backtest).
