@@ -85,11 +85,11 @@ Expected: two rows — `comms_predictions`, `comms_rules`.
 Run via Supabase MCP `execute_sql`:
 
 ```sql
-insert into project_decisions (title, description, status)
+insert into project_decisions (title, description, status, category)
 values (
   'comms_learning tables are never embedded',
   'comms_predictions and comms_rules hold distilled comms content (verbatim relevant span for non-sensitive reply text). Like command_center_* and PPP private_notes, these tables are never embedded and never surfaced wholesale to other agents.',
-  'active'
+  'active', 'convention'
 );
 ```
 

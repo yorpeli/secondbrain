@@ -22,7 +22,10 @@ export interface PredictionRow {
   channel: string
   as_of: string
   trigger_text: string | null
+  disposition: string | null          // reply | delegate | defer | escalate | ignore | sensitive
+  needs_data: boolean | null           // right reply depends on numbers we don't have (flag, don't fetch)
   predicted_reply: string | null
+  predicted_stance: string | null     // the predicted stance label, stored at predict time
   confidence: ConfidenceBand | null
   confidence_score: number | null
   context_available: ContextAvailable

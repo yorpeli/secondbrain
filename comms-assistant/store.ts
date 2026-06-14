@@ -4,12 +4,12 @@ import type { PredictionRow, RuleRow, Resolution } from './types.js'
 
 async function db() {
   await import('dotenv/config')
-  const { getSupabase } = await import('../../lib/supabase.js')
+  const { getSupabase } = await import('../lib/supabase.js')
   return getSupabase()
 }
 
 const PRED_COLS =
-  'id, mode, thread_id, message_id, internet_message_id, web_link, channel, as_of, trigger_text, predicted_reply, confidence, confidence_score, context_available, actual_reply, delta, resolution, why, derived_rule_ids, sensitive, created_at'
+  'id, mode, thread_id, message_id, internet_message_id, web_link, channel, as_of, trigger_text, disposition, needs_data, predicted_reply, predicted_stance, confidence, confidence_score, context_available, actual_reply, delta, resolution, why, derived_rule_ids, sensitive, created_at'
 
 export async function insertPrediction(row: PredictionRow): Promise<string> {
   const { data, error } = await (await db())
