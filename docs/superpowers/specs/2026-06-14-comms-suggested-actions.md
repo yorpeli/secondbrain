@@ -1,6 +1,6 @@
 # Comms Assistant — suggested *actions*, not just replies (design spec)
 
-**Date:** 2026-06-14 · **Status:** approved, not yet implemented (spec → compact → implement)
+**Date:** 2026-06-14 · **Status:** ✅ implemented 2026-06-14 (migration `comms_predictions_add_action`; types/render/sub-agent/reconciliation/docs)
 **Builds on:** `2026-06-13-comms-response-learning-loop-design.md` and the two-source triage sweep
 (`comms-assistant/CLAUDE.md`, shipped in `feat(comms-assistant): two-source triage sweep`).
 
@@ -97,8 +97,10 @@ redirect to own leaders." Action rules graduate watch→active→assert like sty
 
 ## Implementation checklist (post-compact)
 
-- [ ] `types.ts` / `classify`-adjacent: add the `action` shape; `comms_predictions` columns (`action_type`, `action_target`).
-- [ ] `prompts/prediction-subagent.md`: action-selection + targeting + etiquette.
-- [ ] `render-triage.ts` + `templates/triage.html`: the action line.
-- [ ] reconciliation (`store.ts`/`delta.ts`): capture + diff action_type/target; feed `comms_rules`.
-- [ ] `comms-assistant/CLAUDE.md`: document the action model in the procedure + Lessons.
+- [x] `types.ts`: added `ActionType`/`SuggestedAction`/`Suggestion`; `PredictionRow.action_type`/`action_target`. Migration `comms_predictions_add_action` adds the two nullable columns; `store.ts` `PRED_COLS` carries them.
+- [x] `prompts/prediction-subagent.md`: Step 1 reframed to action-selection + targeting + etiquette (`route` = name, don't instruct; `redirect` = brief leaders not thread); Step 3 output emits `action`.
+- [x] `render-triage.ts` + `templates/triage.html`: prominent **▸ TYPE → target** action line; `task`/`monitor`/`none` (no `text`) render action line + why with no textarea; legacy `disposition`-only falls back to `{type: disposition}`.
+- [x] reconciliation (`delta.ts`): `actionDelta()` diffs suggested-vs-actual action type/target → goes into the prediction `delta` JSON → feeds `comms_rules` type `decision`. (`store.ts`/Pass B wiring documented; the agent-side reconcile is still manual as in the backtest.)
+- [x] `comms-assistant/CLAUDE.md` + `agents/comms-assistant.md`: action model documented in the procedure + Lessons + Pass A/B.
+
+**Verified:** renderer smoke-test across all action types (reply/redirect/route/task/monitor + legacy disposition-only) — action lines, target rendering, draft-less gating, and backward-compat all correct; project typecheck clean.

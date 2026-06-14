@@ -9,7 +9,7 @@ async function db() {
 }
 
 const PRED_COLS =
-  'id, mode, thread_id, message_id, internet_message_id, web_link, channel, as_of, trigger_text, disposition, needs_data, predicted_reply, predicted_stance, confidence, confidence_score, context_available, actual_reply, delta, resolution, why, derived_rule_ids, sensitive, created_at'
+  'id, mode, thread_id, message_id, internet_message_id, web_link, channel, as_of, trigger_text, disposition, action_type, action_target, needs_data, predicted_reply, predicted_stance, confidence, confidence_score, context_available, actual_reply, delta, resolution, why, derived_rule_ids, sensitive, created_at'
 
 export async function insertPrediction(row: PredictionRow): Promise<string> {
   const { data, error } = await (await db())

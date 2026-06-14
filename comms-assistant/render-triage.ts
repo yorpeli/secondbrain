@@ -4,18 +4,25 @@
 //   ① Original — channel icon + subject; optional Thread summary (multi-msg threads) then latest message.
 //   ② Context — Memory brief (lead) + sources · People (known-first, +N more) · collapsed Guardrails(T2)
 //      & Rules. All from assembleContext (T1/T2/spine/T3).
-//   ③ Suggested response — disposition/needs_data/confidence badges · HE⇄EN toggle (when text_alt set,
-//      preserves per-language edits + flips dir) · Copy · prominent "Why this draft".
+//   ③ Suggested response — a prominent ACTION line (▸ TYPE → target) above the draft, then action/
+//      needs_data/confidence badges · HE⇄EN toggle (when text_alt set, preserves per-language edits +
+//      flips dir) · Copy · prominent "Why this draft". The response to a comm is often an action aimed
+//      elsewhere (redirect/sidebar/route/task), not an in-thread reply — task/monitor/none show the
+//      action line + why with NO draft textarea.
 // Channel-aware open button + leading icon: 'outlook' (email) | 'teams' | 'meeting'. Shell/styling +
 // theme + interactions live in templates/triage.html (editable).
 //   npx tsx comms-assistant/render-triage.ts --file=<items.json> [--out=<path>]
 // items.json: array of {
 //   email:      { subject, from, date, to, excerpt, webLink, channel?, thread_summary? }
 //   thread:     ThreadInput (retrieve.ts) — assembleContext() is called per item for ②
-//   suggestion: { disposition, needs_data, confidence, text, why,
-//                 lang?, lang_alt?, text_alt?,                 // HE⇄EN toggle
+//   suggestion: { action?: { type, target, channel?, secondary? },   // primary suggested action
+//                 disposition?,                                       // legacy alias for action.type
+//                 needs_data, confidence, text, why,                  // text is null for task/monitor/none
+//                 lang?, lang_alt?, text_alt?,                        // HE⇄EN toggle
 //                 memory_brief?: string | { summary?, points?[] } }
 // }
+//   action.type: reply | redirect | sidebar | route | task | escalate | schedule | monitor | none
+//   action.target: who/what it's aimed at (free text) · action.channel: outlook|teams|task|1:1
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { assembleContext, type ContextBundle } from './retrieve.js'
@@ -39,6 +46,53 @@ const cicon = (ch: string) => {
   return `<span class="cicon" style="color:${m.color}" title="${m.label}">${m.svg}</span>`
 }
 
+// Aging cue: days the thread has been waiting (latest message date → today). ⏳ badge at ~1 week+
+// reinforces the pinned stale-thread-acknowledgment rule (the draft should open by owning the delay).
+const daysWaiting = (d: string): number | null => { const t = Date.parse(d); return Number.isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000) }
+const ageBadge = (d: string): string => { const w = daysWaiting(d); return w != null && w >= 7 ? `<span class="badge age" title="awaiting a reply ~${w} days — acknowledge the delay">⏳ ${w}d</span>` : '' }
+
+// Action taxonomy → display (label + accent). The card shows ▸ TYPE → target above the draft.
+const actionMeta: Record<string, { label: string; color: string }> = {
+  reply: { label: 'Reply', color: '#3b82f6' }, redirect: { label: 'Redirect', color: '#a855f7' },
+  sidebar: { label: 'Sidebar', color: '#06b6d4' }, route: { label: 'Route', color: '#22c55e' },
+  task: { label: 'Task', color: '#d97706' }, escalate: { label: 'Escalate', color: '#dc2626' },
+  schedule: { label: 'Schedule', color: '#0ea5e9' }, monitor: { label: 'Monitor', color: '#6b7280' },
+  none: { label: 'No action', color: '#9ca3af' },
+}
+// Resolve the suggestion's action, falling back to the legacy disposition (backward-compat).
+function actionOf(s: any): { type: string; target: string | null; channel?: string; secondary?: string | null } {
+  if (s.action && s.action.type) return s.action
+  return { type: s.disposition || 'reply', target: null }
+}
+const actionLabel = (s: any) => (actionMeta[actionOf(s).type]?.label) || actionOf(s).type
+// The prominent action line: ▸ TYPE → target (+ channel icon, + optional secondary).
+function actionLine(s: any): string {
+  const a = actionOf(s)
+  const m = actionMeta[a.type] || { label: a.type, color: '#6b7280' }
+  const chMap: Record<string, string> = { outlook: 'outlook', teams: 'teams', '1:1': 'teams' }
+  const ch = a.channel && chMap[a.channel] ? cicon(chMap[a.channel]) : ''
+  const target = a.target ? ` <span class="act-arrow">→</span> <span class="act-target">${esc(a.target)}</span> ${ch}` : ''
+  const sec = a.secondary ? `<div class="act-sec">also: ${esc(a.secondary)}</div>` : ''
+  return `<div class="action"><span class="act-type" style="color:${m.color}">▸ ${esc(m.label)}</span>${target}</div>${sec}`
+}
+
+// Tier badge — which processing depth the thread got (T0 templated / T1 shallow / T2 deep + verified).
+const tierMeta: Record<number, { l: string; c: string }> = { 0: { l: 'T0 light', c: '#9ca3af' }, 1: { l: 'T1', c: '#0ea5e9' }, 2: { l: 'T2 deep', c: '#7c3aed' } }
+const tierBadge = (t: any) => (t === 0 || t === 1 || t === 2) ? `<span class="badge tier" style="background:${tierMeta[t].c}22;color:${tierMeta[t].c}" title="processing tier">${tierMeta[t].l}</span>` : ''
+
+// Adversarial-verifier verdict (T2 only): diverse-lens refute votes. Flagged = surface the concrete issues.
+function verdictHtml(v: any): string {
+  if (!v) return ''
+  const all = Array.isArray(v.verdicts) ? v.verdicts : []
+  const refuted = all.filter((x: any) => x && x.refuted && x.severity !== 'none')
+  if (v.flagged || refuted.length) {
+    return `<div class="verdict bad"><b>⚠ Verifier flagged</b> · ${refuted.length}/${all.length} lenses`
+      + refuted.map((x: any) => `<div class="vd">• <span class="vlens">${esc(x.lens)}</span> ${esc(x.issue)}</div>`).join('') + `</div>`
+  }
+  if (all.length) return `<div class="verdict ok">✓ Adversarially verified · ${all.length} lenses, no flags</div>`
+  return ''
+}
+
 // memory_brief accepts a plain string OR { summary?, points?[] } for a structured, scannable brief.
 function briefHtml(mb: any): string {
   if (mb && typeof mb === 'object') {
@@ -54,9 +108,9 @@ function briefHtml(mb: any): string {
 function listItem(item: any, i: number): string {
   const e = item.email, s = item.suggestion
   return `<button class="li" id="li${i}" onclick="sel(${i})">
-    <div class="li-subj">${cicon(e.channel)}${esc(e.subject)}</div>
-    <div class="li-meta">${esc(e.from)}</div>
-    <div class="li-badges"><span class="badge dp">${esc(s.disposition)}</span>${s.needs_data ? '<span class="badge nd">data</span>' : ''}<span class="badge cf">${esc(s.confidence)}</span></div>
+    <div class="li-subj"><span class="li-num">${i + 1}</span>${cicon(e.channel)}${esc(e.subject)}</div>
+    <div class="li-meta">${esc(e.from)} · ${esc(e.date)}</div>
+    <div class="li-badges"><span class="badge dp">${esc(actionLabel(s))}</span>${s.needs_data ? '<span class="badge nd">data</span>' : ''}<span class="badge cf">${esc(s.confidence)}</span>${ageBadge(e.date)}${tierBadge(item.tier)}${item.verdict && (item.verdict.flagged || (item.verdict.verdicts||[]).some((x:any)=>x&&x.refuted&&x.severity!=='none')) ? '<span class="badge vflag">⚠</span>' : ''}</div>
   </button>`
 }
 
@@ -86,6 +140,8 @@ function detail(item: any, b: ContextBundle, i: number): string {
   const sources = b.narrative.length
     ? `<div class="src">sources: ${b.narrative.map((n) => esc(n.provenance)).join(' · ')}</div>` : ''
   const nd = s.needs_data ? `<span class="badge nd">needs data</span>` : ''
+  // task / monitor / none carry no drafted message — show the action line + why, no textarea.
+  const hasDraft = !!(s.text && String(s.text).trim())
   // Bilingual draft: when text_alt is present, offer a HE/EN toggle. Primary (text) is the one to send.
   const hasHe = (t: string) => /[֐-׿]/.test(t || '')
   const hasAlt = !!(s.text_alt && String(s.text_alt).trim())
@@ -99,9 +155,9 @@ function detail(item: any, b: ContextBundle, i: number): string {
     ? `<div class="lbl">Thread summary</div><div class="tsum">${esc(e.thread_summary)}</div><div class="lbl">Latest message</div>` : ''
   return `<div class="detail" id="d${i}">
     <header class="ch">
-      <div><div class="subj">${cicon(e.channel)}${esc(e.subject)}</div>
-      <div class="meta">from <b>${esc(e.from)}</b> · ${esc(e.date)} · to ${esc(e.to)}</div></div>
-      <a class="btn primary" href="${esc(e.webLink)}" target="_blank" rel="noopener" onclick="navigator.clipboard.writeText(document.getElementById('t${i}').value)">${openLabel} + copy draft ↗</a>
+      <div><div class="subj"><span class="det-num">#${i + 1}</span>${cicon(e.channel)}${esc(e.subject)}</div>
+      <div class="meta">from <b>${esc(e.from)}</b> · ${esc(e.date)} ${ageBadge(e.date)} · to ${esc(e.to)}</div></div>
+      <a class="btn primary" href="${esc(e.webLink)}" target="_blank" rel="noopener"${hasDraft ? ` onclick="var t=document.getElementById('t${i}');if(t)navigator.clipboard.writeText(t.value)"` : ''}>${openLabel}${hasDraft ? ' + copy draft' : ''} ↗</a>
     </header>
     <div class="cols">
       <section class="col"><h3>① Original</h3>${tsum}<div class="excerpt">${esc(e.excerpt)}</div></section>
@@ -113,13 +169,15 @@ function detail(item: any, b: ContextBundle, i: number): string {
         <div class="lbl tog collapsed" onclick="togSec(this)"><span class="car">▸</span> Rules that fired${b.rules.length ? ` · ${b.rules.length}` : ''}</div>
         <div class="sec hidden">${rules}</div>
       </section>
-      <section class="col"><h3>③ Suggested response <span class="badge dp">${esc(s.disposition)}</span>${nd}<span class="badge cf">${esc(s.confidence)}</span></h3>
-        ${hasAlt ? `<div class="langtog"><span class="langnote">you send the first; EN is to check intent</span>
+      <section class="col"><h3>③ Suggested action <span class="badge dp">${esc(actionLabel(s))}</span>${nd}<span class="badge cf">${esc(s.confidence)}</span>${tierBadge(item.tier)}</h3>
+        ${actionLine(s)}
+        ${hasDraft ? `${hasAlt ? `<div class="langtog"><span class="langnote">you send the first; EN is to check intent</span>
           <button class="langbtn on" onclick="setLang(${i},'a',this)">${esc(langA)}</button>
           <button class="langbtn" onclick="setLang(${i},'b',this)">${esc(langB)}</button></div>` : ''}
         <textarea id="t${i}" class="draft" dir="${heDir}" data-cur="a" data-a="${esc(s.text)}"${hasAlt ? ` data-b="${esc(s.text_alt)}"` : ''} rows="11">${esc(s.text)}</textarea>
-        <div class="row"><button class="btn copy" onclick="navigator.clipboard.writeText(document.getElementById('t${i}').value);this.textContent='Copied ✓';setTimeout(()=>this.textContent='Copy',1200)">Copy</button></div>
-        <div class="why"><span class="why-lbl">Why this draft</span>${esc(s.why)}</div>
+        <div class="row"><button class="btn copy" onclick="navigator.clipboard.writeText(document.getElementById('t${i}').value);this.textContent='Copied ✓';setTimeout(()=>this.textContent='Copy',1200)">Copy</button></div>` : ''}
+        <div class="why"><span class="why-lbl">${hasDraft ? 'Why this draft' : 'Why this action'}</span>${esc(s.why)}</div>
+        ${verdictHtml(item.verdict)}
       </section>
     </div>
   </div>`
@@ -127,9 +185,15 @@ function detail(item: any, b: ContextBundle, i: number): string {
 
 async function main(file: string, out: string) {
   const items = JSON.parse(readFileSync(file, 'utf8'))
+  // Newest-first so the most recent threads sit at the top; the post-sort index is each card's
+  // stable reference number (shown "1." in the list / "#1" in the header) — e.g. "re-run item #1".
+  items.sort((a: any, b: any) => String(b.email?.date ?? '').localeCompare(String(a.email?.date ?? '')))
   const lis: string[] = [], details: string[] = []
+  const EMPTY_BUNDLE = { thread: '', rules: [], participants: [], ownership: null, narrative: [], meta: {} } as unknown as ContextBundle
   for (let i = 0; i < items.length; i++) {
-    const b = await assembleContext(items[i].thread)
+    let b: ContextBundle
+    try { b = await assembleContext(items[i].thread) }
+    catch (e) { console.error(`context failed for item ${i} (${(e as Error).message}); rendering with sparse context`); b = EMPTY_BUNDLE }
     lis.push(listItem(items[i], i))
     details.push(detail(items[i], b, i))
   }
