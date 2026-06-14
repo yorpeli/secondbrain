@@ -6,9 +6,11 @@
 
 ## Analytics Agent
 
-The analytics agent (`analytics/`) queries Payoneer's Looker dashboards to analyze CLM funnel performance. It can be invoked via CLI or picked up as an `agent_task`.
+The analytics agent (`analytics/`) queries Payoneer's Looker data to analyze CLM funnel performance. It can be invoked via CLI or picked up as an `agent_task`.
 
-**Commands:** `scan-opportunities`, `compare <country>`, `deep-dive <country>`, `diagnose <country>`, `check-tasks`
+**Data source:** The CLM side runs on the **`clm_main` semantic layer** (`.claude/skills/clm-main/SKILL.md`, via `analytics/lib/clm-main-metrics.ts` / `buildClmMainQuery()`) — corrected population logic + predefined rate measures. The legacy `clm_population_main_dashboard` explore is retained only for the 4Step GLPS comparison and rollout status. Migrated 2026-06-11; see `agents/analytics.md` for the full data-flow notes and the opportunity-threshold caveat.
+
+**Commands:** `scan-opportunities`, `compare <country>`, `deep-dive <country>`, `diagnose <country>`, `check-tasks`. Health: `npm run analytics:drift-check` (canary over the clm_main fields the flow depends on).
 
 **CLI:** `npx tsx analytics/run.ts <command> [args]`
 
