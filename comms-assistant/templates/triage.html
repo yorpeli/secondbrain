@@ -26,6 +26,14 @@ body{margin:0;background:var(--bg);color:var(--text);display:flex;flex-direction
 .cicon svg{width:14px;height:14px}
 .li-subj .cicon svg{width:13px;height:13px} .subj .cicon svg{width:17px;height:17px}
 .li-meta{font-size:11px;color:var(--muted)} .li-badges{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}
+.li.done{opacity:.5} .li.done .li-subj{text-decoration:line-through;text-decoration-color:var(--faint)}
+.donewrap{border-top:1px solid var(--border);margin-top:4px}
+.donehdr{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:var(--side);border:none;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;padding:10px 16px;cursor:pointer;position:sticky;bottom:0}
+.donehdr:hover{color:var(--text)} .donehdr:not(.collapsed) .car{transform:rotate(90deg)}
+.donecount{background:var(--soft);color:var(--muted);border-radius:999px;padding:1px 7px;font-size:10px}
+.ch-actions{display:flex;gap:8px;flex-shrink:0}
+.done-btn.is-done{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
+[data-theme="dark"] .done-btn.is-done{background:#0e2b22;color:#6ee7b7;border-color:#14532d}
 .main{flex:1;overflow:auto;padding:22px}
 .detail{display:none} .detail.show{display:block}
 .ch{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:0 0 16px;border-bottom:1px solid var(--border);margin-bottom:16px}
@@ -81,7 +89,13 @@ h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute
 <div class="top"><div><h1>{{TITLE}}<span class="sub">{{SUBTITLE}}</span></h1></div>
   <button class="toggle" onclick="toggleTheme()" id="tg">🌙 Dark</button></div>
 <div class="app">
-  <nav class="side">{{LIST}}</nav>
+  <nav class="side">
+    <div id="activeList">{{LIST}}</div>
+    <div id="doneWrap" class="donewrap hidden">
+      <button class="donehdr collapsed" onclick="togDoneSec(this)"><span class="car">▸</span> Done <span class="donecount" id="doneCount">0</span></button>
+      <div id="doneList" class="hidden"></div>
+    </div>
+  </nav>
   <main class="main">{{DETAILS}}</main>
 </div>
 <script>
@@ -97,5 +111,24 @@ function setLang(i,which,btn){var t=document.getElementById('t'+i);var cur=t.get
 function applyTheme(t){document.documentElement.setAttribute('data-theme',t);document.getElementById('tg').textContent=t==='dark'?'☀️ Light':'🌙 Dark';localStorage.setItem('triageTheme',t);}
 function toggleTheme(){applyTheme(document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark');}
 applyTheme(localStorage.getItem('triageTheme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+
+// --- Done state: persisted in localStorage (keyed per page), survives reload, re-render-safe. ---
+var DONE_KEY='triageDone:'+location.pathname;
+function loadDone(){try{return new Set(JSON.parse(localStorage.getItem(DONE_KEY)||'[]'))}catch(e){return new Set()}}
+function saveDone(s){localStorage.setItem(DONE_KEY,JSON.stringify(Array.from(s)))}
+function togDoneSec(el){el.classList.toggle('collapsed');document.getElementById('doneList').classList.toggle('hidden');}
+function toggleDone(i){var li=document.getElementById('li'+i);if(!li)return;var k=li.dataset.key;var s=loadDone();
+  var nowDone=!s.has(k); if(nowDone)s.add(k);else s.delete(k); saveDone(s); refreshDone();
+  if(nowDone){var nx=document.querySelector('#activeList .li');if(nx)nx.click();}}
+function refreshDone(){var s=loadDone();var act=document.getElementById('activeList'),doneList=document.getElementById('doneList');
+  document.querySelectorAll('.li').forEach(function(li){var done=s.has(li.dataset.key);li.classList.toggle('done',done);
+    var dest=done?doneList:act;if(li.parentElement!==dest)dest.appendChild(li);});
+  // keep both lists in original render order (by data-idx)
+  [act,doneList].forEach(function(box){Array.from(box.children).sort(function(a,b){return (a.dataset.idx|0)-(b.dataset.idx|0)}).forEach(function(c){box.appendChild(c)});});
+  document.getElementById('doneCount').textContent=s.size;
+  document.getElementById('doneWrap').classList.toggle('hidden',s.size===0);
+  document.querySelectorAll('.done-btn').forEach(function(b){var li=document.getElementById('li'+b.dataset.idx);
+    var done=li&&s.has(li.dataset.key);b.classList.toggle('is-done',!!done);b.textContent=done?'↩ Undo':'✓ Done';});}
+refreshDone();
 sel(0);
 </script></body></html>

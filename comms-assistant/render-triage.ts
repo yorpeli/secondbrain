@@ -105,9 +105,12 @@ function briefHtml(mb: any): string {
     ? `<div class="brief">${esc(String(mb))}</div>` : '<div class="brief muted">nothing material in memory</div>'
 }
 
+// Stable per-item key for the client-side "done" state (survives reload; re-render-safe).
+const itemKey = (e: any) => `${e.date}|${e.from}|${e.subject}`
+
 function listItem(item: any, i: number): string {
   const e = item.email, s = item.suggestion
-  return `<button class="li" id="li${i}" onclick="sel(${i})">
+  return `<button class="li" id="li${i}" data-idx="${i}" data-key="${esc(itemKey(e))}" onclick="sel(${i})">
     <div class="li-subj"><span class="li-num">${i + 1}</span>${cicon(e.channel)}${esc(e.subject)}</div>
     <div class="li-meta">${esc(e.from)} · ${esc(e.date)}</div>
     <div class="li-badges"><span class="badge dp">${esc(actionLabel(s))}</span>${s.needs_data ? '<span class="badge nd">data</span>' : ''}<span class="badge cf">${esc(s.confidence)}</span>${ageBadge(e.date)}${tierBadge(item.tier)}${item.verdict && (item.verdict.flagged || (item.verdict.verdicts||[]).some((x:any)=>x&&x.refuted&&x.severity!=='none')) ? '<span class="badge vflag">⚠</span>' : ''}</div>
@@ -157,7 +160,10 @@ function detail(item: any, b: ContextBundle, i: number): string {
     <header class="ch">
       <div><div class="subj"><span class="det-num">#${i + 1}</span>${cicon(e.channel)}${esc(e.subject)}</div>
       <div class="meta">from <b>${esc(e.from)}</b> · ${esc(e.date)} ${ageBadge(e.date)} · to ${esc(e.to)}</div></div>
-      <a class="btn primary" href="${esc(e.webLink)}" target="_blank" rel="noopener"${hasDraft ? ` onclick="var t=document.getElementById('t${i}');if(t)navigator.clipboard.writeText(t.value)"` : ''}>${openLabel}${hasDraft ? ' + copy draft' : ''} ↗</a>
+      <div class="ch-actions">
+        <a class="btn primary" href="${esc(e.webLink)}" target="_blank" rel="noopener"${hasDraft ? ` onclick="var t=document.getElementById('t${i}');if(t)navigator.clipboard.writeText(t.value)"` : ''}>${openLabel}${hasDraft ? ' + copy draft' : ''} ↗</a>
+        <button class="btn done-btn" data-idx="${i}" onclick="toggleDone(${i})">✓ Done</button>
+      </div>
     </header>
     <div class="cols">
       <section class="col"><h3>① Original</h3>${tsum}<div class="excerpt">${esc(e.excerpt)}</div></section>
