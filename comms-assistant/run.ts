@@ -4,6 +4,7 @@
 //   context:assemble --file=<ThreadInput>   emit the machine-readable ContextBundle for the prediction sub-agent
 //   context:probe --file=<ThreadInput>      human view of the bundle (as-of-honest + live-sim)
 //   predictions:add --payload=<json>        insert a blind prediction
+//   predictions:add-many --payload=<items>  persist a whole triage sweep (idempotent per thread)
 //   predictions:list [--unreconciled]       list rows (optionally needing reconcile)
 //   predictions:reconcile --payload=<json>  { id, actual_reply, delta, resolution, why? }
 //   rules:list                              list rules, highest confidence first
@@ -12,9 +13,10 @@
 //   rules:pin --id=<uuid>
 import { readFileSync } from 'node:fs'
 import {
-  insertPrediction, listPredictions, reconcilePrediction,
+  insertPrediction, upsertPredictions, listPredictions, reconcilePrediction,
   listRules, insertRule, supersedeRule, pinRule,
 } from './store.js'
+import type { PredictionRow } from './types.js'
 import { assembleContext, type ThreadInput, type ContextBundle } from './retrieve.js'
 import { classifyEmail, type EmailMeta } from './classify.js'
 
@@ -44,12 +46,61 @@ function payload(): any {
   return JSON.parse(readFileSync(p, 'utf8'))
 }
 
+// Map a rendered triage card ({email, thread, suggestion, tier, verdict, self_check}) to a
+// comms_predictions row. Matching keys for the later Sent-Items reconcile: thread_id
+// (conversationId) → internet_message_id → web_link (carry conversationId in capture for best matching).
+function itemToRow(it: any): PredictionRow {
+  const e = it.email || {}, s = it.suggestion || {}
+  const a = s.action || { type: s.disposition ?? null, target: null }
+  const chMap: Record<string, string> = { outlook: 'email', teams: 'teams', meeting: 'meeting' }
+  const confScore: Record<string, number> = { high: 0.85, med: 0.6, low: 0.35 }
+  return {
+    mode: 'reply',
+    thread_id: e.conversation_id ?? e.conversationId ?? null,
+    message_id: e.message_id ?? e.id ?? null,
+    internet_message_id: e.internet_message_id ?? e.internetMessageId ?? null,
+    web_link: e.webLink ?? e.web_link ?? null,
+    channel: chMap[e.channel] ?? e.channel ?? 'email',
+    as_of: new Date().toISOString(),
+    trigger_text: `${e.from ?? '?'} (${e.date ?? '?'}), thread '${e.subject ?? ''}'`,
+    disposition: a.type ?? s.disposition ?? null,
+    action_type: a.type ?? null,
+    action_target: a.target ?? null,
+    needs_data: !!s.needs_data,
+    predicted_reply: s.text ?? null,
+    predicted_stance: a.type ?? null,
+    confidence: (s.confidence ?? null) as any,
+    confidence_score: confScore[s.confidence] ?? null,
+    context_available: { draft_why: s.why ?? null, self_check_passed: it.self_check?.passed ?? null } as any,
+    actual_reply: null, delta: null, resolution: null, why: null,
+    derived_rule_ids: [],
+    sensitive: !!(it.sensitive ?? it.signals?.sensitive),
+    tier: it.tier ?? null,
+    verdict: it.verdict ?? null,
+  }
+}
+
 async function main() {
   const cmd = process.argv[2]
   switch (cmd) {
     case 'predictions:add': {
       const id = await insertPrediction(payload())
       console.log(JSON.stringify({ inserted: id }))
+      break
+    }
+    case 'predictions:add-many': {
+      // Persist a whole sweep. --payload=<items.json> (the array render-triage was given, each
+      // item optionally carrying tier + verdict). Idempotent per thread (upsert on open rows).
+      const items = payload() as any[]
+      const rows = items.map(itemToRow)
+      const res = await upsertPredictions(rows)
+      const byTier = rows.reduce((m: Record<string, number>, r) => { const k = 'T' + (r.tier ?? '?'); m[k] = (m[k] || 0) + 1; return m }, {})
+      console.log(JSON.stringify({
+        persisted: rows.length, ...res,
+        withDraft: rows.filter((r) => r.predicted_reply).length,
+        byTier,
+        flagged: rows.filter((r) => (r.verdict as any)?.flagged).length,
+      }, null, 2))
       break
     }
     case 'predictions:list': {

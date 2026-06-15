@@ -70,6 +70,8 @@ export interface PredictionRow {
   why: string | null
   derived_rule_ids: string[]
   sensitive: boolean
+  tier?: number | null                 // processing tier (0 templated / 1 shallow / 2 deep+verified)
+  verdict?: Record<string, unknown> | null   // adversarial-verifier result (T2) — reconcilable signal
   created_at?: string
 }
 

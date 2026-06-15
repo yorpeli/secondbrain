@@ -221,7 +221,11 @@ The human never runs a CLI; the orchestrator runs it for him.
 4. **Fan out** — one sub-agent per thread (see §7–8).
 5. **Render** — `render-triage.ts` → a numbered, **newest-first** master-detail HTML page (channel
    icons; HE⇄EN toggle for Hebrew; collapsible context; ⏳ aging badges; tier + verdict badges).
-6. **Human reviews/edits/sends.** A later sweep reads Sent Items and reconciles (§9).
+6. **Persist** — `predictions:add-many` writes every card to `comms_predictions` (action + target,
+   `tier`, `verdict`; idempotent per thread). Without this the loop can't close — there's nothing for
+   the Sent-Items sweep to reconcile against. Matching keys come from capture (`conversation_id` →
+   `internet_message_id` → `web_link`).
+7. **Human reviews/edits/sends.** A later sweep reads Sent Items and reconciles (§9).
 
 **Capture is the foundation.** A truncated or wrong input poisons retrieval *and* drafting
 downstream — grounding cannot rescue a clipped question. Verify you have the real message first.
@@ -302,8 +306,9 @@ validation or self-grading.
 This is what makes it an *agent that gets better*, not a one-shot drafter.
 
 - **Pass A · Predict** (new mail needing a decision): sweep → classify → per-thread sub-agent →
-  write a `comms_predictions` row (`action_type`/`action_target` + drafted message + `confidence`
-  + `context_available`; `actual_reply = null`).
+  **`predictions:add-many` persists each card** to `comms_predictions` (`action_type`/`action_target`
+  + drafted message + `confidence` + `tier` + adversarial `verdict`; `actual_reply = null`). *(Write
+  side: wired 2026-06-15. Idempotent per thread — re-sweeping updates open rows, never duplicates.)*
 - **Pass B · Reconcile + distill** (a later sweep): read **Sent Items** → match to open predictions
   (thread_id / subject+participants) → compute **delta**:
   - *style delta* (`delta.ts` `structuralDelta`) — length ratio, language match.
@@ -332,7 +337,7 @@ predictions while Pass A predicts today's new mail.
 
 | Store | Holds | Embedded? |
 |---|---|---|
-| `comms_predictions` | per-item prediction + reconciliation (action, draft, delta, resolution, why) | **never** |
+| `comms_predictions` | per-item prediction + reconciliation (action/target, draft, `tier`, `verdict`, delta, resolution, why) | **never** |
 | `comms_rules` | the living rulebook (versioned, scoped, status lifecycle) | **never** |
 | `context_store.comms_org_ownership` | T2 map: domains/owners, reporting chain, red-lines, `referenceFacts` | n/a |
 | `context_store.comms_teams_whitelist` | Teams scope: CLM-leadership group IDs + 1:1 chat IDs | n/a |
@@ -429,5 +434,7 @@ should compound what it learns from being wrong.**
 
 ---
 
-*Living document. When the build moves ahead of it — new evaluation lenses, persistence wiring,
-auto-revise, a generalized template extraction — update this file in the same PR.*
+*Living document. Write-side persistence is wired (2026-06-15); the **Pass-B reconcile helper**
+(match Sent Items → delta → resolution → distill into `comms_rules`) is the next missing piece. When
+the build moves ahead — the reconcile helper, new evaluation lenses, auto-revise, a generalized
+template extraction — update this file in the same PR.*

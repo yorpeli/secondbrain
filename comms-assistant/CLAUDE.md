@@ -88,7 +88,14 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
 6. **Render + open** — `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`.
    `render-triage.ts` calls `assembleContext(thread)` itself → the card's People/Guardrails/Rules come from the
    retrieval layer; you supply `suggestion` + `memory_brief`. Page shell/styling is [templates/triage.html](templates/triage.html) (editable).
-7. He reviews/edits, sends from Outlook. A later sweep reads **Sent Items** and reconciles.
+7. **Persist the sweep** — `npm run comms-assistant -- predictions:add-many --payload=<items.json>` writes every
+   card to `comms_predictions` (idempotent per thread; carries `action_type`/`action_target`, `tier`, and the
+   adversarial `verdict`). This is **not optional** — without it the later Sent-Items sweep has nothing to
+   reconcile and the loop never closes. ⚠️ For good matching, include **`conversation_id`** (and
+   `internet_message_id`) on each `email` during capture (`read_resource` returns them) — they're the keys the
+   reconcile sweep matches on; `web_link` is the fallback.
+8. He reviews/edits, sends from Outlook. A later sweep reads **Sent Items**, matches to these open rows, computes
+   the style + action delta, buckets a `resolution`, and distills into `comms_rules` (Pass B reconcile — to build).
 
 Single-email help ("draft a reply to X") = the same pipeline for one thread.
 
