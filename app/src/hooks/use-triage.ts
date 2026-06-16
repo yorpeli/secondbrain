@@ -12,7 +12,8 @@ export function useTriageCards() {
         .from('comms_predictions' as never)
         .select(COLS)
         .eq('status', 'open')
-        .order('created_at', { ascending: true })
+        .is('resolution', null)        // exclude reconciled/historical rows
+        .order('created_at', { ascending: false })   // newest first (matches the HTML template)
       if (error) throw error
       return (data ?? []) as unknown as TriageCard[]
     },
