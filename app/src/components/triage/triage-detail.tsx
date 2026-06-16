@@ -22,6 +22,7 @@ import {
   MemoryBrief,
   hasHebrew,
   verdictFlagged,
+  parseTrigger,
 } from "./triage-bits"
 
 const YONATAN = (p: CardParticipant) =>
@@ -129,6 +130,10 @@ export function TriageDetail({
 }) {
   const c = card
   const e = c.card?.email
+  const fb = parseTrigger(c.trigger_text)
+  const subject = e?.subject ?? fb.subject ?? "(no subject)"
+  const from    = e?.from    ?? fb.from   ?? "—"
+  const date    = e?.date    ?? fb.date   ?? "—"
   const extras = c.card?.suggestion_extras
   const ctx = c.card?.context
   const ch = channelOf(c.channel)
@@ -196,11 +201,11 @@ export function TriageDetail({
           <div className="flex items-center gap-1.5 text-[17px] font-semibold leading-tight">
             <span className="font-bold text-muted-foreground/70">#{index + 1}</span>
             <ChannelIcon channel={c.channel} className="h-4 w-4" />
-            <span className="break-words">{e?.subject ?? "(no subject)"}</span>
+            <span className="break-words">{subject}</span>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
-            from <b className="font-semibold text-foreground">{e?.from ?? "—"}</b> · {e?.date ?? "—"}
-            <AgeBadge date={e?.date ?? null} /> · to {toStr}
+            from <b className="font-semibold text-foreground">{from}</b> · {date}
+            <AgeBadge date={date === "—" ? null : date} /> · to {toStr}
             {c.sensitive && (
               <span className="ml-1 font-medium text-destructive">· sensitive</span>
             )}

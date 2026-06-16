@@ -104,6 +104,16 @@ export function VerdictFlagBadge() {
   )
 }
 
+// ── Trigger-text parser ──────────────────────────────────────────────────────
+// Fallback for rows persisted before the card payload existed: trigger_text holds
+//   `${from} (${date}), thread '${subject}'`  — the date is the LAST (...) before ", thread".
+export function parseTrigger(t: string | null | undefined): { from: string | null; date: string | null; subject: string | null } {
+  if (!t) return { from: null, date: null, subject: null }
+  const m = t.match(/^(.*)\s+\(([^)]*)\),\s*thread '([\s\S]*)'$/)
+  if (!m) return { from: t, date: null, subject: null }
+  return { from: m[1] || null, date: m[2] || null, subject: m[3] || null }
+}
+
 // ── Verdict helpers ─────────────────────────────────────────────────────────
 import type { CardVerdict } from "@/lib/triage-types"
 

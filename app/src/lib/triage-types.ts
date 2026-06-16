@@ -53,4 +53,5 @@ export interface TriageCard {
   needs_data?: boolean | null
   tier?: number | null
   verdict?: CardVerdict | null
+  trigger_text?: string | null
 }

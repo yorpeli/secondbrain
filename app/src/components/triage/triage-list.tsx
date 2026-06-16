@@ -9,6 +9,7 @@ import {
   TierBadge,
   VerdictFlagBadge,
   verdictFlagged,
+  parseTrigger,
 } from "./triage-bits"
 
 export function TriageList({
@@ -23,7 +24,10 @@ export function TriageList({
   return (
     <nav className="w-[300px] shrink-0 overflow-y-auto border-r border-border bg-muted/40">
       {cards.map((c, i) => {
-        const e = c.card?.email
+        const fb = parseTrigger(c.trigger_text)
+        const subject = c.card?.email.subject ?? fb.subject ?? "(no subject)"
+        const from    = c.card?.email.from    ?? fb.from   ?? "—"
+        const date    = c.card?.email.date    ?? fb.date   ?? "—"
         const active = c.id === selectedId
         return (
           <button
@@ -39,16 +43,16 @@ export function TriageList({
                 {i + 1}
               </span>
               <ChannelIcon channel={c.channel} className="mt-0.5 h-3.5 w-3.5" />
-              <span className="flex-1">{e?.subject ?? "(no subject)"}</span>
+              <span className="flex-1">{subject}</span>
             </div>
             <div className="text-[11px] text-muted-foreground">
-              {e?.from ?? "—"} · {e?.date ?? "—"}
+              {from} · {date}
             </div>
             <div className="mt-1.5 flex flex-wrap items-center gap-1">
               <DispositionBadge type={c.action_type} />
               {c.needs_data && <NeedsDataBadge />}
               <ConfidenceBadge value={c.confidence} />
-              <AgeBadge date={e?.date ?? null} />
+              <AgeBadge date={date === "—" ? null : date} />
               <TierBadge tier={c.tier} />
               {verdictFlagged(c.verdict) && <VerdictFlagBadge />}
             </div>
