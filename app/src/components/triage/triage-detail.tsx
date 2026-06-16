@@ -172,7 +172,7 @@ export function TriageDetail({
   const secondary = (extras?.secondary as string | null) ?? null
 
   const toStr = Array.isArray(e?.to) ? e!.to!.join(", ") : (e?.to as unknown as string) ?? "—"
-  const webLink = e?.webLink ?? null
+  const webLink = e?.webLink ?? c.web_link ?? null   // card payload first, then the top-level column (legacy rows)
 
   const sources = useMemo(() => {
     const raw = extras?.sources

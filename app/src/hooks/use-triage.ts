@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { TriageCard, FeedbackKind } from '@/lib/triage-types'
 
-const COLS = 'id,channel,action_type,action_target,predicted_reply,edited_reply,action_accepted,confidence,why,status,sensitive,card,created_at,needs_data,tier,verdict,trigger_text'
+const COLS = 'id,channel,action_type,action_target,predicted_reply,edited_reply,action_accepted,confidence,why,status,sensitive,card,created_at,needs_data,tier,verdict,trigger_text,web_link'
 
 export function useTriageCards() {
   return useQuery({

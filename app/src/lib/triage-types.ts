@@ -54,4 +54,5 @@ export interface TriageCard {
   tier?: number | null
   verdict?: CardVerdict | null
   trigger_text?: string | null
+  web_link?: string | null
 }
