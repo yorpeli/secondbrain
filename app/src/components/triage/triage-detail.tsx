@@ -218,14 +218,6 @@ export function TriageDetail({
   const passedCount = allVerdicts.length - refuted.length
   const flagCount = refuted.length
 
-  const memoryPoints = useMemo(() => {
-    const mb = extras?.memory_brief
-    if (mb && typeof mb === "object" && Array.isArray((mb as { points?: string[] }).points)) {
-      return ((mb as { points?: string[] }).points ?? []).filter(Boolean)
-    }
-    return []
-  }, [extras])
-
   const rules = ctx?.rules ?? []
   const redLines = ctx?.ownership?.redLines ?? []
 
@@ -546,34 +538,7 @@ export function TriageDetail({
                     No rationale recorded.
                   </div>
                 )}
-
-                {(rules.length > 0 || memoryPoints.length > 0) && (
-                  <>
-                    <MiniLabel>Signals used</MiniLabel>
-                    <div className="flex flex-col gap-2.5">
-                      {rules.map((r: CardRule, i) => (
-                        <RuleRow
-                          key={`r${i}`}
-                          weight={r.weight}
-                          statement={(r.statement ?? "").slice(0, 200)}
-                        />
-                      ))}
-                      {memoryPoints.map((p, i) => (
-                        <div key={`m${i}`} className="flex items-baseline gap-2">
-                          <span
-                            className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase"
-                            style={{ background: "rgba(124,58,237,0.18)", color: "#c4b5fd" }}
-                          >
-                            memory
-                          </span>
-                          <span className="text-[12.5px] leading-snug text-foreground/85">
-                            {p}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
+                {/* Rules + memory live in column ② (Context) — not duplicated here. */}
               </>
             )}
 
