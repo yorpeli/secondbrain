@@ -77,7 +77,7 @@ async function itemToRow(it: any): Promise<PredictionRow> {
     confidence: (s.confidence ?? null) as any,
     confidence_score: confScore[s.confidence] ?? null,
     context_available: { draft_why: s.why ?? null, self_check_passed: it.self_check?.passed ?? null } as any,
-    actual_reply: null, delta: null, resolution: null, why: null,
+    actual_reply: null, delta: null, resolution: null, why: s.why ?? null,
     derived_rule_ids: [],
     sensitive: !!(it.sensitive ?? it.signals?.sensitive),
     tier: it.tier ?? null,

@@ -5,9 +5,19 @@ export interface CardEmail {
   subject: string | null; from: string | null; date: string | null
   to: string[] | null; excerpt: string | null; webLink: string | null; thread_summary: string | null
 }
+export interface CardParticipant {
+  name?: string; role?: string; relation?: string; inDb?: boolean; email?: string; slug?: string
+}
+export interface CardRule { statement?: string; weight?: string }
+export interface CardNarrative { provenance?: string }
+export interface CardOwnership { redLines?: string[] }
 export interface CardContext {
-  thread: string; rules: { statement?: string }[]; participants: { name?: string; role?: string }[]
-  ownership: unknown | null; narrative: unknown[]; meta: unknown
+  thread: string
+  rules: CardRule[]
+  participants: CardParticipant[]
+  ownership: CardOwnership | null
+  narrative: CardNarrative[]
+  meta: unknown
 }
 export interface CardPayload {
   email: CardEmail
@@ -18,6 +28,13 @@ export interface CardPayload {
     secondary: string | null; sources: unknown | null
   }
   context: CardContext
+}
+export interface VerdictLens {
+  lens?: string; issue?: string; refuted?: boolean; severity?: string
+}
+export interface CardVerdict {
+  flagged?: boolean
+  verdicts?: VerdictLens[]
 }
 export interface TriageCard {
   id: string
@@ -33,4 +50,7 @@ export interface TriageCard {
   sensitive: boolean
   card: CardPayload | null
   created_at: string
+  needs_data?: boolean | null
+  tier?: number | null
+  verdict?: CardVerdict | null
 }
