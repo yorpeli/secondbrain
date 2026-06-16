@@ -55,4 +55,5 @@ export interface TriageCard {
   verdict?: CardVerdict | null
   trigger_text?: string | null
   web_link?: string | null
+  context_available?: { draft_why?: string | null } | null
 }

@@ -173,6 +173,8 @@ export function TriageDetail({
 
   const toStr = Array.isArray(e?.to) ? e!.to!.join(", ") : (e?.to as unknown as string) ?? "—"
   const webLink = e?.webLink ?? c.web_link ?? null   // card payload first, then the top-level column (legacy rows)
+  // Rationale: the `why` column, else the legacy home in context_available.draft_why.
+  const whyText = c.why ?? (c.context_available?.draft_why ?? null)
 
   const sources = useMemo(() => {
     const raw = extras?.sources
@@ -420,12 +422,12 @@ export function TriageDetail({
           </div>
 
           {/* Why */}
-          {c.why && (
+          {whyText && (
             <div className="mt-3 rounded-r-lg border-l-[3px] border-primary bg-muted px-3.5 py-3 text-[13px] leading-relaxed text-foreground">
               <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
                 {hasDraft ? "Why this draft" : "Why this action"}
               </span>
-              {c.why}
+              {whyText}
             </div>
           )}
 
