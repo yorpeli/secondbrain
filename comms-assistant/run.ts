@@ -19,6 +19,7 @@ import {
 import type { PredictionRow } from './types.js'
 import { assembleContext, type ThreadInput, type ContextBundle } from './retrieve.js'
 import { classifyEmail, type EmailMeta } from './classify.js'
+import { buildCardPayload } from './card.js'
 
 function renderBundle(label: string, b: ContextBundle): string {
   const lines: string[] = [`── ${label} ──`]
@@ -49,11 +50,13 @@ function payload(): any {
 // Map a rendered triage card ({email, thread, suggestion, tier, verdict, self_check}) to a
 // comms_predictions row. Matching keys for the later Sent-Items reconcile: thread_id
 // (conversationId) → internet_message_id → web_link (carry conversationId in capture for best matching).
-function itemToRow(it: any): PredictionRow {
+async function itemToRow(it: any): Promise<PredictionRow> {
   const e = it.email || {}, s = it.suggestion || {}
   const a = s.action || { type: s.disposition ?? null, target: null }
   const chMap: Record<string, string> = { outlook: 'email', teams: 'teams', meeting: 'meeting' }
   const confScore: Record<string, number> = { high: 0.85, med: 0.6, low: 0.35 }
+  let bundle: any = { thread: '', rules: [], participants: [], ownership: null, narrative: [], meta: {} }
+  try { if (it.thread) bundle = await assembleContext(it.thread) } catch { /* sparse context */ }
   return {
     mode: 'reply',
     thread_id: e.conversation_id ?? e.conversationId ?? null,
@@ -77,6 +80,11 @@ function itemToRow(it: any): PredictionRow {
     sensitive: !!(it.sensitive ?? it.signals?.sensitive),
     tier: it.tier ?? null,
     verdict: it.verdict ?? null,
+    card: buildCardPayload(it, bundle),
+    status: 'open',
+    user_touched: false,
+    last_message_id: e.internet_message_id ?? e.internetMessageId ?? null,
+    captured_at: new Date().toISOString(),
   }
 }
 
@@ -92,7 +100,7 @@ async function main() {
       // Persist a whole sweep. --payload=<items.json> (the array render-triage was given, each
       // item optionally carrying tier + verdict). Idempotent per thread (upsert on open rows).
       const items = payload() as any[]
-      const rows = items.map(itemToRow)
+      const rows = await Promise.all(items.map(itemToRow))
       const res = await upsertPredictions(rows)
       const byTier = rows.reduce((m: Record<string, number>, r) => { const k = 'T' + (r.tier ?? '?'); m[k] = (m[k] || 0) + 1; return m }, {})
       console.log(JSON.stringify({

@@ -26,6 +26,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { assembleContext, type ContextBundle } from './retrieve.js'
+import { buildCardPayload } from './card.js'
 
 const esc = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
@@ -154,8 +155,14 @@ function detail(item: any, b: ContextBundle, i: number): string {
   // Channel-aware open button (outlook | teams | …). Default outlook.
   const channels: Record<string, string> = { outlook: 'Open in Outlook', teams: 'Open in Teams', gmail: 'Open in Gmail' }
   const openLabel = channels[e.channel] || channels.outlook
-  const tsum = e.thread_summary && String(e.thread_summary).trim()
-    ? `<div class="lbl">Thread summary</div><div class="tsum">${esc(e.thread_summary)}</div><div class="lbl">Latest message</div>` : ''
+  // ① Original: thread summary (if any) + the latest message. Fall back to item.body so the card is
+  // never blank when `excerpt` was omitted upstream; only show the "Latest message" label if there's content.
+  const summaryBlock = e.thread_summary && String(e.thread_summary).trim()
+    ? `<div class="lbl">Thread summary</div><div class="tsum">${esc(e.thread_summary)}</div>` : ''
+  const latestMsg = (e.excerpt && String(e.excerpt).trim()) || (item.body && String(item.body).trim()) || ''
+  const originalBody = latestMsg
+    ? `${summaryBlock ? '<div class="lbl">Latest message</div>' : ''}<div class="excerpt">${esc(latestMsg)}</div>`
+    : (summaryBlock ? '' : '<div class="excerpt muted">—</div>')
   return `<div class="detail" id="d${i}">
     <header class="ch">
       <div><div class="subj"><span class="det-num">#${i + 1}</span>${cicon(e.channel)}${esc(e.subject)}</div>
@@ -166,7 +173,7 @@ function detail(item: any, b: ContextBundle, i: number): string {
       </div>
     </header>
     <div class="cols">
-      <section class="col"><h3>① Original</h3>${tsum}<div class="excerpt">${esc(e.excerpt)}</div></section>
+      <section class="col"><h3>① Original</h3>${summaryBlock}${originalBody}</section>
       <section class="col"><h3>② Context</h3>
         <div class="lbl">Memory brief</div>${brief}${sources}
         <div class="lbl">People</div><div class="people">${people}</div>
@@ -200,6 +207,7 @@ async function main(file: string, out: string) {
     let b: ContextBundle
     try { b = await assembleContext(items[i].thread) }
     catch (e) { console.error(`context failed for item ${i} (${(e as Error).message}); rendering with sparse context`); b = EMPTY_BUNDLE }
+    ;(items[i] as any)._card = buildCardPayload(items[i], b)
     lis.push(listItem(items[i], i))
     details.push(detail(items[i], b, i))
   }

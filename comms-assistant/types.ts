@@ -72,8 +72,19 @@ export interface PredictionRow {
   sensitive: boolean
   tier?: number | null                 // processing tier (0 templated / 1 shallow / 2 deep+verified)
   verdict?: Record<string, unknown> | null   // adversarial-verifier result (T2) — reconcilable signal
+  card?: import('./card.js').CardPayload | null
+  status?: 'open' | 'sent' | 'dismissed' | 'snoozed'
+  edited_reply?: string | null
+  action_accepted?: boolean | null
+  overridden_action?: { type: string; target: string | null } | null
+  snooze_until?: string | null
+  user_touched?: boolean
+  last_message_id?: string | null
+  captured_at?: string | null
   created_at?: string
 }
+
+export type FeedbackKind = 'edit' | 'action_override' | 'note' | 'status'
 
 export interface RuleRow {
   id?: string
