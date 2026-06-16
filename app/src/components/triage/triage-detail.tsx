@@ -151,6 +151,8 @@ export function TriageDetail({
   const [textB, setTextB] = useState(textAlt ?? "")
   const [note, setNote] = useState("")
   const [copied, setCopied] = useState(false)
+  // Action verdict: true = accepted, false = overridden, null = untouched. Reflects the persisted state.
+  const [accepted, setAccepted] = useState<boolean | null>(c.action_accepted ?? null)
 
   // Reset local state when the selected card changes.
   useEffect(() => {
@@ -159,6 +161,7 @@ export function TriageDetail({
     setTextB(textAlt ?? "")
     setNote("")
     setCopied(false)
+    setAccepted(c.action_accepted ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c.id])
 
@@ -389,27 +392,32 @@ export function TriageDetail({
             </>
           )}
 
-          {/* Action feedback */}
+          {/* Action feedback — buttons reflect the persisted verdict; clicking the active one is a no-op. */}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               size="sm"
-              variant="outline"
-              onClick={() =>
+              variant={accepted === true ? "default" : "outline"}
+              aria-pressed={accepted === true}
+              onClick={() => {
+                if (accepted === true) return // already accepted — don't re-log
+                setAccepted(true)
                 onFeedback("action_override", {
                   accepted: true,
                   from: { type: c.action_type, target: c.action_target },
                 })
-              }
+              }}
             >
-              👍 Action right
+              {accepted === true ? "👍 Action right ✓" : "👍 Action right"}
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant={accepted === false ? "default" : "outline"}
+              aria-pressed={accepted === false}
               onClick={() => {
                 const t = window.prompt('Correct action as "type:target" (e.g. route:ido-seter)')
                 if (!t) return
                 const [type, target] = t.split(":")
+                setAccepted(false)
                 onFeedback("action_override", {
                   accepted: false,
                   from: { type: c.action_type, target: c.action_target },
@@ -417,7 +425,7 @@ export function TriageDetail({
                 })
               }}
             >
-              👎 Wrong action
+              {accepted === false ? "👎 Wrong action ✓" : "👎 Wrong action"}
             </Button>
           </div>
 
