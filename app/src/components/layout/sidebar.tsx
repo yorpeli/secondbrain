@@ -6,6 +6,7 @@ import {
   Users,
   FileBarChart,
   CalendarRange,
+  Inbox,
   Sun,
   Moon,
   PanelLeftClose,
@@ -22,6 +23,7 @@ const navItems = [
   { to: "/people", icon: Users, label: "People" },
   { to: "/plans", icon: CalendarRange, label: "Q Plan" },
   { to: "/ppp", icon: FileBarChart, label: "PPP" },
+  { to: "/triage", icon: Inbox, label: "Triage" },
 ]
 
 export function Sidebar() {

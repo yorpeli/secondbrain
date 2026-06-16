@@ -8,6 +8,7 @@ import { InitiativeDetailPage } from "@/pages/initiative-detail"
 import { PeoplePage } from "@/pages/people"
 import { PPPPage } from "@/pages/ppp"
 import { QuarterlyPlanPage } from "@/pages/quarterly-plan"
+import { TriagePage } from "@/pages/triage"
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ function App() {
               <Route path="/people" element={<PeoplePage />} />
               <Route path="/ppp" element={<PPPPage />} />
               <Route path="/plans" element={<QuarterlyPlanPage />} />
+              <Route path="/triage" element={<TriagePage />} />
             </Route>
           </Routes>
         </BrowserRouter>
