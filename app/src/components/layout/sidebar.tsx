@@ -26,9 +26,20 @@ const navItems = [
   { to: "/triage", icon: Inbox, label: "Triage" },
 ]
 
+const COLLAPSE_KEY = "sb-ui-sidebar-collapsed"
+
 export function Sidebar() {
   const { theme, setTheme } = useTheme()
-  const [collapsed, setCollapsed] = useState(false)
+  // Default collapsed; remember the user's choice across reloads.
+  const [collapsed, setCollapsed] = useState(
+    () => (localStorage.getItem(COLLAPSE_KEY) ?? "true") === "true"
+  )
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      const next = !c
+      localStorage.setItem(COLLAPSE_KEY, String(next))
+      return next
+    })
 
   return (
     <aside
@@ -83,7 +94,7 @@ export function Sidebar() {
           variant="ghost"
           size={collapsed ? "icon" : "sm"}
           className={cn("w-full", collapsed ? "justify-center" : "justify-start gap-3")}
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggleCollapsed}
         >
           {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           {!collapsed && <span>Collapse</span>}
