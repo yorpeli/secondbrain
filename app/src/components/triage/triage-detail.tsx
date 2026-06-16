@@ -7,6 +7,7 @@ import {
   Check,
   Pencil,
   RotateCcw,
+  ChevronRight,
   ExternalLink as OutLink,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -47,23 +48,6 @@ const SectionLabel = ({
     <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
       {children}
     </span>
-  </div>
-)
-
-const MiniLabel = ({
-  children,
-  className,
-}: {
-  children: React.ReactNode
-  className?: string
-}) => (
-  <div
-    className={cn(
-      "mb-2 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground/70",
-      className
-    )}
-  >
-    {children}
   </div>
 )
 
@@ -122,6 +106,46 @@ function RuleRow({ weight, statement }: { weight: string | null | undefined; sta
         {w}
       </span>
       <span className="text-[12.5px] leading-snug text-foreground/85">{statement}</span>
+    </div>
+  )
+}
+
+// ── Collapsible section for column ② (collapsed by default → no scroll) ──────
+function Disclosure({
+  label,
+  count,
+  accent,
+  children,
+}: {
+  label: string
+  count?: number
+  accent?: string
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="border-b border-border/60">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-1.5 py-2.5 text-left"
+      >
+        <ChevronRight
+          className={cn(
+            "h-3 w-3 shrink-0 text-muted-foreground/60 transition-transform",
+            open && "rotate-90"
+          )}
+        />
+        <span
+          className="text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground/70"
+          style={accent ? { color: accent } : undefined}
+        >
+          {label}
+        </span>
+        {typeof count === "number" && count > 0 && (
+          <span className="text-[10px] text-muted-foreground/50">· {count}</span>
+        )}
+      </button>
+      {open && <div className="pb-3">{children}</div>}
     </div>
   )
 }
@@ -345,63 +369,56 @@ export function TriageDetail({
         <section className="overflow-y-auto bg-background p-5">
           <SectionLabel num="②">Context</SectionLabel>
 
-          {/* Memory brief — purple insight card */}
-          <MiniLabel className="text-[#c4b5fd]">Memory brief</MiniLabel>
-          <div
-            className="mb-2 rounded-[10px] px-[13px] py-3"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(124,58,237,0.1), rgba(124,58,237,0.02))",
-              border: "1px solid rgba(124,58,237,0.25)",
-            }}
-          >
-            <MemoryBrief brief={extras?.memory_brief as never} />
-          </div>
-          {sources.length > 0 && (
-            <div className="mb-[18px] break-words text-[10px] leading-snug text-muted-foreground/70">
-              sources: {sources.join(" · ")}
+          {/* Sections collapsed by default so the column fits without scrolling. */}
+          <Disclosure label="Memory brief" accent="#c4b5fd">
+            <div
+              className="rounded-[10px] px-[13px] py-3"
+              style={{
+                background:
+                  "linear-gradient(180deg, rgba(124,58,237,0.1), rgba(124,58,237,0.02))",
+                border: "1px solid rgba(124,58,237,0.25)",
+              }}
+            >
+              <MemoryBrief brief={extras?.memory_brief as never} />
             </div>
-          )}
+            {sources.length > 0 && (
+              <div className="mt-2 break-words text-[10px] leading-snug text-muted-foreground/70">
+                sources: {sources.join(" · ")}
+              </div>
+            )}
+          </Disclosure>
 
-          {/* People */}
-          <MiniLabel className={sources.length > 0 ? "" : "mt-4"}>People</MiniLabel>
-          <div className="mb-[18px]">
+          <Disclosure
+            label="People"
+            count={(ctx?.participants ?? []).filter((p) => !YONATAN(p)).length}
+          >
             <PeopleChips participants={ctx?.participants ?? []} />
-          </div>
+          </Disclosure>
 
-          {/* Rules that fired */}
           {rules.length > 0 && (
-            <>
-              <MiniLabel>Rules that fired</MiniLabel>
-              <div className="mb-[18px] flex flex-col gap-2">
+            <Disclosure label="Rules that fired" count={rules.length}>
+              <div className="flex flex-col gap-2">
                 {rules.map((r: CardRule, i) => (
                   <RuleRow key={i} weight={r.weight} statement={(r.statement ?? "").slice(0, 200)} />
                 ))}
               </div>
-            </>
+            </Disclosure>
           )}
 
-          {/* Guardrails · T2 — inline callout */}
           {redLines.length > 0 && (
-            <div
-              className="flex items-start gap-[9px] rounded-r-[10px] border border-l-[3px] border-border bg-card px-[13px] py-[11px]"
-              style={{ borderLeftColor: "#7c3aed" }}
-            >
-              <Shield className="mt-px h-[15px] w-[15px] shrink-0" style={{ color: "#c4b5fd" }} />
-              <div>
-                <div
-                  className="mb-1 text-[10px] font-bold uppercase tracking-[0.04em]"
-                  style={{ color: "#c4b5fd" }}
-                >
-                  Guardrail · T2
-                </div>
+            <Disclosure label="Guardrail · T2" accent="#c4b5fd" count={redLines.length}>
+              <div
+                className="flex items-start gap-[9px] rounded-r-[10px] border border-l-[3px] border-border bg-card px-[13px] py-[11px]"
+                style={{ borderLeftColor: "#7c3aed" }}
+              >
+                <Shield className="mt-px h-[15px] w-[15px] shrink-0" style={{ color: "#c4b5fd" }} />
                 <div className="flex flex-col gap-1 text-[12.5px] leading-[1.5] text-foreground/85">
                   {redLines.map((r, i) => (
                     <div key={i}>{r}</div>
                   ))}
                 </div>
               </div>
-            </div>
+            </Disclosure>
           )}
         </section>
 
