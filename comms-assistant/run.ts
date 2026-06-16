@@ -11,6 +11,7 @@
 //   rules:add --payload=<json>              insert a rule
 //   rules:supersede --payload=<json>        { oldId, rule }
 //   rules:pin --id=<uuid>
+//   rules:distill [--mark=<ids>]            load undistilled feedback (or stamp processed ids)
 import { readFileSync } from 'node:fs'
 import {
   insertPrediction, upsertPredictions, listPredictions, reconcilePrediction,
@@ -20,6 +21,7 @@ import type { PredictionRow } from './types.js'
 import { assembleContext, type ThreadInput, type ContextBundle } from './retrieve.js'
 import { classifyEmail, type EmailMeta } from './classify.js'
 import { buildCardPayload } from './card.js'
+import { loadUndistilledFeedback, markDistilled } from './distill.js'
 
 function renderBundle(label: string, b: ContextBundle): string {
   const lines: string[] = [`── ${label} ──`]
@@ -140,6 +142,20 @@ async function main() {
       if (!id) throw new Error('--id=<uuid> required')
       await pinRule(id)
       console.log(JSON.stringify({ pinned: id }))
+      break
+    }
+    case 'rules:distill': {
+      // Flow 2: emit undistilled in-app feedback for the Claude session to cluster → propose rules.
+      // After the session adds rules (rules:add/supersede) it stamps the processed feedback:
+      //   rules:distill --mark='<comma-separated feedback ids>'
+      const mark = arg('mark')
+      if (mark) {
+        const n = await markDistilled(mark.split(',').map((s) => s.trim()).filter(Boolean))
+        console.log(JSON.stringify({ marked: n }))
+        break
+      }
+      const items = await loadUndistilledFeedback()
+      console.log(JSON.stringify({ count: items.length, items }, null, 2))
       break
     }
     case 'classify': {
