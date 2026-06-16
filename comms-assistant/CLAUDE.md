@@ -72,10 +72,18 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    you'll answer the wrong question. See the 2026-06-14 AI-portfolio miss, where the email cut the ask at "...ומי".)
    Build a `ThreadInput` (`retrieve.ts`): `{subject, participants[], mentions?, bodyToDate}` — **omit `asOf`** (= live).
    (Teams messages have no subject — synthesize a short topic line for `subject` from the message.)
-4. **Fan out one subagent per thread — PARALLEL, no MSFT** (each runs `context:assemble` for its thread = DB
-   only, parallel-safe; reasons via `prompts/prediction-subagent.md`; returns its `{email, thread, suggestion}`
-   item as strict JSON). The split: capture is serial + MSFT-bound (orchestrator); reasoning + drafting is the
-   expensive part (fans out) — so the orchestrator's context never fills with raw 60KB–800KB bodies. Each
+4. **Run the `comms-triage` workflow on the captured threads — this IS the reasoning + verify flow, never
+   inline drafting** (`triage.workflow.js`; pass the capture packets as `args`, each with a `signals` object so
+   tiering works). It fans out one subagent per thread — PARALLEL, no MSFT (each runs `context:assemble` = DB
+   only, parallel-safe; reasons via `prompts/triage-runner.md` → `prediction-subagent.md`) — and runs the full
+   **3-layer evaluation, all captured per card**: ① **tier-route** (`routeTier`: sensitive / direct-ask → **T2
+   deep**; cc-only → T1 shallow; broadcast/cold → T0 templated, no agent) → ② **schema-forced draft** → ③
+   **self-eval** → ④ **(T2 only) three diverse-lens ADVERSARIAL verifiers** (`faithfulness` / `ownership-and-facts`
+   / `voice-and-etiquette`; each prompted to *refute*; majority refute ≥2/3 with severity>none → `verdict.flagged`).
+   It returns each `{email, thread, suggestion, tier, self_check, verdict}` — **`tier` + `verdict` are part of the
+   captured flow and persisted on every card; do NOT draft inline and skip them.** The split: capture is serial +
+   MSFT-bound (orchestrator); reasoning + drafting + verify is the expensive part (the workflow fans out) — so the
+   orchestrator's context never fills with raw 60KB–800KB bodies. Within the workflow each
    subagent **chooses the action, then drafts it** — the response to a comm is often an **action aimed elsewhere**,
    not an in-thread reply. Pick a primary `action` `{type, target, channel?, secondary?}` —
    `reply | redirect | sidebar | route | task | escalate | schedule | monitor | none` — and name its **target**
@@ -87,7 +95,9 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    legacy alias of `action.type`. Default to `monitor`/`none` over manufacturing work — "you're clear" is valid.
    ⚠️ For **scheduling / meeting** items, check the meeting date isn't already **past** before drafting a
    confirm — a stale confirm is noise (2026-06-14: a war-room-sync confirm was drafted after the meeting had passed).
-5. **Build `items.json`** — `[{ email:{subject,from,date,to,excerpt,webLink, conversation_id, internet_message_id, channel?, thread_summary?},
+5. **Build `items.json` from the workflow output** (it already returns the per-thread items **with `tier`,
+   `self_check`, and the 3-lens `verdict`** — persist them as-is; don't strip the verify result) —
+   `[{ email:{subject,from,date,to,excerpt,webLink, conversation_id, internet_message_id, channel?, thread_summary?},
    thread:ThreadInput, suggestion:{action:{type,target,channel?,secondary?}, disposition, needs_data, confidence,
    text, why, lang?,lang_alt?,text_alt?, memory_brief} }]`. The card shows a prominent **▸ TYPE → target** line
    above the draft; `text:null` actions render the action line + `why` with no textarea.
