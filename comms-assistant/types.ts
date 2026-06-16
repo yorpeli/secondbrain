@@ -86,6 +86,8 @@ export interface PredictionRow {
 
 export type FeedbackKind = 'edit' | 'action_override' | 'note' | 'status'
 
+export type SweepAction = 'analyze' | 'skip' | 'refresh'
+
 export interface RuleRow {
   id?: string
   scope: { person?: string; initiative?: string; topic?: string; channel?: string }
