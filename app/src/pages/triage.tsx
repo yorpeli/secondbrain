@@ -40,41 +40,32 @@ export function TriagePage() {
     setPrevIndex(list.findIndex((c) => c.id === id))
   }
 
+  const setStatus = (to: "sent" | "dismissed") => {
+    if (selected) apply.mutate({ predictionId: selected.id, kind: "status", payload: { to } })
+  }
+
   const ThemeToggle = (
     <button
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs text-foreground hover:bg-accent/60"
+      className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
       title="Toggle theme"
     >
-      {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-      {theme === "dark" ? "Light" : "Dark"}
+      {theme === "dark" ? <Sun className="h-[15px] w-[15px]" /> : <Moon className="h-[15px] w-[15px]" />}
     </button>
   )
 
   return (
     // Cancel the AppShell padding and fill the content area; manage own scroll.
-    <div className="-m-6 flex h-screen flex-col overflow-hidden bg-background lg:-m-8">
-      {/* Top bar */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border bg-card px-5 py-3">
-        <div className="flex items-baseline gap-2.5">
-          <h1 className="text-base font-semibold">Comms Triage</h1>
-          {!isLoading && !error && (
-            <span className="text-xs text-muted-foreground">{list.length} open</span>
-          )}
-        </div>
-        {ThemeToggle}
-      </div>
-
-      {/* Body */}
+    <div className="-m-6 flex h-screen overflow-hidden bg-background lg:-m-8">
       {error ? (
-        <div className="m-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+        <div className="m-6 flex-1 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <p className="text-sm text-destructive">
             Failed to load triage: {(error as Error).message}
           </p>
         </div>
       ) : isLoading ? (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-[300px] shrink-0 space-y-2 border-r border-border bg-muted/40 p-3">
+        <>
+          <div className="w-[312px] shrink-0 space-y-2 border-r border-border bg-card p-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-16 w-full" />
             ))}
@@ -82,29 +73,76 @@ export function TriagePage() {
           <div className="flex-1 p-6">
             <Skeleton className="h-full w-full" />
           </div>
-        </div>
+        </>
       ) : !list.length ? (
         <div className="flex flex-1 items-center justify-center">
           <p className="text-muted-foreground">Inbox clear — no open cards.</p>
         </div>
       ) : (
-        <div className="flex flex-1 overflow-hidden">
-          <TriageList cards={list} selectedId={selectedId} onSelect={onSelect} />
-          {selected ? (
-            <TriageDetail
-              key={selected.id}
-              card={selected}
-              index={selectedIndex}
-              onFeedback={(kind, payload) =>
-                apply.mutate({ predictionId: selected.id, kind, payload })
-              }
-            />
-          ) : (
-            <div className="flex flex-1 items-center justify-center">
-              <p className="text-muted-foreground">Select a card.</p>
+        <>
+          {/* ═══════════ QUEUE ═══════════ */}
+          <section className="flex w-[312px] shrink-0 flex-col border-r border-border bg-card">
+            <div className="border-b border-border px-4 pb-3 pt-4">
+              <div className="flex items-baseline gap-2">
+                <h1 className="text-[15px] font-semibold tracking-[-0.01em]">Comms Triage</h1>
+                <span className="text-xs text-muted-foreground">{list.length} open</span>
+              </div>
             </div>
-          )}
-        </div>
+            <TriageList cards={list} selectedId={selectedId} onSelect={onSelect} />
+          </section>
+
+          {/* ═══════════ WORKSPACE ═══════════ */}
+          <section className="flex min-w-0 flex-1 flex-col bg-background">
+            {/* workspace top bar */}
+            <div className="flex shrink-0 items-center gap-3.5 border-b border-border bg-card px-6 py-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs text-muted-foreground">Card</span>
+                <span className="text-xs font-semibold text-foreground">
+                  {selectedIndex >= 0 ? selectedIndex + 1 : "—"}{" "}
+                  <span className="font-normal text-muted-foreground/70">of {list.length}</span>
+                </span>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => setStatus("dismissed")}
+                  disabled={!selected}
+                  className="rounded-lg border border-border px-[11px] py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  Dismiss
+                </button>
+                <button
+                  onClick={() => setStatus("sent")}
+                  disabled={!selected}
+                  className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  style={{
+                    color: "#86efac",
+                    background: "rgba(52,211,153,0.1)",
+                    borderColor: "rgba(52,211,153,0.3)",
+                  }}
+                >
+                  Mark sent
+                </button>
+                {ThemeToggle}
+              </div>
+            </div>
+
+            {/* card header + 3-column grid */}
+            {selected ? (
+              <TriageDetail
+                key={selected.id}
+                card={selected}
+                index={selectedIndex}
+                onFeedback={(kind, payload) =>
+                  apply.mutate({ predictionId: selected.id, kind, payload })
+                }
+              />
+            ) : (
+              <div className="flex flex-1 items-center justify-center">
+                <p className="text-muted-foreground">Select a card.</p>
+              </div>
+            )}
+          </section>
+        </>
       )}
     </div>
   )

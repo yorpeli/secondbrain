@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react"
-import { ChevronRight, ExternalLink } from "lucide-react"
+import {
+  ExternalLink,
+  MessageSquare,
+  Shield,
+  Clock,
+  Check,
+  Pencil,
+  RotateCcw,
+  ExternalLink as OutLink,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import type {
   TriageCard,
   FeedbackKind,
@@ -14,51 +22,52 @@ import {
   actionMeta,
   relColor,
   weightBadge,
-  DispositionBadge,
-  ConfidenceBadge,
-  NeedsDataBadge,
-  AgeBadge,
   TierBadge,
   MemoryBrief,
   hasHebrew,
-  verdictFlagged,
+  initials,
+  RelationPill,
+  daysWaiting,
+  FLAG_AMBER,
   parseTrigger,
 } from "./triage-bits"
 
 const YONATAN = (p: CardParticipant) =>
   p.slug === "yonatan-orpeli" || /yonatanorp@|yorpeli@/i.test(p.email ?? "")
 
-function Collapsible({
-  label,
-  count,
+const SectionLabel = ({
+  num,
   children,
 }: {
-  label: string
-  count?: number
+  num: string
   children: React.ReactNode
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="mt-3.5">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex select-none items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.05em] text-muted-foreground/70 hover:text-muted-foreground"
-      >
-        <ChevronRight className={cn("h-2.5 w-2.5 transition-transform", open && "rotate-90")} />
-        {label}
-        {count != null && count > 0 && ` · ${count}`}
-      </button>
-      {open && <div className="mt-1.5">{children}</div>}
-    </div>
-  )
-}
+}) => (
+  <div className="mb-4 flex items-center gap-[7px]">
+    <span className="text-[13px] font-bold text-muted-foreground/70">{num}</span>
+    <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
+      {children}
+    </span>
+  </div>
+)
 
-const Label = ({ children }: { children: React.ReactNode }) => (
-  <div className="mb-1.5 mt-3.5 text-[10px] font-medium uppercase tracking-[0.05em] text-muted-foreground/70">
+const MiniLabel = ({
+  children,
+  className,
+}: {
+  children: React.ReactNode
+  className?: string
+}) => (
+  <div
+    className={cn(
+      "mb-2 text-[10px] font-bold uppercase tracking-[0.06em] text-muted-foreground/70",
+      className
+    )}
+  >
     {children}
   </div>
 )
 
+// ── People chips (column ②) — relation-colored, drops Yonatan ───────────────
 function PeopleChips({ participants }: { participants: CardParticipant[] }) {
   const [showAll, setShowAll] = useState(false)
   const sorted = useMemo(
@@ -69,16 +78,17 @@ function PeopleChips({ participants }: { participants: CardParticipant[] }) {
     [participants]
   )
   if (!sorted.length) return <span className="text-xs text-muted-foreground/70">—</span>
-  const shown = showAll ? sorted : sorted.slice(0, 5)
-  const tail = sorted.length - 5
+  const shown = showAll ? sorted : sorted.slice(0, 6)
+  const tail = sorted.length - 6
   const chip = (p: CardParticipant, i: number) => {
     const c = relColor[p.relation ?? "unknown"] ?? "#9ca3af"
-    const suffix = p.inDb && p.relation ? ` · ${p.relation}` : p.role ? ` · ${p.role}` : " · external"
+    const suffix =
+      p.inDb && p.relation ? ` · ${p.relation}` : p.role ? ` · ${p.role}` : " · external"
     return (
       <span
         key={i}
-        className="rounded-full border px-2 py-0.5 text-[11px]"
-        style={{ borderColor: c, color: c }}
+        className="rounded-full border px-2.5 py-px text-[11px]"
+        style={{ borderColor: `${c}66`, color: c }}
       >
         {p.name ?? p.email}
         {suffix}
@@ -91,7 +101,7 @@ function PeopleChips({ participants }: { participants: CardParticipant[] }) {
       {!showAll && tail > 0 && (
         <button
           onClick={() => setShowAll(true)}
-          className="rounded-full border border-border bg-card px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+          className="rounded-full border border-border bg-card px-2 py-px text-[10px] text-muted-foreground hover:text-foreground"
         >
           +{tail} more
         </button>
@@ -100,21 +110,18 @@ function PeopleChips({ participants }: { participants: CardParticipant[] }) {
   )
 }
 
-function RulesList({ rules }: { rules: CardRule[] }) {
-  if (!rules.length) return <span className="text-xs text-muted-foreground/70">none fired</span>
+// ── Weight-badged rule rows (columns ② and ③ Reasoning) ─────────────────────
+function RuleRow({ weight, statement }: { weight: string | null | undefined; statement: string }) {
+  const w = weight ?? "track"
   return (
-    <div className="space-y-1.5">
-      {rules.map((r, i) => (
-        <div key={i} className="text-xs leading-snug text-foreground">
-          <span
-            className="mr-1 rounded px-1.5 py-px text-[9px] uppercase text-white"
-            style={{ background: weightBadge[r.weight ?? "track"] ?? "#6b7280" }}
-          >
-            {r.weight ?? "track"}
-          </span>
-          {(r.statement ?? "").slice(0, 160)}
-        </div>
-      ))}
+    <div className="flex items-baseline gap-2">
+      <span
+        className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase text-white"
+        style={{ background: weightBadge[w] ?? "#6b7280" }}
+      >
+        {w}
+      </span>
+      <span className="text-[12.5px] leading-snug text-foreground/85">{statement}</span>
     </div>
   )
 }
@@ -132,8 +139,8 @@ export function TriageDetail({
   const e = c.card?.email
   const fb = parseTrigger(c.trigger_text)
   const subject = e?.subject ?? fb.subject ?? "(no subject)"
-  const from    = e?.from    ?? fb.from   ?? "—"
-  const date    = e?.date    ?? fb.date   ?? "—"
+  const from = e?.from ?? fb.from ?? "—"
+  const date = e?.date ?? fb.date ?? "—"
   const extras = c.card?.suggestion_extras
   const ctx = c.card?.context
   const ch = channelOf(c.channel)
@@ -150,9 +157,12 @@ export function TriageDetail({
   const [textA, setTextA] = useState(baseText)
   const [textB, setTextB] = useState(textAlt ?? "")
   const [note, setNote] = useState("")
+  const [showNote, setShowNote] = useState(false)
   const [copied, setCopied] = useState(false)
   // Action verdict: true = accepted, false = overridden, null = untouched. Reflects the persisted state.
   const [accepted, setAccepted] = useState<boolean | null>(c.action_accepted ?? null)
+  // Suggested-action tab.
+  const [tab, setTab] = useState<"draft" | "reasoning" | "checks">("draft")
 
   // Reset local state when the selected card changes.
   useEffect(() => {
@@ -160,8 +170,10 @@ export function TriageDetail({
     setTextA(baseText)
     setTextB(textAlt ?? "")
     setNote("")
+    setShowNote(false)
     setCopied(false)
     setAccepted(c.action_accepted ?? null)
+    setTab("draft")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [c.id])
 
@@ -172,12 +184,22 @@ export function TriageDetail({
 
   const actType = c.action_type ?? "none"
   const actInfo = actionMeta[actType] ?? { label: actType, color: "#6b7280" }
-  const secondary = (extras?.secondary as string | null) ?? null
 
   const toStr = Array.isArray(e?.to) ? e!.to!.join(", ") : (e?.to as unknown as string) ?? "—"
-  const webLink = e?.webLink ?? c.web_link ?? null   // card payload first, then the top-level column (legacy rows)
+  const webLink = e?.webLink ?? c.web_link ?? null // card payload first, then the top-level column (legacy rows)
   // Rationale: the `why` column, else the legacy home in context_available.draft_why.
   const whyText = c.why ?? (c.context_available?.draft_why ?? null)
+
+  const days = daysWaiting(date === "—" ? null : date)
+
+  // Relation pill in the header — from the matching participant entry.
+  const headerRelation = useMemo(() => {
+    const ps = ctx?.participants ?? []
+    const match = ps.find(
+      (p) => !YONATAN(p) && (p.name === from || (p.email && from.includes(p.email)))
+    )
+    return match?.relation ?? null
+  }, [ctx, from])
 
   const sources = useMemo(() => {
     const raw = extras?.sources
@@ -190,303 +212,569 @@ export function TriageDetail({
     if (text) navigator.clipboard?.writeText(text)
   }
 
-  const onOpen = () => {
-    if (hasDraft) copyDraft(draftPrimary)
-  }
+  // Verdict lenses
+  const allVerdicts = c.verdict?.verdicts ?? []
+  const refuted = allVerdicts.filter((x) => x && x.refuted && x.severity !== "none")
+  const passedCount = allVerdicts.length - refuted.length
+  const flagCount = refuted.length
 
-  const refuted = (c.verdict?.verdicts ?? []).filter((x) => x && x.refuted && x.severity !== "none")
-  const flagged = verdictFlagged(c.verdict)
-  const lensCount = c.verdict?.verdicts?.length ?? 0
+  const memoryPoints = useMemo(() => {
+    const mb = extras?.memory_brief
+    if (mb && typeof mb === "object" && Array.isArray((mb as { points?: string[] }).points)) {
+      return ((mb as { points?: string[] }).points ?? []).filter(Boolean)
+    }
+    return []
+  }, [extras])
+
+  const rules = ctx?.rules ?? []
+  const redLines = ctx?.ownership?.redLines ?? []
+
+  // ── Card header (message identity / status only) ──────────────────────────
+  const Header = (
+    <div className="shrink-0 border-b border-border px-6 py-[18px]">
+      <div className="flex items-start gap-3.5">
+        <div className="min-w-0 flex-1">
+          <div className="mb-[7px] flex items-center gap-[9px]">
+            <span className="text-[18px] font-bold text-muted-foreground/70">#{index + 1}</span>
+            <ChannelIcon channel={c.channel} className="h-[17px] w-[17px]" />
+            <span className="break-words text-[19px] font-semibold leading-tight tracking-[-0.01em] text-foreground">
+              {subject}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-[7px] gap-y-1 text-[12.5px] text-muted-foreground">
+            <span>
+              from <b className="font-semibold text-foreground">{from}</b>
+            </span>
+            <RelationPill relation={headerRelation} />
+            <span>
+              · {date} · to {toStr}
+            </span>
+            {days != null && days >= 1 && (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Clock className="h-[13px] w-[13px]" />
+                {days} {days === 1 ? "day" : "days"} waiting
+              </span>
+            )}
+            {c.sensitive && <span className="font-medium text-destructive">· sensitive</span>}
+          </div>
+        </div>
+        {webLink && (
+          <a
+            href={webLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-[7px] text-[12.5px] font-medium text-foreground hover:bg-muted"
+          >
+            {ch.openLabel} <ExternalLink className="h-[13px] w-[13px]" />
+          </a>
+        )}
+      </div>
+    </div>
+  )
+
+  const TabButton = ({
+    id,
+    label,
+    badge,
+  }: {
+    id: "draft" | "reasoning" | "checks"
+    label: string
+    badge?: number
+  }) => (
+    <button
+      onClick={() => setTab(id)}
+      className={cn(
+        "-mb-px inline-flex items-center gap-1.5 px-3.5 py-[9px] text-[12.5px] font-semibold",
+        tab === id
+          ? "border-b-2 border-primary text-foreground"
+          : "border-b-2 border-transparent text-muted-foreground hover:text-foreground/80"
+      )}
+    >
+      {label}
+      {badge != null && badge > 0 && (
+        <span
+          className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+          style={{ background: "rgba(251,191,36,0.16)", color: FLAG_AMBER }}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
+  )
 
   return (
-    <div className="flex-1 overflow-y-auto p-5 lg:p-6">
-      {/* Header */}
-      <header className="mb-4 flex items-start justify-between gap-4 border-b border-border pb-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[17px] font-semibold leading-tight">
-            <span className="font-bold text-muted-foreground/70">#{index + 1}</span>
-            <ChannelIcon channel={c.channel} className="h-4 w-4" />
-            <span className="break-words">{subject}</span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
-            from <b className="font-semibold text-foreground">{from}</b> · {date}
-            <AgeBadge date={date === "—" ? null : date} /> · to {toStr}
-            {c.sensitive && (
-              <span className="ml-1 font-medium text-destructive">· sensitive</span>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {webLink && (
-            <a
-              href={webLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onOpen}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90"
-            >
-              {ch.openLabel}
-              {hasDraft && " + copy draft"} <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-          <Button size="sm" variant="outline" onClick={() => onFeedback("status", { to: "sent" })}>
-            Mark sent
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onFeedback("status", { to: "dismissed" })}>
-            Dismiss
-          </Button>
-        </div>
-      </header>
+    <div className="flex min-h-0 flex-1 flex-col">
+      {Header}
 
       {/* 3-column grid */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_1.1fr]">
-        {/* ① Original */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h3 className="mb-3 flex flex-wrap items-center gap-1.5 text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">
-            ① Original
-          </h3>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-px bg-border lg:grid-cols-[minmax(300px,1fr)_minmax(290px,0.94fr)_minmax(360px,1.18fr)]">
+        {/* ═══════════ ① ORIGINAL ═══════════ */}
+        <section className="overflow-y-auto bg-background p-5">
+          <SectionLabel num="①">Original message</SectionLabel>
+
           {e?.thread_summary?.trim() && (
-            <>
-              <Label>Thread summary</Label>
-              <div className="rounded-lg bg-muted px-3 py-2.5 text-xs leading-relaxed text-foreground/90">
+            <div className="mb-[18px] rounded-[10px] border border-border bg-card px-[13px] py-3">
+              <div className="mb-[7px] flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.05em] text-muted-foreground/70">
+                <MessageSquare className="h-3 w-3" />
+                Thread
+              </div>
+              <div className="text-[12.5px] leading-relaxed text-foreground/80">
                 {e.thread_summary}
               </div>
-            </>
+            </div>
           )}
-          {e?.excerpt?.trim() ? (
+
+          {/* Latest message */}
+          {e?.excerpt?.trim() || from !== "—" ? (
             <>
-              {e.thread_summary?.trim() && <Label>Latest message</Label>}
-              <div className="mt-1 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-foreground">
-                {e.excerpt}
+              <div className="mb-[11px] flex items-center gap-[9px]">
+                <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-muted text-[12px] font-semibold text-foreground">
+                  {initials(from)}
+                </span>
+                <div className="leading-[1.3]">
+                  <div className="text-[13px] font-semibold text-foreground">{from}</div>
+                  <div className="text-[11px] text-muted-foreground/70">{date}</div>
+                </div>
               </div>
+              {e?.excerpt?.trim() ? (
+                <div className="whitespace-pre-line text-[13.5px] leading-[1.65] text-foreground">
+                  {e.excerpt}
+                </div>
+              ) : (
+                <div className="text-[13px] text-muted-foreground/70">—</div>
+              )}
             </>
           ) : (
-            !e?.thread_summary?.trim() && (
-              <div className="text-[13px] text-muted-foreground/70">—</div>
-            )
+            <div className="text-[13px] text-muted-foreground/70">—</div>
           )}
         </section>
 
-        {/* ② Context */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">
-            ② Context
-          </h3>
-          <Label>Memory brief</Label>
-          <MemoryBrief brief={extras?.memory_brief as never} />
+        {/* ═══════════ ② CONTEXT ═══════════ */}
+        <section className="overflow-y-auto bg-background p-5">
+          <SectionLabel num="②">Context</SectionLabel>
+
+          {/* Memory brief — purple insight card */}
+          <MiniLabel className="text-[#c4b5fd]">Memory brief</MiniLabel>
+          <div
+            className="mb-2 rounded-[10px] px-[13px] py-3"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(124,58,237,0.1), rgba(124,58,237,0.02))",
+              border: "1px solid rgba(124,58,237,0.25)",
+            }}
+          >
+            <MemoryBrief brief={extras?.memory_brief as never} />
+          </div>
           {sources.length > 0 && (
-            <div className="mt-2 break-words text-[10px] leading-snug text-muted-foreground/70">
+            <div className="mb-[18px] break-words text-[10px] leading-snug text-muted-foreground/70">
               sources: {sources.join(" · ")}
             </div>
           )}
 
-          <Label>People</Label>
-          <PeopleChips participants={ctx?.participants ?? []} />
-
-          <Collapsible label="Guardrails (T2)" count={ctx?.ownership?.redLines?.length}>
-            {ctx?.ownership?.redLines?.length ? (
-              <ul className="ml-4 list-disc space-y-1">
-                {ctx.ownership.redLines.map((r, i) => (
-                  <li key={i} className="text-xs leading-snug text-foreground/85">{r}</li>
-                ))}
-              </ul>
-            ) : (
-              <span className="text-xs text-muted-foreground/70">—</span>
-            )}
-          </Collapsible>
-
-          <Collapsible label="Rules that fired" count={ctx?.rules?.length}>
-            <RulesList rules={ctx?.rules ?? []} />
-          </Collapsible>
-        </section>
-
-        {/* ③ Suggested action */}
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h3 className="mb-3 flex flex-wrap items-center gap-1.5 text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground">
-            ③ Suggested action
-            <DispositionBadge type={actType} />
-            {c.needs_data && <NeedsDataBadge label="needs data" />}
-            <ConfidenceBadge value={c.confidence} />
-            <TierBadge tier={c.tier} />
-          </h3>
-
-          {/* ▸ TYPE → target */}
-          <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-lg bg-muted px-3 py-2.5 text-sm">
-            <span className="font-bold tracking-[0.02em]" style={{ color: actInfo.color }}>
-              ▸ {actInfo.label}
-            </span>
-            {c.action_target && (
-              <>
-                <span className="text-muted-foreground/70">→</span>
-                <span className="font-semibold text-foreground">{c.action_target}</span>
-              </>
-            )}
+          {/* People */}
+          <MiniLabel className={sources.length > 0 ? "" : "mt-4"}>People</MiniLabel>
+          <div className="mb-[18px]">
+            <PeopleChips participants={ctx?.participants ?? []} />
           </div>
-          {secondary && (
-            <div className="-mt-2 mb-3 pl-3 text-[11px] text-muted-foreground/70">also: {secondary}</div>
-          )}
 
-          {hasDraft && (
+          {/* Rules that fired */}
+          {rules.length > 0 && (
             <>
-              {hasAlt && (
-                <div className="mb-1.5 flex items-center justify-end gap-1.5">
-                  <span className="mr-auto text-[10px] text-muted-foreground/70">
-                    you send the first; EN is to check intent
-                  </span>
-                  <div className="flex overflow-hidden rounded-md border border-border">
-                    <button
-                      onClick={() => setLang("a")}
-                      className={cn(
-                        "px-2.5 py-1 text-[10px] uppercase tracking-[0.04em]",
-                        lang === "a"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card text-muted-foreground"
-                      )}
-                    >
-                      {langA}
-                    </button>
-                    <button
-                      onClick={() => setLang("b")}
-                      className={cn(
-                        "border-l border-border px-2.5 py-1 text-[10px] uppercase tracking-[0.04em]",
-                        lang === "b"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card text-muted-foreground"
-                      )}
-                    >
-                      {langB}
-                    </button>
-                  </div>
-                </div>
-              )}
-              <textarea
-                dir={dir}
-                rows={11}
-                value={shown}
-                onChange={(ev) => setShown(ev.target.value)}
-                className={cn(
-                  "w-full resize-y rounded-lg border border-border bg-background p-3 font-sans text-[13px] leading-relaxed text-foreground outline-none focus:ring-1 focus:ring-ring",
-                  dir === "rtl" && "text-right"
-                )}
-              />
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    copyDraft(shown)
-                    setCopied(true)
-                    setTimeout(() => setCopied(false), 1200)
-                  }}
-                  className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  {copied ? "Copied ✓" : "Copy"}
-                </button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={draftPrimary === baseText}
-                  onClick={() => onFeedback("edit", { from: baseText, to: draftPrimary })}
-                >
-                  Save edit
-                </Button>
+              <MiniLabel>Rules that fired</MiniLabel>
+              <div className="mb-[18px] flex flex-col gap-2">
+                {rules.map((r: CardRule, i) => (
+                  <RuleRow key={i} weight={r.weight} statement={(r.statement ?? "").slice(0, 200)} />
+                ))}
               </div>
             </>
           )}
 
-          {/* Action feedback — buttons reflect the persisted verdict; clicking the active one is a no-op. */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant={accepted === true ? "default" : "outline"}
-              aria-pressed={accepted === true}
-              onClick={() => {
-                if (accepted === true) return // already accepted — don't re-log
-                setAccepted(true)
-                onFeedback("action_override", {
-                  accepted: true,
-                  from: { type: c.action_type, target: c.action_target },
-                })
+          {/* Guardrails · T2 — inline callout */}
+          {redLines.length > 0 && (
+            <div
+              className="flex items-start gap-[9px] rounded-r-[10px] border border-l-[3px] border-border bg-card px-[13px] py-[11px]"
+              style={{ borderLeftColor: "#7c3aed" }}
+            >
+              <Shield className="mt-px h-[15px] w-[15px] shrink-0" style={{ color: "#c4b5fd" }} />
+              <div>
+                <div
+                  className="mb-1 text-[10px] font-bold uppercase tracking-[0.04em]"
+                  style={{ color: "#c4b5fd" }}
+                >
+                  Guardrail · T2
+                </div>
+                <div className="flex flex-col gap-1 text-[12.5px] leading-[1.5] text-foreground/85">
+                  {redLines.map((r, i) => (
+                    <div key={i}>{r}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ═══════════ ③ SUGGESTED ACTION (TABS) ═══════════ */}
+        <section className="flex min-h-0 flex-col bg-background">
+          {/* header */}
+          <div className="shrink-0 px-5 pt-5">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-[13px] font-bold text-muted-foreground/70">③</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.07em] text-muted-foreground">
+                Suggested action
+              </span>
+              {c.confidence && (
+                <span className="ml-auto rounded bg-muted px-[7px] py-0.5 text-[10.5px] font-semibold uppercase text-muted-foreground">
+                  {c.confidence}
+                </span>
+              )}
+              <span className={c.confidence ? "" : "ml-auto"}>
+                <TierBadge tier={c.tier} />
+              </span>
+            </div>
+
+            {/* the disposition this whole column is about */}
+            <div
+              className="mb-3.5 flex items-center gap-[9px] rounded-[9px] px-[13px] py-2.5"
+              style={{
+                background: `${actInfo.color}1a`,
+                border: `1px solid ${actInfo.color}4d`,
               }}
             >
-              {accepted === true ? "👍 Action right ✓" : "👍 Action right"}
-            </Button>
-            <Button
-              size="sm"
-              variant={accepted === false ? "default" : "outline"}
-              aria-pressed={accepted === false}
-              onClick={() => {
-                const t = window.prompt('Correct action as "type:target" (e.g. route:ido-seter)')
-                if (!t) return
-                const [type, target] = t.split(":")
-                setAccepted(false)
-                onFeedback("action_override", {
-                  accepted: false,
-                  from: { type: c.action_type, target: c.action_target },
-                  to: { type, target: target ?? null },
-                })
-              }}
-            >
-              {accepted === false ? "👎 Wrong action ✓" : "👎 Wrong action"}
-            </Button>
+              <span
+                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                style={{ background: actInfo.color }}
+              />
+              <span className="text-[14px] font-bold" style={{ color: actInfo.color }}>
+                {actInfo.label}
+              </span>
+              {c.action_target && (
+                <>
+                  <span className="text-[13px] text-muted-foreground/70">→</span>
+                  <span className="text-[14px] font-semibold text-foreground">
+                    {c.action_target}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* tab bar */}
+            <div className="flex gap-0.5 border-b border-border">
+              <TabButton id="draft" label="Draft" />
+              <TabButton id="reasoning" label="Reasoning" />
+              <TabButton id="checks" label="Checks" badge={flagCount} />
+            </div>
           </div>
 
-          {/* Why */}
-          {whyText && (
-            <div className="mt-3 rounded-r-lg border-l-[3px] border-primary bg-muted px-3.5 py-3 text-[13px] leading-relaxed text-foreground">
-              <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-                {hasDraft ? "Why this draft" : "Why this action"}
-              </span>
-              {whyText}
-            </div>
-          )}
+          {/* tab bodies (scroll) */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {/* ░░ DRAFT ░░ */}
+            {tab === "draft" && (
+              <>
+                {hasDraft ? (
+                  <>
+                    {hasAlt && (
+                      <div className="mb-2.5 flex items-center gap-2">
+                        <div className="flex overflow-hidden rounded-[7px] border border-border">
+                          <button
+                            onClick={() => setLang("a")}
+                            className={cn(
+                              "px-3 py-1 text-[10.5px] font-semibold uppercase",
+                              lang === "a"
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-card text-muted-foreground"
+                            )}
+                          >
+                            {langA}
+                          </button>
+                          <button
+                            onClick={() => setLang("b")}
+                            className={cn(
+                              "border-l border-border px-3 py-1 text-[10.5px] font-semibold uppercase",
+                              lang === "b"
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-card text-muted-foreground"
+                            )}
+                          >
+                            {langB}
+                          </button>
+                        </div>
+                        <span className="text-[10.5px] text-muted-foreground/70">
+                          you send the first; the other checks intent
+                        </span>
+                      </div>
+                    )}
+                    <textarea
+                      dir={dir}
+                      value={shown}
+                      onChange={(ev) => setShown(ev.target.value)}
+                      className={cn(
+                        "min-h-[172px] w-full resize-y rounded-[11px] border border-border bg-card p-[15px] font-sans text-[14px] leading-[1.65] text-foreground outline-none focus:ring-1 focus:ring-ring",
+                        dir === "rtl" && "text-right"
+                      )}
+                    />
+                    {draftPrimary !== baseText && (
+                      <div className="mt-[11px] flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+                        <Pencil className="h-3 w-3" />
+                        edited from the original suggestion ·{" "}
+                        <span style={{ color: FLAG_AMBER }}>unsaved</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="rounded-[11px] border border-dashed border-border bg-card px-4 py-6 text-center text-[13px] text-muted-foreground/70">
+                    No drafted message — {actInfo.label.toLowerCase()} action
+                  </div>
+                )}
+              </>
+            )}
 
-          {/* Verdict */}
-          {lensCount > 0 && (
-            <div
-              className={cn(
-                "mt-2.5 rounded-lg px-3 py-2.5 text-xs leading-relaxed",
-                flagged
-                  ? "bg-red-50 text-red-800 dark:bg-red-950/60 dark:text-red-300"
-                  : "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-              )}
-            >
-              {flagged ? (
-                <>
-                  <b>⚠ Verifier flagged</b> · {refuted.length}/{lensCount} lenses
-                  {refuted.map((x, i) => (
-                    <div key={i} className="mt-1.5 font-normal">
-                      • <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.03em] opacity-80">
-                        {x.lens}
-                      </span>
-                      {x.issue}
+            {/* ░░ REASONING ░░ */}
+            {tab === "reasoning" && (
+              <>
+                <div
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.06em]"
+                  style={{ color: "#a78bfa" }}
+                >
+                  Why this draft
+                </div>
+                {whyText ? (
+                  <div className="mb-5 text-[13.5px] leading-[1.65] text-foreground/85">
+                    {whyText}
+                  </div>
+                ) : (
+                  <div className="mb-5 text-[13px] italic text-muted-foreground/70">
+                    No rationale recorded.
+                  </div>
+                )}
+
+                {(rules.length > 0 || memoryPoints.length > 0) && (
+                  <>
+                    <MiniLabel>Signals used</MiniLabel>
+                    <div className="flex flex-col gap-2.5">
+                      {rules.map((r: CardRule, i) => (
+                        <RuleRow
+                          key={`r${i}`}
+                          weight={r.weight}
+                          statement={(r.statement ?? "").slice(0, 200)}
+                        />
+                      ))}
+                      {memoryPoints.map((p, i) => (
+                        <div key={`m${i}`} className="flex items-baseline gap-2">
+                          <span
+                            className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase"
+                            style={{ background: "rgba(124,58,237,0.18)", color: "#c4b5fd" }}
+                          >
+                            memory
+                          </span>
+                          <span className="text-[12.5px] leading-snug text-foreground/85">
+                            {p}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </>
-              ) : (
-                <>✓ Adversarially verified · {lensCount} lenses, no flags</>
-              )}
-            </div>
-          )}
+                  </>
+                )}
+              </>
+            )}
 
-          {/* Note */}
-          <div className="mt-3 flex gap-2">
-            <input
-              className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-              placeholder="note…"
-              value={note}
-              onChange={(ev) => setNote(ev.target.value)}
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                if (note.trim()) {
-                  onFeedback("note", { text: note.trim() })
-                  setNote("")
-                }
-              }}
-            >
-              Add note
-            </Button>
+            {/* ░░ CHECKS ░░ */}
+            {tab === "checks" && (
+              <>
+                {c.verdict ? (
+                  <>
+                    <div className="mb-3.5 flex items-center gap-[9px]">
+                      <span className="text-[13px] font-semibold text-foreground">
+                        Adversarial verifier
+                      </span>
+                      <span className="ml-auto inline-flex items-center gap-1.5 text-[11.5px] text-emerald-500 dark:text-emerald-400">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                        {passedCount} passed
+                      </span>
+                      {flagCount > 0 && (
+                        <span className="text-[11.5px]" style={{ color: FLAG_AMBER }}>
+                          ⚠ {flagCount} flag
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-[7px]">
+                      {allVerdicts.map((v, i) => {
+                        const isFlag = !!v.refuted && v.severity !== "none"
+                        if (!isFlag) {
+                          return (
+                            <div
+                              key={i}
+                              className="flex items-center gap-[9px] rounded-lg border border-border bg-card px-[11px] py-[9px]"
+                            >
+                              <Check
+                                className="h-[13px] w-[13px] text-emerald-500 dark:text-emerald-400"
+                                strokeWidth={3}
+                              />
+                              <span className="text-[12.5px] text-foreground/85">
+                                {v.lens ?? "lens"}
+                              </span>
+                              <span className="ml-auto text-[11px] text-muted-foreground/70">
+                                pass
+                              </span>
+                            </div>
+                          )
+                        }
+                        return (
+                          <div
+                            key={i}
+                            className="rounded-lg px-[11px] py-2.5"
+                            style={{ background: "#1f1503", border: "1px solid #422006" }}
+                          >
+                            <div className="mb-[5px] flex items-center gap-[9px]">
+                              <span className="text-[13px]">⚠</span>
+                              <span className="text-[12.5px] font-semibold text-[#fcd34d]">
+                                {v.lens ?? "lens"}
+                              </span>
+                              {v.severity && (
+                                <span
+                                  className="ml-auto rounded px-[7px] py-0.5 text-[10px] font-semibold uppercase"
+                                  style={{
+                                    background: "rgba(251,191,36,0.15)",
+                                    color: FLAG_AMBER,
+                                  }}
+                                >
+                                  {v.severity}
+                                </span>
+                              )}
+                            </div>
+                            <div className="pl-[22px] text-[12px] leading-[1.5] text-[#e4d9c0]">
+                              {v.issue}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="mt-3.5 inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground/70">
+                      <RotateCcw className="h-3 w-3" />
+                      Re-run checks
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-[11px] border border-dashed border-border bg-card px-4 py-6 text-center text-[13px] text-muted-foreground/70">
+                    Not verified — tier {c.tier ?? 0}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* pinned action bar */}
+          <div className="shrink-0 border-t border-border bg-card px-5 py-3.5">
+            <div className="mb-[11px] flex gap-[7px]">
+              {/* 👍 Right */}
+              <button
+                aria-pressed={accepted === true}
+                onClick={() => {
+                  if (accepted === true) return // already accepted — don't re-log
+                  setAccepted(true)
+                  onFeedback("action_override", {
+                    accepted: true,
+                    from: { type: c.action_type, target: c.action_target },
+                  })
+                }}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-[9px] text-[12px] font-semibold"
+                style={{
+                  background:
+                    accepted === true ? "rgba(52,211,153,0.2)" : "rgba(52,211,153,0.1)",
+                  borderColor:
+                    accepted === true ? "rgba(52,211,153,0.65)" : "rgba(52,211,153,0.35)",
+                  color: "#6ee7b7",
+                }}
+              >
+                👍 Right{accepted === true && " ✓"}
+              </button>
+              {/* 👎 Change */}
+              <button
+                aria-pressed={accepted === false}
+                onClick={() => {
+                  const t = window.prompt('Correct action as "type:target" (e.g. route:ido-seter)')
+                  if (!t) return
+                  const [type, target] = t.split(":")
+                  setAccepted(false)
+                  onFeedback("action_override", {
+                    accepted: false,
+                    from: { type: c.action_type, target: c.action_target },
+                    to: { type, target: target ?? null },
+                  })
+                }}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-[9px] text-[12px] font-semibold",
+                  accepted === false
+                    ? "border-red-400/55 bg-red-400/15 text-red-400"
+                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                )}
+              >
+                👎 Change{accepted === false && " ✓"}
+              </button>
+              {/* ＋ Note */}
+              <button
+                onClick={() => setShowNote((s) => !s)}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-[9px] text-[12px]",
+                  showNote ? "bg-muted text-foreground" : "bg-card text-muted-foreground hover:text-foreground"
+                )}
+              >
+                ＋ Note
+              </button>
+            </div>
+
+            {showNote && (
+              <div className="mb-[11px] flex gap-2">
+                <input
+                  autoFocus
+                  className="flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[13px] outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="note…"
+                  value={note}
+                  onChange={(ev) => setNote(ev.target.value)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter" && note.trim()) {
+                      onFeedback("note", { text: note.trim() })
+                      setNote("")
+                      setShowNote(false)
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (note.trim()) {
+                      onFeedback("note", { text: note.trim() })
+                      setNote("")
+                      setShowNote(false)
+                    }
+                  }}
+                  className="rounded-md border border-border bg-card px-3 py-1.5 text-[12px] text-muted-foreground hover:text-foreground"
+                >
+                  Add
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  copyDraft(draftPrimary)
+                  if (webLink) window.open(webLink, "_blank", "noopener,noreferrer")
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1400)
+                }}
+                disabled={!hasDraft && !webLink}
+                className="flex flex-1 items-center justify-center gap-[7px] rounded-lg bg-primary px-3 py-[11px] text-[13px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {copied ? "Copied ✓" : "Copy draft & open in Outlook"}
+                <OutLink className="h-[13px] w-[13px]" />
+              </button>
+              <button
+                disabled={draftPrimary === baseText}
+                onClick={() => onFeedback("edit", { from: baseText, to: draftPrimary })}
+                className="flex items-center justify-center rounded-lg border border-border bg-card px-3.5 py-[11px] text-[13px] text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
           </div>
         </section>
       </div>

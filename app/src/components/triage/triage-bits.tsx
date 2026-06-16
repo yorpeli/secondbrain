@@ -30,6 +30,38 @@ export function channelOf(ch: string | null | undefined) {
   return channelMeta[ch ?? "outlook"] ?? channelMeta.outlook
 }
 
+// Verdict-flag amber (Checks tab badge / flag callouts)
+export const FLAG_AMBER = "#fbbf24"
+
+// Initials for the avatar in column ① (e.g. "Maya Cohen" → "MC").
+export function initials(name: string | null | undefined): string {
+  const n = (name ?? "").trim()
+  if (!n) return "?"
+  const parts = n.split(/[\s,]+/).filter(Boolean)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+// Relation pill (header + people chips). Returns null when relation is unknown.
+export function RelationPill({
+  relation,
+  className,
+}: {
+  relation: string | null | undefined
+  className?: string
+}) {
+  if (!relation || relation === "unknown") return null
+  const c = relColor[relation] ?? "#9ca3af"
+  return (
+    <span
+      className={cn("rounded-full border px-2 py-px text-[10.5px] leading-tight", className)}
+      style={{ borderColor: `${c}66`, color: c }}
+    >
+      {relation}
+    </span>
+  )
+}
+
 export function ChannelIcon({ channel, className }: { channel: string | null | undefined; className?: string }) {
   const m = channelOf(channel)
   const Icon = m.icon

@@ -2,15 +2,24 @@ import { cn } from "@/lib/utils"
 import type { TriageCard } from "@/lib/triage-types"
 import {
   ChannelIcon,
-  DispositionBadge,
-  ConfidenceBadge,
-  NeedsDataBadge,
-  AgeBadge,
-  TierBadge,
-  VerdictFlagBadge,
+  actionMeta,
+  actionLabel,
+  daysWaiting,
+  FLAG_AMBER,
   verdictFlagged,
   parseTrigger,
 } from "./triage-bits"
+
+const pill =
+  "inline-flex items-center rounded text-[9.5px] font-semibold uppercase tracking-[0.02em] px-1.5 py-0.5 leading-none"
+
+function relativeAge(date: string | null): string | null {
+  const d = daysWaiting(date)
+  if (d == null) return null
+  if (d <= 0) return "today"
+  if (d === 1) return "1d ago"
+  return `${d}d ago`
+}
 
 export function TriageList({
   cards,
@@ -22,39 +31,90 @@ export function TriageList({
   onSelect: (id: string) => void
 }) {
   return (
-    <nav className="w-[300px] shrink-0 overflow-y-auto border-r border-border bg-muted/40">
+    <nav className="w-[312px] shrink-0 overflow-y-auto border-r border-border bg-card">
       {cards.map((c, i) => {
         const fb = parseTrigger(c.trigger_text)
         const subject = c.card?.email.subject ?? fb.subject ?? "(no subject)"
-        const from    = c.card?.email.from    ?? fb.from   ?? "—"
-        const date    = c.card?.email.date    ?? fb.date   ?? "—"
+        const from = c.card?.email.from ?? fb.from ?? "—"
+        const date = c.card?.email.date ?? fb.date ?? "—"
         const active = c.id === selectedId
+        const age = relativeAge(date === "—" ? null : date)
+        const days = daysWaiting(date === "—" ? null : date)
+        const actType = c.action_type ?? "none"
+        const actColor = (actionMeta[actType] ?? actionMeta.none).color
+        const flagged = verdictFlagged(c.verdict)
         return (
           <button
             key={c.id}
             onClick={() => onSelect(c.id)}
             className={cn(
-              "block w-full cursor-pointer border-b border-border/60 px-4 py-3 text-left transition-colors hover:bg-accent/60",
-              active && "bg-accent/60 shadow-[inset_3px_0_0_var(--primary)]"
+              "block w-full cursor-pointer border-b border-border/60 px-4 py-3 text-left transition-colors hover:bg-muted/60",
+              active && "bg-muted shadow-[inset_3px_0_0_var(--primary)]"
             )}
           >
-            <div className="mb-1 flex items-start gap-1.5 text-[13px] font-semibold leading-snug">
-              <span className="mt-0.5 inline-flex h-[17px] min-w-[17px] items-center justify-center rounded bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+            <div className="mb-1 flex items-start gap-[7px]">
+              <span
+                className={cn(
+                  "mt-px inline-flex h-[17px] min-w-[17px] items-center justify-center rounded px-1 text-[10px] font-bold",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                )}
+              >
                 {i + 1}
               </span>
-              <ChannelIcon channel={c.channel} className="mt-0.5 h-3.5 w-3.5" />
-              <span className="flex-1">{subject}</span>
+              <ChannelIcon channel={c.channel} className="mt-[3px] h-[13px] w-[13px]" />
+              <span
+                className={cn(
+                  "line-clamp-2 flex-1 text-[12.5px] font-semibold leading-[1.35]",
+                  active ? "text-foreground" : "text-foreground/90"
+                )}
+              >
+                {subject}
+              </span>
             </div>
-            <div className="text-[11px] text-muted-foreground">
-              {from} · {date}
+            <div className="mb-1.5 text-[11px] text-muted-foreground">
+              {from}
+              {age && ` · ${age}`}
             </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1">
-              <DispositionBadge type={c.action_type} />
-              {c.needs_data && <NeedsDataBadge />}
-              <ConfidenceBadge value={c.confidence} />
-              <AgeBadge date={date === "—" ? null : date} />
-              <TierBadge tier={c.tier} />
-              {verdictFlagged(c.verdict) && <VerdictFlagBadge />}
+            <div className="flex flex-wrap items-center gap-1">
+              {/* disposition — colored by action */}
+              <span
+                className={pill}
+                style={{ background: `${actColor}24`, color: actColor }}
+              >
+                {actionLabel(actType)}
+              </span>
+              {c.confidence && (
+                <span className={cn(pill, "bg-muted text-muted-foreground")}>
+                  {c.confidence}
+                </span>
+              )}
+              {c.tier === 2 && (
+                <span
+                  className={pill}
+                  style={{ background: "rgba(124,58,237,0.2)", color: "#c4b5fd" }}
+                >
+                  T2
+                </span>
+              )}
+              {flagged && (
+                <span
+                  className={pill}
+                  style={{ background: "rgba(251,191,36,0.16)", color: FLAG_AMBER }}
+                >
+                  ⚠
+                </span>
+              )}
+              {days != null && days >= 7 && (
+                <span
+                  className={pill}
+                  style={{ background: "#431407", color: "#fdba74" }}
+                  title={`awaiting a reply ~${days} days`}
+                >
+                  ⏳ {days}d
+                </span>
+              )}
             </div>
           </button>
         )
