@@ -60,14 +60,24 @@ The Node CLI has **no Graph access**; MSFT reads happen here in the agent sessio
    `actual_reply/resolution:null`, identifiers from the message). `task`/`monitor`/`none` actions still
    store a row (with `predicted_reply` null).
 
-## Pass B — reconcile + distill (later sweep, to build)
-Read Sent Items → match to open predictions (thread_id / subject+participants) → `delta` (style
-+ stance + **action**: did he take the suggested `action_type`, aimed at the suggested `action_target`?
-`actionDelta()` captures the diff — incl. "no in-thread reply / briefed leaders" = `redirect`, "messaged
-a third party" = `sidebar`) → `resolution` → ask "why?" on stance/action changes (batched into CC
-close-out) → `predictions:reconcile`; then cluster → `confidenceScore`/`statusFor` → `rules:add`/`supersede`.
-**Action-selection patterns feed `comms_rules` type `decision`** (higher value than phrasing), scoped by
-`{topic, channel}` — they graduate watch→active→assert like style rules.
+## Two-flow architecture (spec: `docs/superpowers/specs/2026-06-16-comms-triage-db-app-design.md`)
+
+- **Flow 1 (assist):** sweep → fan-out → `comms_predictions` (full card payload) → **`/triage` app**
+  (primary review surface, `app/`, route `/triage`) → in-app edits / accept-reject → `comms_feedback`
+  via `comms_apply_feedback` RPC. The `render-triage.ts` HTML is now an optional fallback/export only.
+- **Flow 2 (learn):** on-demand `rules:distill` reads new `comms_feedback`, session clusters + asks
+  clarifying questions + proposes `rules:add`/`supersede`, then `rules:distill --mark=<ids>` stamps
+  rows processed. **In-app feedback (`comms_feedback`) is the PRIMARY learning signal.**
+
+## Pass B — reconcile (demoted, not built)
+~~Pass B / Sent-Items reconcile~~ is **demoted** to a secondary fallback for *out-of-band sends only*
+(Yonatan replied from Outlook without ever opening the card). **It is not built.** When eventually built,
+it must treat `comms_feedback` as primary and `actual_reply` from Sent Items as secondary corroboration.
+Prior Pass B description for reference: read Sent Items → match to open predictions (thread_id /
+subject+participants) → `delta` (style + stance + **action**: `actionDelta()` captures the diff —
+incl. "briefed leaders" = `redirect`, "messaged third party" = `sidebar`) → `resolution` →
+`predictions:reconcile` → cluster → `rules:add`/`supersede`. Action-selection patterns feed
+`comms_rules` type `decision`, scoped `{topic, channel}`, graduate watch→active→assert.
 
 ## Predict vs Assist — two modes, and the analytics hook
 These are **different products** and conflating them hurts prediction (proven on the CLM payer
@@ -92,12 +102,12 @@ as-of-safe for backtests — but that's secondary to the predict-vs-assist split
 
 ## Commands (`npm run comms-assistant -- <cmd>`)
 Live wiring: `classify`, `context:assemble`, `context:probe`.
-DB: `predictions:add|list|reconcile`, `rules:list|add|supersede|pin`.
-Still to build: a `reconcile`/`distill` helper for Pass B (today done agent-side as in the backtest).
+DB: `predictions:add|add-many|list|reconcile`, `rules:list|add|supersede|pin`, `rules:distill [--mark=<ids>]`.
+Still to build: Pass B Sent-Items reconcile (demoted fallback; see Two-flow architecture above).
 
 ## Triage sweep (repeatable) — natural-language trigger
 When Yonatan says **"sweep my unread"**, **"triage my inbox"**, **"morning triage"**, or **"what
-needs a response?"**, run this and open the HTML (he never runs the CLI; you do):
+needs a response?"**, run this and open the `/triage` app (he never runs the CLI; you do):
 
 1. **Gather from two first-class sources** (don't draft from Teams *notification emails* — they carry only a
    clipped preview; scan Teams directly instead):
@@ -131,19 +141,23 @@ needs a response?"**, run this and open the HTML (he never runs the CLI; you do)
    JSON**. Hebrew → `text` + `text_alt`(EN). Why split this way: capture is serial-and-MSFT-bound, so it stays
    in one place; reasoning + drafting is the expensive part, so it fans out — and the orchestrator's context
    never fills with raw 60KB–800KB bodies.
-5. **Collect → build → render (orchestrator)** — gather the subagents' JSON into `items.json` (array of
-   `{email, thread, suggestion}`) and **render**:
+5. **Collect → build → persist (orchestrator)** — gather the subagents' JSON into `items.json` (array of
+   `{email, thread, suggestion}`) then **persist**: `npm run comms-assistant -- predictions:add-many --payload=<items.json>`
+   writes each card (full payload, `action_type`/`action_target`, `last_message_id`, `captured_at`) to
+   `comms_predictions`. `upsertPredictions` never clobbers a `user_touched` card.
+6. **Review in the `/triage` app** (primary) — Supabase-backed, `app/`, route `/triage`. He edits drafts /
+   accepts-rejects actions / adds notes; feedback lands in `comms_feedback` via `comms_apply_feedback` RPC.
+   Optional fallback: render the HTML export with
    `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`
-   (render-triage re-runs `assembleContext` per item for the People/Guardrails/Rules columns, so subagents
-   only need to return `suggestion`.)
-6. **Open** the page; walk it with him. (When persistence is wired, also write each card to
-   `comms_predictions` — incl. `action_type`/`action_target` — so the outbox sweep reconciles what he does.)
+   (render-triage re-runs `assembleContext` per item for the People/Guardrails/Rules columns).
 
-The page look is the editable template **`templates/triage.html`** — restyle freely; the card data
-comes from `render-triage.ts` + the retrieval layer.
+For the HTML fallback/export, the page look is the editable template **`templates/triage.html`** — restyle
+freely; card data comes from `render-triage.ts` + the retrieval layer.
 
 ## Files
 `run.ts` (CLI) · `classify.ts` (noise/sensitive gate) · `retrieve.ts` (tiered context) ·
-`render-triage.ts` (triage HTML renderer) · `templates/triage.html` (editable page look) ·
+`card.ts` (`buildCardPayload`) · `sweep.ts` (`classifyThreadForSweep` — skip/refresh/user_touched guard) ·
+`distill.ts` (Flow 2 load/mark) · `render-triage.ts` (HTML fallback/export) ·
+`templates/triage.html` (editable page look) ·
 `store.ts` `asof.ts` `delta.ts` `confidence.ts` `types.ts` · `prompts/prediction-subagent.md`
 · `RUNBOOK.md` (v1 backtest procedure).

@@ -50,10 +50,19 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    the meeting-invite rule reads it (body that *opens into* the Teams join block = invite/noise; substantive
    text before the block = real ask, kept — e.g. a "let's schedule…" mail that embeds an invite). Surface the
    drop breakdown (no silent truncation).
+2.5. **Skip/refresh check (per classify survivor).** Before capturing, call
+   `classifyThreadForSweep({conversationId, internetMessageId, latestMessageId})` for each candidate.
+   Drop `skip` threads (already captured + unchanged, OR the card was `user_touched` — never clobber in-app
+   edits); capture `analyze` (new) and `refresh` (updated since last sweep). Surface the analyze / skip /
+   refresh breakdown — no silent truncation, same discipline as the classify drop breakdown.
 3. **Capture each survivor — orchestrator, SERIAL.** `read_resource` (`mail:///messages/{id}`) the full body +
    participants + @mentions, **one at a time**. This is the throttle-bound step (Graph ~80/min; parallel reads
    trip a 429) and it **stays in the orchestrator** (the session that owns the MSFT MCP). Subagents must NOT call
    MSFT (they often can't see the claude.ai MCP in headless runs anyway).
+   ✅ **ALWAYS pull `conversation_id` and `internet_message_id` from the read result onto the card's `email`** —
+   not optional. These are the keys the later Sent-Items reconcile matches on; `web_link` is only a fallback.
+   Capturing them every run is what lets persistence (step 7) close the loop — don't decide per-run whether they're
+   "needed", just always grab them. (For Teams: `conversation_id` = the chatId.)
    ⚠️ Long threads exceed the tool's token cap and spill to a saved file — slice the top of the
    message with `python3 -c "...json.load...re.sub('<[^>]+>',' ',html)...[:1800]"` rather than re-reading.
    For **Teams** survivors (step 1b) set the card `channel:'teams'` and `webLink` to the message `webUrl`;
@@ -78,24 +87,35 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    legacy alias of `action.type`. Default to `monitor`/`none` over manufacturing work — "you're clear" is valid.
    ⚠️ For **scheduling / meeting** items, check the meeting date isn't already **past** before drafting a
    confirm — a stale confirm is noise (2026-06-14: a war-room-sync confirm was drafted after the meeting had passed).
-5. **Build `items.json`** — `[{ email:{subject,from,date,to,excerpt,webLink, channel?, thread_summary?},
+5. **Build `items.json`** — `[{ email:{subject,from,date,to,excerpt,webLink, conversation_id, internet_message_id, channel?, thread_summary?},
    thread:ThreadInput, suggestion:{action:{type,target,channel?,secondary?}, disposition, needs_data, confidence,
    text, why, lang?,lang_alt?,text_alt?, memory_brief} }]`. The card shows a prominent **▸ TYPE → target** line
    above the draft; `text:null` actions render the action line + `why` with no textarea.
    `channel`: `outlook`|`teams`|`meeting` (drives the leading icon + open button). For Hebrew drafts set
    `text`+`text_alt`(EN)+`lang`/`lang_alt` for the **HE⇄EN toggle**. `memory_brief` = a string OR
    `{summary, points[]}` (structured, scannable). Full card anatomy: the `render-triage.ts` header comment.
-6. **Render + open** — `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`.
+6. **Review surface (primary: `/triage` app; fallback: HTML export).** The **`/triage` app** (Supabase-backed,
+   in `app/`, route `/triage`) is now the **primary review surface** — it reads `comms_predictions`, lets
+   Yonatan edit drafts / accept-reject the suggested action / add notes / set status, and writes feedback to
+   `comms_feedback` via `comms_apply_feedback` RPC. The HTML export is an **optional fallback**:
+   `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`.
    `render-triage.ts` calls `assembleContext(thread)` itself → the card's People/Guardrails/Rules come from the
    retrieval layer; you supply `suggestion` + `memory_brief`. Page shell/styling is [templates/triage.html](templates/triage.html) (editable).
 7. **Persist the sweep** — `npm run comms-assistant -- predictions:add-many --payload=<items.json>` writes every
-   card to `comms_predictions` (idempotent per thread; carries `action_type`/`action_target`, `tier`, and the
-   adversarial `verdict`). This is **not optional** — without it the later Sent-Items sweep has nothing to
-   reconcile and the loop never closes. ⚠️ For good matching, include **`conversation_id`** (and
-   `internet_message_id`) on each `email` during capture (`read_resource` returns them) — they're the keys the
-   reconcile sweep matches on; `web_link` is the fallback.
-8. He reviews/edits, sends from Outlook. A later sweep reads **Sent Items**, matches to these open rows, computes
-   the style + action delta, buckets a `resolution`, and distills into `comms_rules` (Pass B reconcile — to build).
+   card to `comms_predictions` (idempotent per thread; carries `action_type`/`action_target`, `tier`, the
+   adversarial `verdict`, the full `card` payload, `last_message_id`, and `captured_at`). ⚠️ `upsertPredictions`
+   never clobbers a `user_touched` card — in-app edits are safe. This is **not optional** — without it the
+   `/triage` app has nothing to display and the loop never closes. ⚠️ Include **`conversation_id`** and
+   `internet_message_id` on each `email` during capture (`read_resource` returns them) — they're the primary
+   match keys; `web_link` is the fallback.
+8. **He reviews in the `/triage` app; feedback drives Flow 2 (learn).** He edits drafts, accepts/rejects the
+   suggested action, adds notes — all feedback lands in `comms_feedback` via the `comms_apply_feedback` RPC.
+   **Flow 2 (learn)** is on-demand: `npm run comms-assistant -- rules:distill` loads undistilled
+   `comms_feedback`, the session clusters + asks clarifying questions + proposes `rules:add`/`supersede`; then
+   `rules:distill --mark=<ids>` stamps them processed. **In-app feedback is the primary learning signal.**
+   The Sent-Items reconcile (Pass B) is demoted to a secondary fallback for *out-of-band sends only* (replied
+   from Outlook without opening the card) and is **not built** — when eventually built, it must treat
+   `comms_feedback` as primary and `actual_reply` as secondary corroboration.
 
 Single-email help ("draft a reply to X") = the same pipeline for one thread.
 
@@ -141,5 +161,8 @@ sanctioned grounding path; **don't hand-write ad-hoc SQL** and don't build a sep
 ## Files
 `run.ts` (CLI: classify · context:assemble/probe · predictions:* · rules:*) · `classify.ts` (triage gate — keeps fresh+reply, drops noise/sensitive; `--backtest` = Re:-only `needsPrediction`)
 · `retrieve.ts` (tiered context: T1 identity / T2 ownership / T3 narrative + rule spine; `assembleContext`, `ThreadInput`, `ContextBundle`)
-· `render-triage.ts` (triage HTML — **▸ action line**, channel icons, HE⇄EN toggle, collapsible context, structured brief) · `templates/triage.html` (page look)
+· `render-triage.ts` (triage HTML fallback/export — **▸ action line**, channel icons, HE⇄EN toggle, collapsible context, structured brief) · `templates/triage.html` (page look)
+· `card.ts` (`buildCardPayload` — assembles the full presentation payload written to `comms_predictions.card`)
+· `sweep.ts` (`classifyThreadForSweep` — skip/refresh policy; guards `user_touched` cards from clobber)
+· `distill.ts` (Flow 2 load/mark — reads undistilled `comms_feedback`, marks rows processed after `rules:distill`)
 · `store.ts` `asof.ts` `delta.ts` (`actionDelta` — suggested-vs-actual action diff) `confidence.ts` `types.ts` (`SuggestedAction`/`ActionType`) · `prompts/prediction-subagent.md` · `RUNBOOK.md` (v1 backtest).
