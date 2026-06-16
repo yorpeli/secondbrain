@@ -32,10 +32,16 @@ export async function upsertPredictions(rows: PredictionRow[]): Promise<{ insert
     const keyCol = row.thread_id ? 'thread_id' : row.internet_message_id ? 'internet_message_id' : row.web_link ? 'web_link' : null
     const keyVal = row.thread_id ?? row.internet_message_id ?? row.web_link ?? null
     let existingId: string | null = null
+    let touched = false
     if (keyCol && keyVal) {
       const { data } = await (sb as any)
-        .from('comms_predictions').select('id').eq(keyCol, keyVal).is('resolution', null).limit(1)
+        .from('comms_predictions').select('id,user_touched').eq(keyCol, keyVal).is('resolution', null).limit(1)
       existingId = (data?.[0] as any)?.id ?? null
+      touched = !!(data?.[0] as any)?.user_touched
+    }
+    if (existingId && touched) {
+      // In-app edits win — never clobber a card the user has touched.
+      continue
     }
     if (existingId) {
       const { error } = await (sb as any).from('comms_predictions').update(row as any).eq('id', existingId)
