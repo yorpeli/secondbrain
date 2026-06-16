@@ -30,9 +30,20 @@ export function TriageList({
   selectedId: string | null
   onSelect: (id: string) => void
 }) {
+  // Sort newest→oldest by the actual MESSAGE date (card.email.date / trigger fallback), not
+  // created_at — a sweep batch-inserts all rows in one transaction so their created_at is ~identical
+  // and would render in arbitrary order. Dateless rows sink to the bottom (created_at desc tiebreak).
+  const sorted = [...cards].sort((a, b) => {
+    const da = a.card?.email.date ?? parseTrigger(a.trigger_text).date ?? ""
+    const db = b.card?.email.date ?? parseTrigger(b.trigger_text).date ?? ""
+    if (da && db && da !== db) return db.localeCompare(da)
+    if (da && !db) return -1
+    if (!da && db) return 1
+    return (b.created_at ?? "").localeCompare(a.created_at ?? "")
+  })
   return (
     <nav className="w-[312px] shrink-0 overflow-y-auto border-r border-border bg-card">
-      {cards.map((c, i) => {
+      {sorted.map((c, i) => {
         const fb = parseTrigger(c.trigger_text)
         const subject = c.card?.email.subject ?? fb.subject ?? "(no subject)"
         const from = c.card?.email.from ?? fb.from ?? "—"

@@ -479,11 +479,10 @@ export function TriageDetail({
           {/* tab bodies (scroll) */}
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {/* ░░ DRAFT ░░ */}
-            {tab === "draft" && (
-              <>
-                {hasDraft ? (
-                  <>
-                    {hasAlt && (
+            {tab === "draft" &&
+              (hasDraft ? (
+                <div className="flex h-full flex-col">
+                  {hasAlt && (
                       <div className="mb-2.5 flex items-center gap-2">
                         <div className="flex overflow-hidden rounded-[7px] border border-border">
                           <button
@@ -519,25 +518,23 @@ export function TriageDetail({
                       value={shown}
                       onChange={(ev) => setShown(ev.target.value)}
                       className={cn(
-                        "min-h-[172px] w-full resize-y rounded-[11px] border border-border bg-card p-[15px] font-sans text-[14px] leading-[1.65] text-foreground outline-none focus:ring-1 focus:ring-ring",
+                        "min-h-[172px] w-full flex-1 resize-none rounded-[11px] border border-border bg-card p-[15px] font-sans text-[14px] leading-[1.65] text-foreground outline-none focus:ring-1 focus:ring-ring",
                         dir === "rtl" && "text-right"
                       )}
                     />
-                    {draftPrimary !== baseText && (
-                      <div className="mt-[11px] flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
-                        <Pencil className="h-3 w-3" />
-                        edited from the original suggestion ·{" "}
-                        <span style={{ color: FLAG_AMBER }}>unsaved</span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="rounded-[11px] border border-dashed border-border bg-card px-4 py-6 text-center text-[13px] text-muted-foreground/70">
-                    No drafted message — {actInfo.label.toLowerCase()} action
-                  </div>
-                )}
-              </>
-            )}
+                  {draftPrimary !== baseText && (
+                    <div className="mt-[11px] flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+                      <Pencil className="h-3 w-3" />
+                      edited from the original suggestion ·{" "}
+                      <span style={{ color: FLAG_AMBER }}>unsaved</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-[11px] border border-dashed border-border bg-card px-4 py-6 text-center text-[13px] text-muted-foreground/70">
+                  No drafted message — {actInfo.label.toLowerCase()} action
+                </div>
+              ))}
 
             {/* ░░ REASONING ░░ */}
             {tab === "reasoning" && (
