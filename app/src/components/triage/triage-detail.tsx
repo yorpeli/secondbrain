@@ -115,14 +115,16 @@ function Disclosure({
   label,
   count,
   accent,
+  defaultOpen = false,
   children,
 }: {
   label: string
   count?: number
   accent?: string
+  defaultOpen?: boolean
   children: React.ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="border-b border-border/60">
       <button
@@ -370,7 +372,7 @@ export function TriageDetail({
           <SectionLabel num="②">Context</SectionLabel>
 
           {/* Sections collapsed by default so the column fits without scrolling. */}
-          <Disclosure label="Memory brief" accent="#c4b5fd">
+          <Disclosure label="Memory brief" accent="#c4b5fd" defaultOpen>
             <div
               className="rounded-[10px] px-[13px] py-3"
               style={{
