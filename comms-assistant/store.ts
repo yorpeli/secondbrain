@@ -44,7 +44,11 @@ export async function upsertPredictions(rows: PredictionRow[]): Promise<{ insert
       continue
     }
     if (existingId) {
-      const { error } = await (sb as any).from('comms_predictions').update(row as any).eq('id', existingId)
+      // Refresh only the prediction fields — never the user-owned state columns (the in-app
+      // feedback path owns status/edited_reply/action_accepted/overridden_action/snooze_until/user_touched).
+      const { status: _s, edited_reply: _er, action_accepted: _aa, overridden_action: _oa,
+              snooze_until: _su, user_touched: _ut, ...sweepFields } = row as any
+      const { error } = await (sb as any).from('comms_predictions').update(sweepFields).eq('id', existingId)
       if (error) throw error
       updated++
     } else {

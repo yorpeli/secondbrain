@@ -27,4 +27,19 @@ describe('upsertPredictions clobber guard', () => {
     assert.equal(data.predicted_reply, 'first draft')    // NOT overwritten
     assert.equal(res.updated + res.inserted >= 0, true)  // call succeeds, no throw
   })
+
+  it('refresh of an untouched row preserves a non-default status', async () => {
+    const CONV2 = 'GUARD-TEST-CONV-2'
+    try {
+      await upsertPredictions([{ ...base, thread_id: CONV2 }])
+      // Simulate a row that has a non-default status but was NOT user_touched.
+      await sb.from('comms_predictions').update({ status: 'sent', user_touched: false }).eq('thread_id', CONV2)
+      await upsertPredictions([{ ...base, thread_id: CONV2, predicted_reply: 'refreshed draft' }])
+      const { data } = await sb.from('comms_predictions').select('status,predicted_reply').eq('thread_id', CONV2).single()
+      assert.equal(data.status, 'sent')                  // status NOT reset to 'open'
+      assert.equal(data.predicted_reply, 'refreshed draft') // ML field WAS refreshed
+    } finally {
+      await sb.from('comms_predictions').delete().eq('thread_id', CONV2)
+    }
+  })
 })

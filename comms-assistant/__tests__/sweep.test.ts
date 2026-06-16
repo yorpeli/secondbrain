@@ -18,4 +18,7 @@ describe('decideSweepAction', () => {
   it('open + new inbound but missing latest id → skip (cannot prove advance)', () => {
     assert.equal(decideSweepAction({ exists: true, userTouched: false, lastMessageId: 'm1' }, null), 'skip')
   })
+  it('open row with null lastMessageId + real latest id → refresh (legacy row, re-analyze once)', () => {
+    assert.equal(decideSweepAction({ exists: true, userTouched: false, lastMessageId: null }, 'm1'), 'refresh')
+  })
 })

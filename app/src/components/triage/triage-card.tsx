@@ -93,7 +93,7 @@ export function TriageCard({
         <Button
           size="sm"
           variant="outline"
-          onClick={() => onFeedback("action_override", { accepted: true })}
+          onClick={() => onFeedback("action_override", { accepted: true, from: { type: card.action_type, target: card.action_target } })}
         >
           👍 Action right
         </Button>
@@ -104,7 +104,7 @@ export function TriageCard({
             const t = window.prompt('Correct action as "type:target" (e.g. route:ido-seter)')
             if (!t) return
             const [type, target] = t.split(":")
-            onFeedback("action_override", { accepted: false, to: { type, target: target ?? null } })
+            onFeedback("action_override", { accepted: false, from: { type: card.action_type, target: card.action_target }, to: { type, target: target ?? null } })
           }}
         >
           👎 Wrong action
