@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type { TriageCard, FeedbackKind } from '@/lib/triage-types'
 import { buildDraftRequest } from '@/lib/draft-request'
 
-const COLS = 'id,channel,action_type,action_target,predicted_reply,edited_reply,action_accepted,confidence,why,status,sensitive,card,created_at,needs_data,tier,verdict,trigger_text,web_link,context_available'
+const COLS = 'id,channel,action_type,action_target,predicted_reply,edited_reply,action_accepted,confidence,why,status,sensitive,card,created_at,needs_data,tier,verdict,trigger_text,web_link,context_available,mode,internet_message_id,last_message_id'
 
 export function useTriageCards() {
   return useQuery({

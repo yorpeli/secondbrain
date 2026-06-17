@@ -13,11 +13,15 @@ export function buildDraftRequest(card: TriageCard): DraftRequest {
   const subject = email?.subject ?? ''
   const to = email?.to ?? []
   const body = card.edited_reply ?? card.predicted_reply ?? ''
-  const internetMessageId = email?.internet_message_id ?? undefined
-  const conversationId = email?.conversation_id ?? undefined
 
-  if (internetMessageId || conversationId) {
-    return { mode: 'reply', to, subject, body, replyKey: { internetMessageId, conversationId } }
+  // Reply keys live on the TOP-LEVEL capture columns (comms_predictions), not in
+  // card.email. A card is a reply when capture tagged mode='reply' or it carries a
+  // message-id to thread against; reply-all derives recipients, so `to` is unused there.
+  const internetMessageId = card.internet_message_id ?? card.last_message_id ?? undefined
+  const isReply = card.mode === 'reply' || Boolean(internetMessageId)
+
+  if (isReply) {
+    return { mode: 'reply', to, subject, body, replyKey: { internetMessageId } }
   }
   return { mode: 'fresh', to, subject, body }
 }

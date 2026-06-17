@@ -57,4 +57,9 @@ export interface TriageCard {
   trigger_text?: string | null
   web_link?: string | null
   context_available?: { draft_why?: string | null } | null
+  // Top-level capture columns (used to build an Outlook draft). The reply keys
+  // live here, NOT in card.email.
+  mode?: string | null
+  internet_message_id?: string | null
+  last_message_id?: string | null
 }
