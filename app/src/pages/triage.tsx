@@ -123,6 +123,21 @@ export function TriagePage() {
                 >
                   Mark sent
                 </button>
+                {selected &&
+                  (selected.channel === "outlook" || selected.channel === "email") && (
+                    <button
+                      onClick={() => markRead.mutate(selected.id)}
+                      title="Marks the email read in Outlook (next sync run) and dismisses this card"
+                      className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                      style={{
+                        color: "#fcd34d",
+                        background: "rgba(251,191,36,0.1)",
+                        borderColor: "rgba(251,191,36,0.35)",
+                      }}
+                    >
+                      ✓ Mark read
+                    </button>
+                  )}
                 {ThemeToggle}
               </div>
             </div>
@@ -136,7 +151,6 @@ export function TriagePage() {
                 onFeedback={(kind, payload) =>
                   apply.mutate({ predictionId: selected.id, kind, payload })
                 }
-                onMarkRead={() => markRead.mutate(selected.id)}
               />
             ) : (
               <div className="flex flex-1 items-center justify-center">
