@@ -71,6 +71,83 @@ if Yonatan gave one (never ask for one), and INSERT one inbound-capture task.
 Confirm the subject captured and that it is queued for Claude Code triage.
 ```
 
+## Outlook-side skill #3 — sync (read/write, created once, then frozen)
+
+This is the ONLY skill permitted to write to the mailbox, and only to toggle a
+message's read flag. Kept separate from the read-only skills above on purpose.
+
+```markdown
+---
+name: second-brain-sync
+description: Use when Yonatan says "sync second brain", "/sync-second-brain",
+  "mark these read", or "process second brain sync tasks". Connects to the
+  Second Brain Supabase database, loads its sync spec, and follows it.
+---
+
+# Second Brain — Sync (read/write)
+
+You are the `outlook-sync` surface of Yonatan's Second Brain. Your behavior is
+defined by a spec stored in the database — not hardcoded here.
+
+## 1. Load your sync spec FIRST
+Query Supabase: `SELECT content FROM context_store WHERE key = 'outlook_sync_spec';`
+It is the source of truth. Read it fully and follow its `run_loop` exactly.
+
+## 2. Do what the spec says
+Follow the spec step by step. The ONLY mailbox write you may perform is toggling
+a message's read flag, for a message a task names by ID.
+
+## 3. Report to Yonatan
+Summarize what you marked read and flag anything you could not find.
+```
+
+## Sync operating spec (source of truth → synced to context_store.outlook_sync_spec)
+
+<!-- spec:outlook_sync_spec -->
+```json
+{
+  "mode": "production",
+  "name": "Outlook Sync — Operating Spec",
+  "version": "0.1-mark-read",
+  "purpose": "Process write tasks queued for target_agent 'outlook-sync'. Currently one type: 'mark-read' — mark a specific message read in Outlook. This is the only agent that writes to the mailbox, and the only permitted write is the read flag.",
+  "run_loop": [
+    "1. Read this spec (you just did). State its version in your report.",
+    "2. Get pending tasks: SELECT id, description FROM agent_tasks WHERE target_agent = 'outlook-sync' AND status = 'pending' ORDER BY created_at;",
+    "3. For EACH task, parse the JSON in description and act on its 'type'. Supported: 'mark-read' (mark_read). If type is anything else, mark the task failed with result_summary = 'unsupported sync type <type>' and move on.",
+    "4. Claim before working: UPDATE agent_tasks SET status = 'picked-up', picked_up_by = 'outlook-sync', updated_at = now() WHERE id = '<id>';",
+    "5. Execute per the mark_read section.",
+    "6. Write back (see write_back).",
+    "7. After all tasks, report to Yonatan: count marked read, one line per task, and flag any message you could not find."
+  ],
+  "hard_rules": [
+    "ACT ONLY ON DEMAND: only when Yonatan triggers this skill. Never proactively scan the mailbox.",
+    "SUPABASE WRITE SCOPE: only ever write to the agent_tasks table (your own task rows).",
+    "MAILBOX WRITE SCOPE: the ONLY mailbox mutation permitted is toggling a message's read flag, and only for a message a mark-read task names by ID. NEVER modify content, send, reply, delete, move, flag, or categorize.",
+    "Only touch the single message a task explicitly names.",
+    "If you cannot find the message, or your environment cannot toggle the read flag, do NOT guess — mark the task failed with a clear reason."
+  ],
+  "mark_read": {
+    "description": "Mark one specific message as read.",
+    "input_fields": {
+      "internet_message_id": "RFC message-id — the preferred key to find the message",
+      "message_id": "Graph/Outlook message id — fallback key",
+      "web_link": "Outlook deep link — fallback key",
+      "subject": "subject line — last-resort disambiguation only",
+      "prediction_id": "pass-through id from comms_predictions (do not interpret)"
+    },
+    "steps": [
+      "Find the message by internet_message_id; if unavailable, try message_id, then web_link, then subject as a last resort.",
+      "If exactly one message matches, mark it read.",
+      "If no message matches, or more than one matches an ambiguous subject search with no id, do not act — record not-found."
+    ]
+  },
+  "write_back": {
+    "success": "UPDATE agent_tasks SET status = 'done', result_summary = '<text>', completed_at = now(), updated_at = now(), tags = array_append(coalesce(tags,'{}'), 'filed') WHERE id = '<id>'; -- tag 'filed' because nothing needs Claude Code promotion; this self-terminates.",
+    "failure": "UPDATE agent_tasks SET status = 'failed', result_summary = '<reason>', updated_at = now() WHERE id = '<id>';"
+  }
+}
+```
+
 ## Operating spec (source of truth → synced to context_store.outlook_agent_spec)
 
 <!-- spec:outlook_agent_spec -->
@@ -238,6 +315,7 @@ Use `lib/outlook.ts` / `npm run outlook:run`:
 - `check` — full sweep: pending pushes + lookup results awaiting promotion
 - `request` — queue a thread-lookup (pull)
 - `results` / `result <id>` — read pull results (excludes `filed`)
+- Mark-read tasks are queued by the `/triage` app for `target_agent='outlook-sync'` (a separate board) and handled by the `second-brain-sync` skill — not by `check`/`request`.
 - `inbox` — list inbound captures pushed from Outlook (`listInboundCaptures()`)
 - triage / promote: reason over initiatives/people/current_focus, suggest a
   destination, and on Yonatan's confirm promote (initiative memory via
