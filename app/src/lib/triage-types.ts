@@ -4,6 +4,7 @@ export type FeedbackKind = 'edit' | 'action_override' | 'note' | 'status'
 export interface CardEmail {
   subject: string | null; from: string | null; date: string | null
   to: string[] | null; excerpt: string | null; webLink: string | null; thread_summary: string | null
+  internet_message_id?: string | null; conversation_id?: string | null
 }
 export interface CardParticipant {
   name?: string; role?: string; relation?: string; inDb?: boolean; email?: string; slug?: string

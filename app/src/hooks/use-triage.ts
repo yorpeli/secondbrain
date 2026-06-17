@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { TriageCard, FeedbackKind } from '@/lib/triage-types'
+import { buildDraftRequest } from '@/lib/draft-request'
 
 const COLS = 'id,channel,action_type,action_target,predicted_reply,edited_reply,action_accepted,confidence,why,status,sensitive,card,created_at,needs_data,tier,verdict,trigger_text,web_link,context_available'
 
@@ -41,5 +42,28 @@ export function useMarkRead() {
       if (error) throw error
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['triage'] }) },
+  })
+}
+
+export function usePushOutlookDraft() {
+  return useMutation({
+    mutationFn: async (card: TriageCard): Promise<{ ok: true; mode: 'fresh' | 'reply' }> => {
+      const req = buildDraftRequest(card)
+      const url = import.meta.env.VITE_OUTLOOK_BRIDGE_URL ?? 'http://127.0.0.1:7777'
+      const token = import.meta.env.VITE_OUTLOOK_BRIDGE_TOKEN ?? ''
+      let res: Response
+      try {
+        res = await fetch(`${url}/draft`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-bridge-token': token },
+          body: JSON.stringify(req),
+        })
+      } catch {
+        throw new Error('Bridge not running — run `npm run outlook-bridge`')
+      }
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; mode?: 'fresh' | 'reply'; error?: string }
+      if (!res.ok || !data.ok) throw new Error(data.error ?? `Bridge error (${res.status})`)
+      return { ok: true, mode: data.mode ?? req.mode }
+    },
   })
 }
