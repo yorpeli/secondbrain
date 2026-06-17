@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Moon, Sun } from "lucide-react"
-import { useTriageCards, useApplyFeedback, useMarkRead } from "@/hooks/use-triage"
+import { useTriageCards, useApplyFeedback, useMarkRead, usePushOutlookDraft } from "@/hooks/use-triage"
 import { useTheme } from "@/components/layout/theme-provider"
 import { TriageList } from "@/components/triage/triage-list"
 import { TriageDetail } from "@/components/triage/triage-detail"
@@ -10,6 +10,7 @@ export function TriagePage() {
   const { data: cards, isLoading, error } = useTriageCards()
   const apply = useApplyFeedback()
   const markRead = useMarkRead()
+  const pushDraft = usePushOutlookDraft()
   const { theme, setTheme } = useTheme()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -140,6 +141,31 @@ export function TriagePage() {
                       }}
                     >
                       {markRead.isPending ? "Marking…" : "✓ Mark read"}
+                    </button>
+                  )}
+                {selected &&
+                  (selected.channel === "outlook" || selected.channel === "email") && (
+                    <button
+                      onClick={() => {
+                        if (pushDraft.isPending) return
+                        pushDraft.mutate(selected)
+                      }}
+                      disabled={pushDraft.isPending}
+                      title="Opens a pre-filled, reviewable draft in Outlook (does not send). Requires the local bridge: npm run outlook-bridge"
+                      className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        color: "#93c5fd",
+                        background: "rgba(59,130,246,0.1)",
+                        borderColor: "rgba(59,130,246,0.35)",
+                      }}
+                    >
+                      {pushDraft.isPending
+                        ? "Opening…"
+                        : pushDraft.isError
+                        ? "⚠ " + (pushDraft.error as Error).message
+                        : pushDraft.isSuccess
+                        ? "Draft opened ✓"
+                        : "✉ Push to Outlook draft"}
                     </button>
                   )}
                 {ThemeToggle}
