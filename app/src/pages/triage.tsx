@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Moon, Sun } from "lucide-react"
-import { useTriageCards, useApplyFeedback } from "@/hooks/use-triage"
+import { useTriageCards, useApplyFeedback, useMarkRead } from "@/hooks/use-triage"
 import { useTheme } from "@/components/layout/theme-provider"
 import { TriageList } from "@/components/triage/triage-list"
 import { TriageDetail } from "@/components/triage/triage-detail"
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 export function TriagePage() {
   const { data: cards, isLoading, error } = useTriageCards()
   const apply = useApplyFeedback()
+  const markRead = useMarkRead()
   const { theme, setTheme } = useTheme()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -135,6 +136,7 @@ export function TriagePage() {
                 onFeedback={(kind, payload) =>
                   apply.mutate({ predictionId: selected.id, kind, payload })
                 }
+                onMarkRead={() => markRead.mutate(selected.id)}
               />
             ) : (
               <div className="flex flex-1 items-center justify-center">

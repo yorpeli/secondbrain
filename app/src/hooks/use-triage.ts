@@ -32,3 +32,14 @@ export function useApplyFeedback() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['triage'] }) },
   })
 }
+
+export function useMarkRead() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (predictionId: string) => {
+      const { error } = await supabase.rpc('comms_mark_read', { p_prediction_id: predictionId })
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['triage'] }) },
+  })
+}

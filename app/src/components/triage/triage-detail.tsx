@@ -156,10 +156,12 @@ export function TriageDetail({
   card,
   index,
   onFeedback,
+  onMarkRead,
 }: {
   card: TriageCard
   index: number
   onFeedback: (kind: FeedbackKind, payload: Record<string, unknown>) => void
+  onMarkRead?: () => void
 }) {
   const c = card
   const e = c.card?.email
@@ -756,6 +758,16 @@ export function TriageDetail({
                 Save
               </button>
             </div>
+
+            {onMarkRead && (c.channel === "outlook" || c.channel === "email") && (
+              <button
+                onClick={onMarkRead}
+                title="Marks the email read in Outlook (next sync run) and dismisses this card"
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-[9px] text-[12px] text-muted-foreground hover:text-foreground"
+              >
+                <Check className="h-[13px] w-[13px]" /> Mark read in Outlook &amp; dismiss
+              </button>
+            )}
           </div>
         </section>
       </div>
