@@ -126,16 +126,20 @@ export function TriagePage() {
                 {selected &&
                   (selected.channel === "outlook" || selected.channel === "email") && (
                     <button
-                      onClick={() => markRead.mutate(selected.id)}
+                      onClick={() => {
+                        if (markRead.isPending) return
+                        markRead.mutate(selected.id)
+                      }}
+                      disabled={markRead.isPending}
                       title="Marks the email read in Outlook (next sync run) and dismisses this card"
-                      className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                      className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
                         color: "#fcd34d",
                         background: "rgba(251,191,36,0.1)",
                         borderColor: "rgba(251,191,36,0.35)",
                       }}
                     >
-                      ✓ Mark read
+                      {markRead.isPending ? "Marking…" : "✓ Mark read"}
                     </button>
                   )}
                 {ThemeToggle}
