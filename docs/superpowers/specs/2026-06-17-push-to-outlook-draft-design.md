@@ -235,3 +235,30 @@ Yonatan still acts on the card normally.
 - **Subject-based reply lookup** can be ambiguous on threads with repeated subjects;
   mitigated by `Message-ID` disambiguation from headers. If lookup fails, the app offers a
   fresh-compose fallback rather than guessing.
+
+## Post-implementation lessons (2026-06-17)
+
+What we actually learned building this — the operational reference is
+[`../../comms-assistant/outlook-bridge/README.md`](../../comms-assistant/outlook-bridge/README.md).
+
+1. **New Outlook for Mac AppleScript is dead (compose-only); Legacy works.** Verified
+   live: New Outlook reports `count of messages = 0` everywhere, no account/search access.
+   The whole reply path depends on running **Legacy Outlook**. Microsoft's promised
+   restoration (roadmap Dec 2025) had not shipped/worked as of build 16.108. Don't design
+   around it returning.
+2. **Reply-all is a parameter, not a verb.** `reply to <message> reply to all true` — there
+   is no `reply to all` command. Found by reading the bundled `Outlook.sdef` (the `sdef`
+   CLI needs full Xcode).
+3. **A browser can't shell out** — hence the localhost bridge. `spawn('osascript', [argv])`
+   (never a shell string) both solved the boundary and removed the injection surface for
+   attacker-influenceable email body.
+4. **The data-shape bug the unit tests couldn't catch.** The reply keys
+   (`mode`/`internet_message_id`/`last_message_id`) are **top-level `comms_predictions`
+   columns, not in `card.email`** — contrary to what the comms-assistant doc states. The
+   synthetic-card unit tests passed; the live click test surfaced it (every reply defaulted
+   to recipient-less "fresh" → 400). **Verify the persisted shape against the DB; don't
+   trust a doc's claim about where fields are written.** The manual end-to-end test is what
+   caught it — its value was real, not ceremonial.
+5. **Reply subjects carry `Re:`/`Fwd:` that the original may not** — strip the prefix before
+   the `whose subject contains` filter, or the lookup misses the very threads the feature is
+   for. Let `Message-ID` disambiguate after.
