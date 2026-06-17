@@ -72,9 +72,14 @@ function t0Card(it) {
   }
 }
 
-function draftPrompt(it, tier) {
+function draftPrompt(it, tier, today) {
   const deep = tier === 2
-  return `Follow the contract in \`comms-assistant/prompts/triage-runner.md\` (read it first, then \`comms-assistant/prompts/prediction-subagent.md\`). Repo root: ${REPO}. TODAY = 2026-06-14. slug: ${it.slug}.
+  // TODAY is supplied by the caller (orchestrator passes the live date) — never hardcoded, so it
+  // can't drift. If absent, instruct the agent to treat the most recent thread date as "now".
+  const dateLine = today
+    ? `TODAY = ${today}.`
+    : `TODAY = (not provided — reason relative to the latest message date in the thread; do not assume a specific calendar date).`
+  return `Follow the contract in \`comms-assistant/prompts/triage-runner.md\` (read it first, then \`comms-assistant/prompts/prediction-subagent.md\`). Repo root: ${REPO}. ${dateLine} slug: ${it.slug}.
 ${deep
     ? `DEEP (T2): write the THREAD json to /tmp/ti-${it.slug}.json and run \`npx tsx comms-assistant/run.ts context:assemble --file=/tmp/ti-${it.slug}.json\` to ground (rules spine, T1 people, T2 ownership incl. referenceFacts, T3 narrative). You MAY searchByType for more.`
     : `SHALLOW (T1): do NOT run deep grounding — reason from the thread + the ownership note below. ${it.ownership_note || ''}`}
@@ -105,17 +110,19 @@ Return a verdict via the enforced schema: lens, refuted (bool), severity (none|m
 }
 
 const LENSES = ['faithfulness', 'ownership-and-facts', 'voice-and-etiquette']
-let items = args
-if (typeof items === 'string') { try { items = JSON.parse(items) } catch { items = [] } }
-if (!Array.isArray(items)) items = []
-log(`triage: ${items.length} captured threads (args type: ${typeof args})`)
+let parsed = args
+if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed) } catch { parsed = [] } }
+// args may be a bare items array (legacy) or { today, items } — the caller supplies the live date.
+let items = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.items) ? parsed.items : [])
+const TODAY = (parsed && !Array.isArray(parsed) && parsed.today) || (items[0] && items[0].today) || ''
+log(`triage: ${items.length} captured threads (today: ${TODAY || 'unset'})`)
 
 const out = await pipeline(items,
   // Stage 1 — tier + draft
   async (it) => {
     const tier = routeTier(it)
     if (tier === 0) { log(`#${it.slug}: T0 templated`); return { email: it.email, thread: it.thread, tier, ...t0Card(it) } }
-    const r = await agent(draftPrompt(it, tier), { label: `draft:${it.slug} (T${tier})`, phase: 'Draft', schema: SUGGESTION_SCHEMA })
+    const r = await agent(draftPrompt(it, tier, TODAY), { label: `draft:${it.slug} (T${tier})`, phase: 'Draft', schema: SUGGESTION_SCHEMA })
     if (!r) return { email: it.email, thread: it.thread, tier, suggestion: null, verdict: null }
     return { email: it.email, thread: it.thread, body: it.body, slug: it.slug, tier, suggestion: r.suggestion, self_check: r.self_check, verdict: null }
   },

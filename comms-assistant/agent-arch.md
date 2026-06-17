@@ -217,7 +217,9 @@ The human never runs a CLI; the orchestrator runs it for him.
    First-time sends are first-class — *not* gated on `Re:`. (A separate `--backtest` gate is
    `Re:`-only, for the learning loop.) **Never silently truncate** — log the drop breakdown.
 3. **Capture (serial)** — `read_resource` each survivor for the full body + participants +
-   @mentions. Long threads spill to a file → slice the top, don't re-read.
+   @mentions. **Always pull `conversation_id` + `internet_message_id`** onto the card (the reconcile
+   match-keys; `web_link` is fallback) — capture them every run, never decide per-run if they're needed.
+   Long threads spill to a file → slice the top, don't re-read.
 4. **Fan out** — one sub-agent per thread (see §7–8).
 5. **Render** — `render-triage.ts` → a numbered, **newest-first** master-detail HTML page (channel
    icons; HE⇄EN toggle for Hebrew; collapsible context; ⏳ aging badges; tier + verdict badges).

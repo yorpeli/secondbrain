@@ -74,7 +74,9 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    (Teams messages have no subject — synthesize a short topic line for `subject` from the message.)
 4. **Run the `comms-triage` workflow on the captured threads — this IS the reasoning + verify flow, never
    inline drafting** (`triage.workflow.js`; pass the capture packets as `args`, each with a `signals` object so
-   tiering works). It fans out one subagent per thread — PARALLEL, no MSFT (each runs `context:assemble` = DB
+   tiering works). **Pass the live date** so the workflow isn't hardcoded: either a per-packet `today` field or a
+   top-level `args = { today: "<YYYY-MM-DD>", items: [...] }`. The workflow reads it (never assumes a calendar
+   date) — it drives scheduling stale-date checks and the ~1wk+ delay-acknowledgment rule. It fans out one subagent per thread — PARALLEL, no MSFT (each runs `context:assemble` = DB
    only, parallel-safe; reasons via `prompts/triage-runner.md` → `prediction-subagent.md`) — and runs the full
    **3-layer evaluation, all captured per card**: ① **tier-route** (`routeTier`: sensitive / direct-ask → **T2
    deep**; cc-only → T1 shallow; broadcast/cold → T0 templated, no agent) → ② **schema-forced draft** → ③
@@ -104,11 +106,12 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
    `channel`: `outlook`|`teams`|`meeting` (drives the leading icon + open button). For Hebrew drafts set
    `text`+`text_alt`(EN)+`lang`/`lang_alt` for the **HE⇄EN toggle**. `memory_brief` = a string OR
    `{summary, points[]}` (structured, scannable). Full card anatomy: the `render-triage.ts` header comment.
-6. **Review surface (primary: `/triage` app; fallback: HTML export).** The **`/triage` app** (Supabase-backed,
-   in `app/`, route `/triage`) is now the **primary review surface** — it reads `comms_predictions`, lets
+6. **Review surface — the `/triage` app (the ONLY default surface).** The **`/triage` app** (Supabase-backed,
+   in `app/`, route `/triage`) is the review surface — it reads `comms_predictions`, lets
    Yonatan edit drafts / accept-reject the suggested action / add notes / set status, and writes feedback to
-   `comms_feedback` via `comms_apply_feedback` RPC. The HTML export is an **optional fallback**:
-   `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`.
+   `comms_feedback` via `comms_apply_feedback` RPC. Persisting (step 7) is what populates it. **Do NOT generate
+   the local HTML export by default** — only when Yonatan explicitly asks for it ("export the HTML", "render the
+   triage page"). When asked: `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`.
    `render-triage.ts` calls `assembleContext(thread)` itself → the card's People/Guardrails/Rules come from the
    retrieval layer; you supply `suggestion` + `memory_brief`. Page shell/styling is [templates/triage.html](templates/triage.html) (editable).
 7. **Persist the sweep** — `npm run comms-assistant -- predictions:add-many --payload=<items.json>` writes every
