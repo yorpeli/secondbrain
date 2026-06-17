@@ -147,6 +147,10 @@ needs a response?"**, run this and open the `/triage` app (he never runs the CLI
    `comms_predictions`. `upsertPredictions` never clobbers a `user_touched` card.
 6. **Review in the `/triage` app** (primary) — Supabase-backed, `app/`, route `/triage`. He edits drafts /
    accepts-rejects actions / adds notes; feedback lands in `comms_feedback` via `comms_apply_feedback` RPC.
+   **Mark read (no reply needed):** the "Mark read in Outlook & dismiss" button (Outlook/email cards only)
+   dismisses the card and queues an `outlook-sync` mark-read task — handled by the `second-brain-sync` Outlook
+   skill (read flag only) so monitor/none items he never needs to answer get cleared from the inbox too. Calls
+   the `comms_mark_read` RPC.
    Optional fallback: render the HTML export with
    `npx tsx comms-assistant/render-triage.ts --file=<items.json> --out=output/comms-triage/triage-$(date +%F).html`
    (render-triage re-runs `assembleContext` per item for the People/Guardrails/Rules columns).
