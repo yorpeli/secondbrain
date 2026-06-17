@@ -31,7 +31,8 @@
     "command-center:capture": "tsx scripts/command-center/capture.ts",
     "command-center:day": "tsx scripts/command-center/day.ts",
     "comms-assistant": "tsx comms-assistant/run.ts",
-    "comms-learning": "tsx comms-assistant/run.ts"
+    "comms-learning": "tsx comms-assistant/run.ts",
+    "outlook-bridge": "tsx comms-assistant/outlook-bridge/bridge.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
