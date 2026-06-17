@@ -210,8 +210,8 @@ Examples:
 
       case 'sync-spec': {
         const { syncSpec } = await import('./sync-spec.js')
-        const version = await syncSpec()
-        console.log(`Synced outlook_agent_spec → context_store. version: ${version}`)
+        const results = await syncSpec()
+        for (const r of results) console.log(`Synced ${r.key} → context_store. version: ${r.version}`)
         break
       }
 
