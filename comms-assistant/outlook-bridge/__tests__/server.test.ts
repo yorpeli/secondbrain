@@ -115,3 +115,39 @@ test('OPTIONS /draft preflight → 204 with CORS headers', async () => {
   assert.equal(res.headers.get('access-control-allow-headers')?.includes('x-bridge-token'), true)
   server.close()
 })
+
+test('spawn error then close(null) → exactly one 500 response, no ERR_HTTP_HEADERS_SENT', async () => {
+  // Mimics real child_process.spawn behaviour when the binary can't be exec'd:
+  // it fires 'error' first, then 'close' with code=null.  Without the one-shot
+  // guard the second writeHead throws ERR_HTTP_HEADERS_SENT.
+  const spawnError = new Error('spawn ENOENT')
+  const fn: SpawnFn = () => {
+    const handlers: Record<string, ((arg: unknown) => void)[]> = {}
+    const proc: SpawnedProc = {
+      stderr: { on: () => {} },
+      on: (ev: 'close' | 'error', cb: (arg: unknown) => void) => {
+        ;(handlers[ev] ||= []).push(cb)
+      },
+    }
+    queueMicrotask(() => {
+      // Fire error first, then close with null — the real spawn sequence
+      ;(handlers['error'] || []).forEach((cb) => cb(spawnError))
+      ;(handlers['close'] || []).forEach((cb) => cb(null))
+    })
+    return proc
+  }
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/draft`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-bridge-token': TOKEN },
+    body: JSON.stringify({ mode: 'fresh', to: ['a@b.com'], subject: 'Hi', body: 'Body' }),
+  })
+  // Exactly one response received — status 500 from the error handler
+  assert.equal(res.status, 500)
+  const body = await res.json() as { ok: boolean; error: string }
+  assert.equal(body.ok, false)
+  assert.ok(body.error.includes('ENOENT'), `expected ENOENT in error, got: ${body.error}`)
+  // If ERR_HTTP_HEADERS_SENT had fired the server would have crashed and the
+  // test would hang / the assertion above would fail — reaching here means it didn't.
+  server.close()
+})

@@ -77,16 +77,18 @@ export function createBridge(opts: BridgeOptions): http.Server {
       const args = buildOsascriptArgs(opts.scriptPath, v.value)
       const child = spawnFn('osascript', args)
       let stderr = ''
+      let responded = false
+      const respond = (status: number, payload: unknown) => {
+        if (responded) return
+        responded = true
+        json(res, status, payload)
+      }
       child.stderr?.on('data', (c) => (stderr += String(c)))
-      child.on('error', (e) => json(res, 500, { ok: false, error: e.message }))
+      child.on('error', (e) => respond(500, { ok: false, error: e.message }))
       child.on('close', (code) => {
-        if (code === 0) {
-          json(res, 200, { ok: true, mode: v.value.mode })
-        } else if (stderr.includes('NOT_FOUND')) {
-          json(res, 404, { ok: false, error: 'original message not found in Outlook' })
-        } else {
-          json(res, 500, { ok: false, error: stderr.trim().slice(-500) || `osascript exited ${code}` })
-        }
+        if (code === 0) respond(200, { ok: true, mode: v.value.mode })
+        else if (stderr.includes('NOT_FOUND')) respond(404, { ok: false, error: 'original message not found in Outlook' })
+        else respond(500, { ok: false, error: stderr.trim().slice(-500) || `osascript exited ${code}` })
       })
       return
     }
