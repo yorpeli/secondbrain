@@ -10,6 +10,10 @@ if (!token) {
 }
 
 const port = Number(process.env.OUTLOOK_BRIDGE_PORT ?? 7777)
+if (!Number.isInteger(port)) {
+  console.error(`OUTLOOK_BRIDGE_PORT must be an integer; got "${process.env.OUTLOOK_BRIDGE_PORT}". Refusing to start.`)
+  process.exit(1)
+}
 const here = path.dirname(fileURLToPath(import.meta.url))
 const scriptPath = path.join(here, 'draft.applescript')
 const allowedOrigin = process.env.OUTLOOK_BRIDGE_ORIGIN ?? 'http://localhost:5173'

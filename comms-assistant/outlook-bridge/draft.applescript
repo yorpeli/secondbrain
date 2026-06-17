@@ -9,6 +9,22 @@ on trimText(s)
 	return s
 end trimText
 
+on stripReplyPrefix(s)
+	set s to my trimText(s)
+	repeat
+		if s starts with "Re:" then
+			set s to my trimText(text 4 thru -1 of s)
+		else if s starts with "Fwd:" then
+			set s to my trimText(text 5 thru -1 of s)
+		else if s starts with "Fw:" then
+			set s to my trimText(text 4 thru -1 of s)
+		else
+			exit repeat
+		end if
+	end repeat
+	return s
+end stripReplyPrefix
+
 on run argv
 	set theMode to item 1 of argv
 	set theSubject to item 2 of argv
@@ -30,7 +46,9 @@ on run argv
 			open m
 		else
 			-- reply: locate the original, then reply-all
-			set subjMatch to my trimText(theSubject)
+			set subjMatch to my stripReplyPrefix(theSubject)
+			if subjMatch is "" then set subjMatch to my trimText(theSubject)
+			-- Inbox-only by design: triage cards are unread Inbox messages; threads filed elsewhere won't be found (known limitation)
 			set hits to (messages of inbox whose subject contains subjMatch)
 			if (count of hits) is 0 then error "NOT_FOUND: no inbox message matches subject" number 1
 

@@ -144,7 +144,8 @@ export function TriagePage() {
                     </button>
                   )}
                 {selected &&
-                  (selected.channel === "outlook" || selected.channel === "email") && (
+                  (selected.channel === "outlook" || selected.channel === "email") &&
+                  !!(selected.edited_reply ?? selected.predicted_reply) && (
                     <button
                       onClick={() => {
                         if (pushDraft.isPending) return
