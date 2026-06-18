@@ -89,6 +89,31 @@ on toCsv(addrList)
 	return s
 end toCsv
 
+on emitRecord(mref)
+	set US to (ASCII character 31)
+	tell application "Microsoft Outlook"
+		set toList to {}
+		try
+			set rl to to recipients of mref
+			repeat with ri from 1 to (count of rl)
+				set rcpt to item ri of rl
+				try
+					set ea to email address of rcpt
+					set end of toList to (address of ea)
+				end try
+			end repeat
+		end try
+		set fields to {(id of mref as string), (subject of mref), my senderAddr(mref), ¬
+			my toCsv(toList), my isoDate(time received of mref), ¬
+			my headerValue(mref, "Message-ID:"), my headerValue(mref, "Thread-Index:"), ¬
+			((plain text content of mref) as string)}
+	end tell
+	set AppleScript's text item delimiters to US
+	set out to (fields as string)
+	set AppleScript's text item delimiters to ""
+	return out
+end emitRecord
+
 on run argv
 	set US to (ASCII character 31)
 	set RS to (ASCII character 30)
@@ -102,26 +127,18 @@ on run argv
 			set outRecs to {}
 			repeat with i from 1 to (count of recent)
 				set mref to item i of recent
-				if my hasClaude(mref) then
-					set toList to {}
-					try
-						set rl to to recipients of mref
-						repeat with ri from 1 to (count of rl)
-							set rcpt to item ri of rl
-							try
-								set ea to email address of rcpt
-								set end of toList to (address of ea)
-							end try
-						end repeat
-					end try
-					set fields to {(id of mref as string), (subject of mref), my senderAddr(mref), ¬
-						my toCsv(toList), my isoDate(time received of mref), ¬
-						my headerValue(mref, "Message-ID:"), my headerValue(mref, "Thread-Index:"), ¬
-						((plain text content of mref) as string)}
-					set AppleScript's text item delimiters to US
-					set end of outRecs to (fields as string)
-					set AppleScript's text item delimiters to ""
-				end if
+				if my hasClaude(mref) then set end of outRecs to my emitRecord(mref)
+			end repeat
+			set AppleScript's text item delimiters to RS
+			set s to outRecs as string
+			set AppleScript's text item delimiters to ""
+			return s
+
+		else if theMode is "unread-capture" then
+			set unreadMsgs to (messages of inbox whose is read is false)
+			set outRecs to {}
+			repeat with i from 1 to (count of unreadMsgs)
+				set end of outRecs to my emitRecord(item i of unreadMsgs)
 			end repeat
 			set AppleScript's text item delimiters to RS
 			set s to outRecs as string
