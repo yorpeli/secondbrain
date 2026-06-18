@@ -424,11 +424,15 @@ on isoDate(d)
 end isoDate
 
 on senderAddr(m)
+	-- `sender` is itself the email-address record {name, address}; it must be bound to a
+	-- variable before accessing `address` (inline `address of (sender of m)` fails coercion).
 	try
-		return address of (sender of m)
+		set s to sender of m
+		return address of s
 	on error
 		try
-			return name of (sender of m)
+			set s to sender of m
+			return name of s
 		on error
 			return "(unknown)"
 		end try
@@ -483,9 +487,15 @@ on run argv
 				if my hasClaude(mref) then
 					set toList to {}
 					try
-						repeat with rcpt in (to recipients of mref)
+						-- materialize the recipient list, bind each, then two-step the address:
+						-- a recipient has an `email address` sub-record; `address of (email address of rcpt)`
+						-- only resolves on a bound item of a materialized list (not on `to recipients` directly).
+						set rl to to recipients of mref
+						repeat with ri from 1 to (count of rl)
+							set rcpt to item ri of rl
 							try
-								set end of toList to (address of rcpt)
+								set ea to email address of rcpt
+								set end of toList to (address of ea)
 							end try
 						end repeat
 					end try
