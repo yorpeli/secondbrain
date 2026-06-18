@@ -218,7 +218,7 @@ async function main() {
       }
 
       const res = await pullClaudeTagged({ windowDays, today, isResolved })
-      process.stderr.write(`pull-outlook claude: total=${res.total} kept=${res.packets.length} drained=${res.cleared}\n`)
+      process.stderr.write(`pull-outlook claude: total=${res.total} kept=${res.packets.length} drained=${res.cleared}/${res.resolvedDrained.length}\n`)
       console.log(JSON.stringify(res.packets, null, 2))
       break
     }

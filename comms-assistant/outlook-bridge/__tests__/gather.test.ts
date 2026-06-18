@@ -82,6 +82,9 @@ test('toCapturePackets maps fields and applies injected sensitivity', () => {
   assert.deepEqual(p.thread.participants, ['boss@x.com', 'me@x.com'])
   assert.equal(p.thread.bodyToDate, 'Please review the numbers.')
   assert.equal(p.signals.sensitive, true)
+  // curated Claude-tagged emails route to T2 (deep + verify): directToHim/askToHim true
+  assert.equal(p.signals.askToHim, true)
+  assert.equal(p.signals.directToHim, true)
   assert.equal(p.today, '2026-06-18')
   assert.ok(p.slug.length > 0)
 })
