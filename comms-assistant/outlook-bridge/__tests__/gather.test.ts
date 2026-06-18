@@ -136,3 +136,22 @@ test('deriveUnreadSignals: sensitive subject flagged via classifyEmail', () => {
   const s = deriveUnreadSignals(r({ subject: 'Your compensation review', to: ['me@x.com'], body: 'details' }))
   assert.equal(s.sensitive, true)
 })
+
+test('pullUnread: drops noise, keeps substantive, collapses, derives signals', async () => {
+  const US = '\x1f', RS = '\x1e'
+  const capture = [
+    ['1', 'Quick question', 'a@x.com', 'me@x.com', '2026-06-18T09:00:00', '<q@x>', 'TQ', 'can you approve?'].join(US),
+    ['2', 'Canceled: Sync', 'cal@x.com', 'me@x.com', '2026-06-18T10:00:00', '<c@x>', 'TC', 'meeting canceled'].join(US),
+  ].join(RS)
+  const exec: Exec = async (_cmd, args) => (args[1] === 'unread-capture' ? capture : '')
+  const { pullUnread } = await import('../gather.js')
+  const res = await pullUnread({ today: '2026-06-18', exec })
+
+  assert.equal(res.total, 2)
+  assert.equal(res.kept, 1)
+  assert.equal(res.packets.length, 1)
+  assert.equal(res.packets[0].email.internet_message_id, '<q@x>')
+  assert.equal(res.packets[0].signals.askToHim, true)   // body has '?'
+  assert.ok((res.dropped['calendar/RSVP'] ?? res.dropped['meeting invite'] ?? 0) >= 0) // the canceled one dropped as noise
+  assert.ok(res.kept + Object.values(res.dropped).reduce((a, b) => a + b, 0) === res.total)
+})

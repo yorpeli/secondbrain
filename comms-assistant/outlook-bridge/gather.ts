@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { parseGatherRecords } from './gather-parse.js'
 import { collapseThreads } from './gather-collapse.js'
 import { toCapturePackets } from './gather-packets.js'
-import { claudeSignals } from './gather-signals.js'
+import { claudeSignals, deriveUnreadSignals } from './gather-signals.js'
 import type { CapturePacket, RawGatherRecord } from './gather-types.js'
 import { classifyEmail } from '../classify.js'
 
@@ -61,5 +61,34 @@ export async function pullClaudeTagged(opts: {
     cleared,
     total: threads.length,
     resolvedDrained: drainIds,
+  }
+}
+
+export interface UnreadResult {
+  packets: CapturePacket[]
+  total: number
+  kept: number
+  dropped: Record<string, number>
+}
+
+export async function pullUnread(opts: { today: string; exec?: Exec }): Promise<UnreadResult> {
+  const exec = opts.exec ?? realExec
+  const raw = await exec('osascript', [SCRIPT, 'unread-capture'])
+  const records = parseGatherRecords(raw)
+
+  const kept: RawGatherRecord[] = []
+  const dropped: Record<string, number> = {}
+  for (const r of records) {
+    const c = classifyEmail({ subject: r.subject, sender: r.from, recipients: r.to, bodyPreview: r.body.slice(0, 200) })
+    if (c.isNoise) dropped[c.reason] = (dropped[c.reason] ?? 0) + 1
+    else kept.push(r)
+  }
+
+  const threads = collapseThreads(kept)
+  return {
+    packets: toCapturePackets(threads, opts.today, deriveUnreadSignals),
+    total: records.length,
+    kept: threads.length,
+    dropped,
   }
 }
