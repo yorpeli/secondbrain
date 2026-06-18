@@ -23,7 +23,7 @@ import { assembleContext, type ThreadInput, type ContextBundle } from './retriev
 import { classifyEmail, type EmailMeta } from './classify.js'
 import { buildCardPayload } from './card.js'
 import { loadUndistilledFeedback, markDistilled } from './distill.js'
-import { pullClaudeTagged } from './outlook-bridge/gather.js'
+import { pullClaudeTagged, pullUnread } from './outlook-bridge/gather.js'
 import { getSupabase } from '../lib/supabase.js'
 
 function renderBundle(label: string, b: ContextBundle): string {
@@ -200,7 +200,15 @@ async function main() {
     }
     case 'pull-outlook': {
       const source = arg('source') ?? 'claude'
-      if (source !== 'claude') throw new Error("pull-outlook: only --source=claude is supported (Plan A)")
+      if (source === 'unread') {
+        const today = arg('today') ?? new Date().toISOString().slice(0, 10)
+        const res = await pullUnread({ today })
+        const drops = Object.entries(res.dropped).map(([k, v]) => `${k}=${v}`).join(', ') || 'none'
+        process.stderr.write(`pull-outlook unread: total=${res.total} kept=${res.kept} | dropped: ${drops}\n`)
+        console.log(JSON.stringify(res.packets, null, 2))
+        break
+      }
+      if (source !== 'claude') throw new Error("pull-outlook: --source must be 'claude' or 'unread'")
       const windowDays = Number(arg('window') ?? 7)
       const today = arg('today') ?? new Date().toISOString().slice(0, 10)
 
