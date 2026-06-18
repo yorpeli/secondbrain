@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { parseGatherRecords } from '../gather-parse.js'
 import { normalizeSubject, threadKey, collapseThreads } from '../gather-collapse.js'
+import { toCapturePackets } from '../gather-packets.js'
 import type { RawGatherRecord } from '../gather-types.js'
 
 const US = '\x1f', RS = '\x1e'
@@ -63,4 +64,23 @@ test('collapseThreads short-body guard appends a longer earlier body', () => {
   assert.ok(out[0].body.includes('Thanks!'))
   assert.ok(out[0].body.includes('earlier in thread'))
   assert.ok(out[0].body.includes('substantive earlier message'))
+})
+
+test('toCapturePackets maps fields and applies injected sensitivity', () => {
+  const recs = [r({
+    outlookId: '9', subject: 'RE: Budget', from: 'boss@x.com', to: ['me@x.com', 'boss@x.com'],
+    dateIso: '2026-06-18T09:00:00', internetMessageId: '<m9@x>', threadIndex: 'AQ9', body: 'Please review the numbers.',
+  })]
+  const packets = toCapturePackets(recs, '2026-06-18', (rec) => rec.subject.includes('Budget'))
+  assert.equal(packets.length, 1)
+  const p = packets[0]
+  assert.equal(p.email.channel, 'outlook')
+  assert.equal(p.email.internet_message_id, '<m9@x>')
+  assert.equal(p.email.conversation_id, 'AQ9')
+  assert.equal(p.email.subject, 'RE: Budget')
+  assert.deepEqual(p.thread.participants, ['boss@x.com', 'me@x.com'])
+  assert.equal(p.thread.bodyToDate, 'Please review the numbers.')
+  assert.equal(p.signals.sensitive, true)
+  assert.equal(p.today, '2026-06-18')
+  assert.ok(p.slug.length > 0)
 })
