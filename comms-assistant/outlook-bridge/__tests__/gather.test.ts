@@ -5,6 +5,7 @@ import { normalizeSubject, threadKey, collapseThreads } from '../gather-collapse
 import { toCapturePackets } from '../gather-packets.js'
 import type { RawGatherRecord } from '../gather-types.js'
 import { pullClaudeTagged, type Exec } from '../gather.js'
+import { deriveUnreadSignals } from '../gather-signals.js'
 
 const US = '\x1f', RS = '\x1e'
 function rec(fields: string[]) { return fields.join(US) }
@@ -114,4 +115,24 @@ test('pullClaudeTagged: collapses, drains resolved, returns unresolved packets',
   // the clear call carried the resolved message's outlook id
   const clearCall = calls.find((c) => c.args[1] === 'clear')!
   assert.ok(clearCall.args.includes('1'))
+})
+
+test('deriveUnreadSignals: direct small-audience question → directToHim + askToHim', () => {
+  const s = deriveUnreadSignals(r({ subject: 'Quick q', to: ['me@x.com'], body: 'can you approve this?' }))
+  assert.equal(s.directToHim, true)
+  assert.equal(s.askToHim, true)
+  assert.equal(s.broadcast, false)
+  assert.equal(s.sensitive, false)
+})
+
+test('deriveUnreadSignals: large audience → broadcast, not directToHim', () => {
+  const many = Array.from({ length: 12 }, (_, i) => `p${i}@x.com`)
+  const s = deriveUnreadSignals(r({ subject: 'FYI all', to: many, body: 'status update.' }))
+  assert.equal(s.broadcast, true)
+  assert.equal(s.directToHim, false)
+})
+
+test('deriveUnreadSignals: sensitive subject flagged via classifyEmail', () => {
+  const s = deriveUnreadSignals(r({ subject: 'Your compensation review', to: ['me@x.com'], body: 'details' }))
+  assert.equal(s.sensitive, true)
 })
