@@ -72,7 +72,9 @@ test('toCapturePackets maps fields and applies injected sensitivity', () => {
     outlookId: '9', subject: 'RE: Budget', from: 'boss@x.com', to: ['me@x.com', 'boss@x.com'],
     dateIso: '2026-06-18T09:00:00', internetMessageId: '<m9@x>', threadIndex: 'AQ9', body: 'Please review the numbers.',
   })]
-  const packets = toCapturePackets(recs, '2026-06-18', (rec) => rec.subject.includes('Budget'))
+  const packets = toCapturePackets(recs, '2026-06-18', (rec) => ({
+    sensitive: rec.subject.includes('Budget'), directToHim: true, askToHim: true, broadcast: false, cold: false,
+  }))
   assert.equal(packets.length, 1)
   const p = packets[0]
   assert.equal(p.email.channel, 'outlook')

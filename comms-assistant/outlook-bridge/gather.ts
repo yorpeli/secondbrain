@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { parseGatherRecords } from './gather-parse.js'
 import { collapseThreads } from './gather-collapse.js'
 import { toCapturePackets } from './gather-packets.js'
+import { claudeSignals } from './gather-signals.js'
 import type { CapturePacket, RawGatherRecord } from './gather-types.js'
 import { classifyEmail } from '../classify.js'
 
@@ -56,7 +57,7 @@ export async function pullClaudeTagged(opts: {
   }
 
   return {
-    packets: toCapturePackets(keep, opts.today, sensitiveOf),
+    packets: toCapturePackets(keep, opts.today, (r) => claudeSignals(r, sensitiveOf)),
     cleared,
     total: threads.length,
     resolvedDrained: drainIds,
