@@ -111,14 +111,24 @@ needs a response?"**, run this and open the `/triage` app (he never runs the CLI
 
 1. **Gather from two first-class sources** (don't draft from Teams *notification emails* — they carry only a
    clipped preview; scan Teams directly instead):
-   - **Email** — `outlook_email_search` with **`query:"isRead:false"`** (folderName "Inbox") — filters to
-     unread **server-side** (no client scan, no blind spot for deep unread). Free-text query pages by `cursor`,
-     not `offset`; `order` n/a. **Page to exhaustion — don't cap** (old-but-unread is recency-ranked, sinks below
-     recent). **Drop** `no-reply@teams.mail.microsoft` / `@odspnotify` notifications.
-   - **Teams** — `chat_message_search` over a 24-48h window (`afterDateTime`); keep messages **from others**
-     (not Yonatan) in a **1:1 chat or a whitelisted CLM-leadership group**, where **he hasn't replied after**
-     (no-reply heuristic — no native unread flag). Scope: **all 1:1s + CLM-leadership groups only**. Fetch
-     bodies via `read_resource teams:///chats/{chatId}/messages/{id}`; tag the card `channel:'teams'`.
+   - **Email — bridge-first (DEFAULT, run at the Mac):** `npx tsx comms-assistant/run.ts pull-outlook
+     --source=unread` (osascript / Legacy Outlook; `whose is read is false` → classify → collapse by
+     Thread-Index root → emits `CapturePacket[]`, full bodies already captured). Also `--source=claude` =
+     the curated `Claude`-category source ("pull Claude emails"; skips classify, lazy tag-drain). Doc:
+     [../comms-assistant/outlook-bridge/GATHER.md](../comms-assistant/outlook-bridge/GATHER.md).
+     **Fallback (not at the Mac / bridge down):** `outlook_email_search` with **`query:"isRead:false"`**
+     (folderName "Inbox") — filters to unread **server-side** (no client scan, no blind spot for deep unread).
+     Free-text query pages by `cursor`, not `offset`; `order` n/a. **Page to exhaustion — don't cap** (old-but-unread
+     is recency-ranked, sinks below recent). **Drop** `no-reply@teams.mail.microsoft` / `@odspnotify` notifications.
+   - **Teams** — two passes, unioned by `chatId`:
+     **(a) roster + whitelist** — all 1:1s + whitelisted CLM-leadership groups (the known scope).
+     **(b) +15 recent chats** — `chat_message_search query:"*"` over a 24-48h window (`afterDateTime`) returns one
+     **recency-sorted stream across all chats** (broad scan works as of 2026-06-17 — supersedes the old "returns
+     nothing" note); group by `chatId`, take the **top 15 distinct** chats, incl. non-whitelisted groups, so an
+     active thread from someone off the roster isn't missed. In both passes keep messages **from others** (not
+     Yonatan) where **he hasn't replied after** (no-reply heuristic — no native unread flag); **skip meeting
+     chats** (`…meeting_…@thread.v2`). Fetch bodies via `read_resource teams:///chats/{chatId}/messages/{id}`;
+     tag the card `channel:'teams'`.
 2. **Classify** — `npm run comms-assistant -- classify --payload=<EmailMeta[].json>` → the **triage gate
    keeps fresh + reply** emails needing a response, dropping only noise (bot senders, calendar/RSVP, app
    notifications, OOO, meeting invites, broadcast DLs) and flagging sensitive (never drafted). First-time

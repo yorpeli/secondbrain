@@ -207,10 +207,12 @@ The human never runs a CLI; the orchestrator runs it for him.
      no client scan, no blind spot for deep unread). **Page to exhaustion** — old-but-unread sinks
      below recent in recency ranking, so a cap silently drops it. **Drop** Teams *notification
      emails* (`@teams.mail.microsoft` / `@odspnotify`) — they're clipped 1-line shadows.
-   - **Teams:** the MCP has **no native unread flag** and broad content search returns nothing, so
-     survey by **roster** (sender-scoped search) and by **folder-reading whitelisted chats** by ID
-     (`comms_teams_whitelist`). Keep messages **from others** in a **1:1 or CLM-leadership group**
-     where **he hasn't replied after** (no-reply heuristic). Serial calls only.
+   - **Teams:** the MCP has **no native unread flag**, so approximate by recency + no-reply. Three
+     inputs, unioned by `chatId`: **roster** (sender-scoped search), **whitelisted chats** read by ID
+     (`comms_teams_whitelist`), and **the top 15 most-recently-active chats** from a date-windowed broad
+     scan (`query="*"` + `afterDateTime` — works as of 2026-06-17, supersedes the old "broad returns
+     nothing" note; group the recency stream by `chatId`). Keep messages **from others** where **he
+     hasn't replied after** (no-reply heuristic); skip meeting chats. Serial calls only.
 2. **Classify (`classify.ts`)** — deterministic gate. The **triage gate keeps anything needing a
    response (fresh OR reply)** and drops only noise (bot senders, calendar/RSVP, app notifications,
    OOO, broadcast DLs, meeting-invite-dominated bodies) + flags **sensitive** (never drafted).

@@ -12,9 +12,17 @@ Two modes share the retrieval + rule spine:
 - **Blind backtest (learn):** predict a past reply using only as-of context, then reconcile. See RUNBOOK.
 
 ## Triage sweep — the procedure (Yonatan never runs the CLI; you do)
-Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a response?".
+Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a response?". Also
+**"pull Claude emails"** = the curated source (Outlook `Claude` category) via `pull-outlook --source=claude`.
 1. **Gather from two first-class sources:**
-   a. **Email** — `outlook_email_search` with **`query:"isRead:false"`** (folderName "Inbox"). This filters to
+   a. **Email — bridge-first (DEFAULT).** Run `npx tsx comms-assistant/run.ts pull-outlook --source=unread`
+      (osascript / Legacy Outlook; reads `whose is read is false`, classifies, collapses by Thread-Index root,
+      emits `CapturePacket[]`). Full doc: [`outlook-bridge/GATHER.md`](outlook-bridge/GATHER.md). Also
+      `--source=claude` for the `Claude`-category curated source (skips classify; lazy tag-drain on resolved
+      cards). The packets feed step 3+ directly (the bridge already captured the full body — no `read_resource`).
+      **The MCP `outlook_email_search` path below is the FALLBACK** — use it when not at the Mac / the bridge is
+      down (Teams always stays MCP):
+      `outlook_email_search` with **`query:"isRead:false"`** (folderName "Inbox"). This filters to
       unread **server-side** (KQL token in `query`; verified 2026-06-14 — all results came back unread), so you
       pull ONLY unread directly: no client-side scan of read mail, and **no blind spot for older-but-unread**
       threads (the old `order:newest` + client-filter approach paged through read mail AND missed deep unread,
@@ -26,21 +34,24 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
       opened the latest but never replied) — catching those needs a Sent-side check, out of scope here.
       **Drop Teams notification emails** (`no-reply@teams.mail.microsoft` / `@odspnotify`) — lossy shadows
       (clipped ~1-line preview); Teams is scanned directly in (b), so they'd only duplicate + truncate.
-   b. **Teams** — the MCP has **no native unread flag** and **broad/content-only `chat_message_search`
-      returns nothing** (verified 2026-06-14) — only **sender-scoped** search works. So survey by **roster**:
-      `chat_message_search sender=<email> query=<broad token like "CLM" or a greeting>` (recent window) for
-      each of the **CLM leadership roster** (the 5 directs, Yaron, key peers). Keep a message when it's **from
-      that person** (not Yonatan), in a **1:1 chat OR a whitelisted CLM-Leads/CLM-Leadership group**, and
-      **Yonatan hasn't replied after it** (no-reply heuristic). Chat type is in the ID: `…@unq.gbl.spaces` = 1:1,
-      `…@thread.v2` = group, `…meeting_…@thread.v2` = meeting (skip).
-      **For a whitelisted group, skip search — read its messages directly:** `read_resource
-      teams:///chats/{chatId}/messages` returns the message list (sender + bodyPreview), so the no-reply check is
-      just "is the latest message from someone other than Yonatan?". Single message = `…/messages/{id}`. Tag Teams
-      cards `channel:'teams'`.
-      ⚠️ **Serial calls only** — Graph throttles at ~80 req/min; parallel MSFT calls trip a 429. Scope =
-      **all 1:1s + the CLM-Leads / CLM-Leadership / CLM-Product groups** (whitelist of chat IDs in
-      `context_store` key `comms_teams_whitelist`). The MCP exposes **no chat name/topic**, so seed the whitelist
-      from actual chat IDs (paste the group links, or identify a candidate by its participant roster).
+   b. **Teams** — the MCP has **no native unread flag**, so approximate via recency + a no-reply heuristic.
+      **Update (2026-06-17): a date-windowed broad scan now works** — `chat_message_search query="*"
+      afterDateTime=<recent>` returns one **recency-sorted stream across all 1:1/group/meeting chats**
+      (supersedes the old 2026-06-14 "broad search returns nothing / only sender-scoped works" note). Run **two
+      passes, unioned by `chatId`**:
+      • **(a) roster + whitelist** — for each of the **CLM leadership roster** (5 directs, Yaron, key peers) a
+        sender-scoped search (`sender=<email>`); and for each **whitelisted CLM-Leads/CLM-Leadership/CLM-Product
+        group**, read it directly (`read_resource teams:///chats/{chatId}/messages` → sender + bodyPreview).
+      • **(b) +15 recent chats** — from the `query="*"` recency stream, group by `chatId` and take the **top 15
+        distinct** chats (incl. non-whitelisted groups), so an active thread from someone off the roster isn't
+        missed. This pass needs no whitelist — it's purely recency-ranked.
+      Keep a message when it's **from someone other than Yonatan** and **Yonatan hasn't replied after it**
+      (no-reply check = "is the latest message in the chat from someone other than Yonatan?"). Chat type is in
+      the ID: `…@unq.gbl.spaces` = 1:1, `…@thread.v2` = group, `…meeting_…@thread.v2` = meeting (**skip**).
+      Single message = `…/messages/{id}`. Tag Teams cards `channel:'teams'`.
+      ⚠️ **Serial calls only** — Graph throttles at ~80 req/min; parallel MSFT calls trip a 429. The whitelist of
+      group chat IDs lives in `context_store` key `comms_teams_whitelist`; the MCP exposes **no chat name/topic**,
+      so seed it from actual chat IDs (paste the group links, or identify a candidate by its participant roster).
 2. **Classify (triage gate)** — `npm run comms-assistant -- classify --payload=<EmailMeta[].json>`
    (`--payload` is a **file path**). `EmailMeta = {subject, sender, recipients[], bodyPreview?}`.
    The default **triage gate keeps anything needing a response — fresh OR reply** — and drops only noise
@@ -179,3 +190,5 @@ sanctioned grounding path; **don't hand-write ad-hoc SQL** and don't build a sep
 · `sweep.ts` (`classifyThreadForSweep` — skip/refresh policy; guards `user_touched` cards from clobber)
 · `distill.ts` (Flow 2 load/mark — reads undistilled `comms_feedback`, marks rows processed after `rules:distill`)
 · `store.ts` `asof.ts` `delta.ts` (`actionDelta` — suggested-vs-actual action diff) `confidence.ts` `types.ts` (`SuggestedAction`/`ActionType`) · `prompts/prediction-subagent.md` · `RUNBOOK.md` (v1 backtest).
+· **`outlook-bridge/`** — the **"✉ Push to Outlook draft"** path: `/triage` button → local Node bridge (`npm run outlook-bridge`, 127.0.0.1:7777, token-gated) → `osascript` (argv, no shell) → `draft.applescript` opens a reviewable Outlook draft (fresh compose / threaded **reply-all**). **Never sends** (read-only/human-in-the-loop preserved). The same bridge backs **"Open in Outlook"** (`POST /open`) — pops the actual message open in the desktop app (locate-only, **no mutation**), **bridge-first with OWA web-link fallback** when the bridge is down / the message isn't in the Inbox. **Requires Legacy Outlook for Mac** (New Outlook's AppleScript is dead — compose-only). Reply keys are read from the **top-level `comms_predictions` columns** (`mode`/`internet_message_id`/`last_message_id`), NOT `card.email`. Full doc + hard-won AppleScript/data-shape lessons: [`outlook-bridge/README.md`](outlook-bridge/README.md).
+  The same `outlook-bridge/` is also the **DEFAULT email GATHER** (not just the send/open side): `npx tsx comms-assistant/run.ts pull-outlook --source=unread|claude` → osascript reads unread (`whose is read is false`) or `Claude`-category emails → classify (drop noise / flag sensitive; Claude-tag bypasses) → collapse by **Thread-Index root** → emits `CapturePacket[]` for the `comms-triage` workflow → `predictions:add-many` → `/triage`. **Email gather is bridge-first; MCP `outlook_email_search` is the fallback; Teams stays MCP.** Trigger "pull Claude emails" = `--source=claude` (curated, with lazy tag-drain). Full doc: [`outlook-bridge/GATHER.md`](outlook-bridge/GATHER.md).

@@ -10,6 +10,11 @@ Two card kinds are supported, both fully local (no Azure / no Graph):
 - **Reply** → true threaded **reply-all** draft ("Re:" subject, original
   recipients, your text above the quoted history).
 
+It also powers the `/triage` **"Open in Outlook"** button: instead of opening the
+OWA web link in a browser tab, it pops the **actual message open in the desktop
+Outlook app** (`POST /open`). Bridge-first with a **web-link fallback** — if the
+bridge is down or the message isn't in the Inbox, the app opens the web link.
+
 Spec: [`../../docs/superpowers/specs/2026-06-17-push-to-outlook-draft-design.md`](../../docs/superpowers/specs/2026-06-17-push-to-outlook-draft-design.md) ·
 Plan: [`../../docs/superpowers/plans/2026-06-17-push-to-outlook-draft.md`](../../docs/superpowers/plans/2026-06-17-push-to-outlook-draft.md)
 
@@ -46,16 +51,37 @@ the button shows *"Bridge not running — run `npm run outlook-bridge`"*.
                                                                draft.applescript (Legacy Outlook)
                                                                  fresh → make new outgoing message + recipients → open
                                                                  reply → locate original → reply-all → prepend body → open
+                                                                 read  → locate original → set isread true  (no window)
+                                                                 open  → locate original → open message window (no mutation)
                                                                       |
                                                                reviewable Outlook draft window  (you hit Send)
+                                                               — or, for `read`, a silent read-flag flip
+                                                               — or, for `open`, the existing message popped open
 ```
 
+Three endpoints, same spawn machinery:
+- **`POST /draft`** — open a reviewable draft (fresh compose / threaded reply-all). Never sends.
+- **`POST /open`** — the desktop path for the `/triage` **"Open in Outlook"** button. Locates the
+  message (same strategy as reply/read — subject contains + Message-ID in headers) and `open`s its
+  window, bringing Outlook forward. **No mutation** (not even the read flag). `OpenRequest =
+  {subject, replyKey?}` — same shape as mark-read, so it reuses the validator. The app calls this
+  first and falls back to the OWA `web_link` on bridge-down / `NOT_FOUND`.
+- **`POST /read`** — the local fast-path for the `/triage` **"Mark read"** button. Flips the
+  message's read flag in place (`MarkReadRequest = {subject, replyKey?}`; reuses the reply
+  locate strategy — subject contains + Message-ID in headers — but **no window opens**, it's a
+  silent write). This is the **primary** path for mark-read; the Supabase `outlook-sync` queue
+  is now the **fallback**, used only when the bridge is down / the message isn't found / the card
+  has no locate key. On bridge success the client calls `comms_mark_read(..., p_queue_sync=false)`
+  so the board carries no redundant sync task. Still read-only-ish: the *only* mailbox write the
+  bridge makes silently is the read flag — it never sends.
+
 Files:
-- `draft-request.ts` — `DraftRequest` type, `validateDraftRequest`, `buildOsascriptArgs` (pure).
-- `server.ts` — `createBridge()`: token gate, CORS, single-response guard, spawn (injectable `spawnFn`).
-- `draft.applescript` — `on run argv` → fresh compose / threaded reply-all.
+- `draft-request.ts` — `DraftRequest`/`MarkReadRequest`/`OpenRequest` types, `validateDraftRequest`/`validateMarkReadRequest`/`validateOpenRequest`, `buildOsascriptArgs`/`buildMarkReadArgs`/`buildOpenArgs` (pure).
+- `server.ts` — `createBridge()`: token gate, CORS, single-response guard, shared `runScript` spawn (injectable `spawnFn`); routes `/draft` + `/read` + `/open`.
+- `draft.applescript` — `on run argv` → fresh compose / threaded reply-all / read-flag flip / open-message.
 - `bridge.ts` — entrypoint: loads env, binds `127.0.0.1:7777`.
-- App side: `app/src/lib/draft-request.ts` (`buildDraftRequest`), `app/src/hooks/use-triage.ts` (`usePushOutlookDraft`), `app/src/pages/triage.tsx` (the button).
+- App side: `app/src/lib/draft-request.ts` (`buildDraftRequest`, `buildMarkReadRequest`, `canBridgeMarkRead`, `buildOpenRequest`, `canBridgeOpen`), `app/src/hooks/use-triage.ts` (`usePushOutlookDraft`, `useMarkRead`, `useOpenInOutlook`), `app/src/pages/triage.tsx` (push/mark-read buttons), `app/src/components/triage/triage-detail.tsx` (the "Open in Outlook" header button).
+- DB side: `comms_mark_read(p_prediction_id, p_queue_sync default true)` — dismisses the card + logs feedback always; queues the `outlook-sync` task only when `p_queue_sync` (the fallback).
 
 ---
 
@@ -98,6 +124,9 @@ with `awk`/`grep`; `sdef`/Script Editor needs full Xcode).
 - **No native `internet message id` property** — the RFC `Message-ID` is inside
   `headers of <message>`. Disambiguate same-subject hits by
   `(headers of h) contains <internet-message-id>`.
+- **Mark read = `set isread of <message> to true`** (one word, `isread`). It's a
+  read/write boolean on `message`; compiles against the Legacy dictionary
+  (`osacompile` resolves it). This is the whole `read` mode after the shared locate.
 - **Strip `Re:`/`Fwd:` before the subject filter.** A reply card's subject often
   already carries "Re:", but the original inbox message may not — `whose subject
   contains "Re: X"` then returns zero hits. Normalize the prefix first; let the
@@ -139,8 +168,12 @@ doc's claim.**
 - **No shell interpolation, ever.** Inputs travel as discrete **argv** items to
   `spawn('osascript', [...])`; AppleScript reads them via `on run argv`. Email body
   (AI-generated, attacker-influenceable) never touches a shell — no injection surface.
-- **Draft-only.** Both AppleScript branches end at `open`; there is no `send`
-  anywhere. Worst case is an unsent compose window.
+- **No `send`, ever.** The `fresh`/`reply` branches end at `open` (an unsent compose
+  window — worst case); the `open` branch only opens an existing message window (no
+  mutation at all); the `read` branch's only mutation is `set isread … true`. The
+  bridge never sends mail. (Marking a message read is the single silent mailbox write
+  it makes — deliberate, low-stakes, and the same write `second-brain-sync` already does
+  via Graph; the human-in-the-loop send invariant is untouched.)
 - Refuses to start if `OUTLOOK_BRIDGE_TOKEN` is unset, or `OUTLOOK_BRIDGE_PORT` is
   non-integer.
 
@@ -149,9 +182,10 @@ doc's claim.**
 ## Known limitations
 
 - **Legacy Outlook only** (see above).
-- **Reply lookup is Inbox-scoped.** A thread whose original you've already filed to
-  a subfolder returns `NOT_FOUND` (button shows "original not found"). Fine for a
-  fresh triage sweep (messages are still in the Inbox).
+- **Reply + read + open lookup is Inbox-scoped.** A thread whose original you've already filed
+  to a subfolder returns `NOT_FOUND`. For reply the button shows "original not found";
+  for mark-read the client falls back to the queued `outlook-sync` task; for **open** the client
+  falls back to the OWA `web_link` in a browser tab. Fine for a fresh triage sweep (still in Inbox).
 - **Fresh first-time sends need a recipient.** Reply cards derive recipients via
   reply-all; a genuinely fresh card with an empty `to` is rejected (the button is
   hidden when there's no draft body, which covers the common no-op cases).
@@ -163,10 +197,17 @@ doc's claim.**
 ## Tests
 
 ```bash
+# bridge: draft + mark-read + open request builders, /draft + /read + /open routes (mocked spawn)
 node --import tsx --test comms-assistant/outlook-bridge/__tests__/draft-request.test.ts \
                           comms-assistant/outlook-bridge/__tests__/server.test.ts
 node --import tsx --test app/src/lib/__tests__/draft-request.test.ts
+# RPC fallback flag (hits the DB — run from repo root so root .env loads):
+node --import tsx --test comms-assistant/__tests__/mark-read.test.ts
 ```
 
-The AppleScript can't be unit-tested without launching Outlook; its behavior is
-verified by the live smoke tests in the plan (Task 3) and the `NOT_FOUND` path.
+The AppleScript can't be unit-tested without launching Outlook; `osacompile -o
+/dev/null comms-assistant/outlook-bridge/draft.applescript` confirms it *compiles*
+(and that `isread` resolves against the Legacy dictionary), but the read-flag flip
+and the `open` message-window pop need a live smoke test against Legacy Outlook. The
+`/read` and `/open` routes, request shapes, and `NOT_FOUND` → fallback paths are
+covered by the mocked tests above.
