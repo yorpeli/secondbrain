@@ -70,6 +70,35 @@ mailbox write, and it stays inside this on-demand command — no app↔bridge li
 - **Thread-Index is per-message** (replies extend the parent's), so two same-subject messages
   with different Thread-Index roots are genuinely **different conversations** and stay separate.
 
+## Unread (`--source=unread`) — Plan B
+
+The bridge is also the **default email gather** for the unread sweep (MCP becomes the
+fallback; Teams stays MCP). Same machinery, one extra mode:
+
+```bash
+npx tsx comms-assistant/run.ts pull-outlook --source=unread --today=2026-06-18
+#   stderr: "pull-outlook unread: total=N kept=M | dropped: automated sender=8, app notification=5, …"
+#   stdout: CapturePacket[]
+```
+
+Flow: `gather.applescript unread-capture` (`messages of inbox whose is read is false`) →
+parse → **classify each** (`classifyEmail`; keep `!isNoise`, drop noise with a per-reason
+breakdown, **flag** sensitive — sensitive is kept, not dropped) → collapse → `toCapturePackets`
+with **`deriveUnreadSignals`** (per-email tier heuristic: `broadcast` ≥10 recipients,
+`directToHim` ≤3, `askToHim` if body has `?`, `cold` always false). Unlike curated Claude
+tags, unread is **not** auto-routed to T2 — its tier is derived.
+
+**One-stage, not two-stage.** AppleScript has no cheap preview (`plain text content` *is* the
+body), so a "metadata" stage would read bodies anyway; since local reads are unthrottled we
+read all unread once and classify in TS. (Deviation from the spec's two-stage, by design.)
+
+**No drain** for unread (unread emails carry no `Claude` category). **MCP fallback** for email
++ **Teams** are Claude-orchestrated on bridge failure (not built into the CLI).
+
+Live-verified (2026-06-18): 41 unread → 15 noise dropped (automated senders incl. Teams
+notifications, app notifications, meeting invites, broadcast DLs) → 26 packets with
+Message-ID + derived signals.
+
 ## Limitations
 
 - **Legacy Outlook only** (New Outlook's AppleScript is gutted — see README).
