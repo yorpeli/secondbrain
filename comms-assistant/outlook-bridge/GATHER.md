@@ -106,3 +106,6 @@ Message-ID + derived signals.
   *that* message's card is resolved (a sibling reply being `sent` won't clear it).
 - **7-day default window** (`--window` to widen); a tag older than the window is missed.
 - Consume stdout JSON via `npx tsx …` (or redirect), not `npm run` (banner breaks parsing).
+- **Unread one-stage reads all unread bodies at once** into the 64 MB `execFile` buffer before
+  classifying. Fine for a normal inbox (tens of unread); a very large unread backlog (hundreds
+  of long threads) could approach the ceiling — clear the backlog or raise `maxBuffer` if so.
