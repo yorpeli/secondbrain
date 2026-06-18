@@ -107,12 +107,138 @@ test('POST /draft osascript failure → 500', async () => {
   server.close()
 })
 
+test('POST /read without token → 401, spawn not called', async () => {
+  const { fn, calls } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/read`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ subject: 'Weekly digest', replyKey: { internetMessageId: '<i>' } }),
+  })
+  assert.equal(res.status, 401)
+  assert.equal(calls.length, 0)
+  server.close()
+})
+
+test('POST /read empty subject → 400, spawn not called', async () => {
+  const { fn, calls } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/read`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-bridge-token': TOKEN },
+    body: JSON.stringify({ subject: '' }),
+  })
+  assert.equal(res.status, 400)
+  assert.equal(calls.length, 0)
+  server.close()
+})
+
+test('POST /read valid → 200, spawns osascript in read mode', async () => {
+  const { fn, calls } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/read`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-bridge-token': TOKEN },
+    body: JSON.stringify({ subject: 'Weekly digest', replyKey: { internetMessageId: '<i>' } }),
+  })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { ok: true, mode: 'read' })
+  assert.equal(calls[0].command, 'osascript')
+  assert.deepEqual(calls[0].args, ['/tmp/draft.applescript', 'read', 'Weekly digest', '', '', '<i>'])
+  server.close()
+})
+
+test('POST /read NOT_FOUND → 404', async () => {
+  const { fn } = makeFakeSpawn(1, 'NOT_FOUND: no match')
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/read`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-bridge-token': TOKEN },
+    body: JSON.stringify({ subject: 'X', replyKey: { internetMessageId: '<i>' } }),
+  })
+  assert.equal(res.status, 404)
+  server.close()
+})
+
+test('POST /open without token → 401, spawn not called', async () => {
+  const { fn, calls } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/open`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ subject: 'Weekly digest', replyKey: { internetMessageId: '<i>' } }),
+  })
+  assert.equal(res.status, 401)
+  assert.equal(calls.length, 0)
+  server.close()
+})
+
+test('POST /open empty subject → 400, spawn not called', async () => {
+  const { fn, calls } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/open`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-bridge-token': TOKEN },
+    body: JSON.stringify({ subject: '' }),
+  })
+  assert.equal(res.status, 400)
+  assert.equal(calls.length, 0)
+  server.close()
+})
+
+test('POST /open valid → 200, spawns osascript in open mode', async () => {
+  const { fn, calls } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/open`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-bridge-token': TOKEN },
+    body: JSON.stringify({ subject: 'Weekly digest', replyKey: { internetMessageId: '<i>' } }),
+  })
+  assert.equal(res.status, 200)
+  assert.deepEqual(await res.json(), { ok: true, mode: 'open' })
+  assert.equal(calls[0].command, 'osascript')
+  assert.deepEqual(calls[0].args, ['/tmp/draft.applescript', 'open', 'Weekly digest', '', '', '<i>'])
+  server.close()
+})
+
+test('POST /open NOT_FOUND → 404', async () => {
+  const { fn } = makeFakeSpawn(1, 'NOT_FOUND: no match')
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/open`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-bridge-token': TOKEN },
+    body: JSON.stringify({ subject: 'X', replyKey: { internetMessageId: '<i>' } }),
+  })
+  assert.equal(res.status, 404)
+  server.close()
+})
+
 test('OPTIONS /draft preflight → 204 with CORS headers', async () => {
   const { fn } = makeFakeSpawn(0)
   const { server, base } = await startBridge(fn)
   const res = await fetch(`${base}/draft`, { method: 'OPTIONS' })
   assert.equal(res.status, 204)
   assert.equal(res.headers.get('access-control-allow-headers')?.includes('x-bridge-token'), true)
+  server.close()
+})
+
+test('reflects any loopback Origin (any Vite port) in Access-Control-Allow-Origin', async () => {
+  const { fn } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  // 5174 (Vite bumped port) must be reflected, not rejected against a fixed 5173.
+  const res = await fetch(`${base}/health`, { headers: { origin: 'http://localhost:5174' } })
+  assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:5174')
+  assert.equal(res.headers.get('vary'), 'Origin')
+  const res127 = await fetch(`${base}/health`, { headers: { origin: 'http://127.0.0.1:6060' } })
+  assert.equal(res127.headers.get('access-control-allow-origin'), 'http://127.0.0.1:6060')
+  server.close()
+})
+
+test('non-loopback Origin falls back to the configured origin (default *)', async () => {
+  const { fn } = makeFakeSpawn(0)
+  const { server, base } = await startBridge(fn)
+  const res = await fetch(`${base}/health`, { headers: { origin: 'https://evil.example.com' } })
+  assert.equal(res.headers.get('access-control-allow-origin'), '*')
   server.close()
 })
 

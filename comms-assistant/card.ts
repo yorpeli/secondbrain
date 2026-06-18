@@ -24,10 +24,13 @@ export function buildCardPayload(item: any, bundle: ContextBundle): CardPayload 
   const e = item?.email ?? {}
   const s = item?.suggestion ?? {}
   const b = (bundle ?? {}) as any
+  // When capture writes the body to thread.bodyToDate but omits email.excerpt, fall back so the
+  // card's "Original message" column isn't blank (the field the /triage app and HTML export read).
+  const excerpt = e.excerpt ?? item?.body ?? item?.thread?.bodyToDate ?? null
   return {
     email: {
       subject: e.subject ?? null, from: e.from ?? null, date: e.date ?? null,
-      to: e.to ?? null, excerpt: e.excerpt ?? null,
+      to: e.to ?? null, excerpt,
       webLink: e.webLink ?? e.web_link ?? null, thread_summary: e.thread_summary ?? null,
     },
     thread: item?.thread ?? null,

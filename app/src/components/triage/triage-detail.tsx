@@ -17,6 +17,8 @@ import type {
   CardParticipant,
   CardRule,
 } from "@/lib/triage-types"
+import { useOpenInOutlook } from "@/hooks/use-triage"
+import { canBridgeOpen } from "@/lib/draft-request"
 import {
   ChannelIcon,
   channelOf,
@@ -163,6 +165,10 @@ export function TriageDetail({
 }) {
   const c = card
   const e = c.card?.email
+  // Capture sometimes writes the body to thread.bodyToDate but leaves email.excerpt null,
+  // so the "Original message" column rendered blank. Fall back to the captured thread body.
+  const threadBody = (c.card?.thread as { bodyToDate?: string } | null | undefined)?.bodyToDate
+  const excerpt = (e?.excerpt?.trim() ? e.excerpt : null) ?? (threadBody?.trim() ? threadBody : null)
   const fb = parseTrigger(c.trigger_text)
   const subject = e?.subject ?? fb.subject ?? "(no subject)"
   const from = e?.from ?? fb.from ?? "—"
@@ -189,6 +195,7 @@ export function TriageDetail({
   const [accepted, setAccepted] = useState<boolean | null>(c.action_accepted ?? null)
   // Suggested-action tab.
   const [tab, setTab] = useState<"draft" | "reasoning" | "checks">("draft")
+  const openInOutlook = useOpenInOutlook()
 
   // Reset local state when the selected card changes.
   useEffect(() => {
@@ -213,6 +220,17 @@ export function TriageDetail({
 
   const toStr = Array.isArray(e?.to) ? e!.to!.join(", ") : (e?.to as unknown as string) ?? "—"
   const webLink = e?.webLink ?? c.web_link ?? null // card payload first, then the top-level column (legacy rows)
+
+  // "Open in Outlook": for mail channels, pop the desktop message via the bridge;
+  // on any failure (bridge down or message not found) fall back to the OWA web link.
+  const bridgeOpenable = canBridgeOpen(c)
+  const openWeb = () => {
+    if (webLink) window.open(webLink, "_blank", "noopener,noreferrer")
+  }
+  const handleOpenInOutlook = () => {
+    if (openInOutlook.isPending) return
+    openInOutlook.mutate(c, { onError: openWeb })
+  }
   // Rationale: the `why` column, else the legacy home in context_available.draft_why.
   const whyText = c.why ?? (c.context_available?.draft_why ?? null)
 
@@ -276,15 +294,28 @@ export function TriageDetail({
             {c.sensitive && <span className="font-medium text-destructive">· sensitive</span>}
           </div>
         </div>
-        {webLink && (
-          <a
-            href={webLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-[7px] text-[12.5px] font-medium text-foreground hover:bg-muted"
+        {bridgeOpenable ? (
+          <button
+            type="button"
+            onClick={handleOpenInOutlook}
+            disabled={openInOutlook.isPending}
+            title="Open the message in the Outlook desktop app (falls back to the web link if the bridge isn't running). Requires npm run outlook-bridge."
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-[7px] text-[12.5px] font-medium text-foreground hover:bg-muted disabled:opacity-60"
           >
-            {ch.openLabel} <ExternalLink className="h-[13px] w-[13px]" />
-          </a>
+            {openInOutlook.isPending ? "Opening…" : ch.openLabel}
+            {!openInOutlook.isPending && <ExternalLink className="h-[13px] w-[13px]" />}
+          </button>
+        ) : (
+          webLink && (
+            <a
+              href={webLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border bg-card px-3 py-[7px] text-[12.5px] font-medium text-foreground hover:bg-muted"
+            >
+              {ch.openLabel} <ExternalLink className="h-[13px] w-[13px]" />
+            </a>
+          )
         )}
       </div>
     </div>
@@ -343,7 +374,7 @@ export function TriageDetail({
           )}
 
           {/* Latest message */}
-          {e?.excerpt?.trim() || from !== "—" ? (
+          {excerpt?.trim() || from !== "—" ? (
             <>
               <div className="mb-[11px] flex items-center gap-[9px]">
                 <span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-muted text-[12px] font-semibold text-foreground">
@@ -354,9 +385,9 @@ export function TriageDetail({
                   <div className="text-[11px] text-muted-foreground/70">{date}</div>
                 </div>
               </div>
-              {e?.excerpt?.trim() ? (
+              {excerpt?.trim() ? (
                 <div className="whitespace-pre-line text-[13.5px] leading-[1.65] text-foreground">
-                  {e.excerpt}
+                  {excerpt}
                 </div>
               ) : (
                 <div className="text-[13px] text-muted-foreground/70">—</div>

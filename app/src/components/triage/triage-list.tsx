@@ -42,7 +42,7 @@ export function TriageList({
     return (b.created_at ?? "").localeCompare(a.created_at ?? "")
   })
   return (
-    <nav className="w-[312px] shrink-0 overflow-y-auto border-r border-border bg-card">
+    <nav className="min-h-0 flex-1 overflow-y-auto">
       {sorted.map((c, i) => {
         const fb = parseTrigger(c.trigger_text)
         const subject = c.card?.email.subject ?? fb.subject ?? "(no subject)"

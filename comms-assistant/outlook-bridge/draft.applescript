@@ -44,6 +44,50 @@ on run argv
 			end repeat
 			set AppleScript's text item delimiters to ""
 			open m
+			activate
+		else if theMode is "read" then
+			-- mark-read: locate the original (same Inbox-only strategy as reply),
+			-- then flip the read flag. No window opens — this is a silent write,
+			-- the local fast-path for the /triage "Mark read" button.
+			set subjMatch to my stripReplyPrefix(theSubject)
+			if subjMatch is "" then set subjMatch to my trimText(theSubject)
+			set hits to (messages of inbox whose subject contains subjMatch)
+			if (count of hits) is 0 then error "NOT_FOUND: no inbox message matches subject" number 1
+
+			set target to missing value
+			if imid is not "" then
+				repeat with h in hits
+					if (headers of h) contains imid then
+						set target to (contents of h)
+						exit repeat
+					end if
+				end repeat
+			end if
+			if target is missing value then set target to item 1 of hits
+
+			set isread of target to true
+		else if theMode is "open" then
+			-- open: locate the original (same Inbox-only strategy as read/reply),
+			-- then pop the message window open and bring Outlook forward. Pure
+			-- read-only — never sends, never flips the read flag.
+			set subjMatch to my stripReplyPrefix(theSubject)
+			if subjMatch is "" then set subjMatch to my trimText(theSubject)
+			set hits to (messages of inbox whose subject contains subjMatch)
+			if (count of hits) is 0 then error "NOT_FOUND: no inbox message matches subject" number 1
+
+			set target to missing value
+			if imid is not "" then
+				repeat with h in hits
+					if (headers of h) contains imid then
+						set target to (contents of h)
+						exit repeat
+					end if
+				end repeat
+			end if
+			if target is missing value then set target to item 1 of hits
+
+			open target
+			activate
 		else
 			-- reply: locate the original, then reply-all
 			set subjMatch to my stripReplyPrefix(theSubject)
@@ -64,8 +108,11 @@ on run argv
 			if target is missing value then set target to item 1 of hits
 
 			set r to reply to target reply to all true without opening window
-			set content of r to theBody & return & return & (content of r)
+			-- theBody is already HTML (newlines → <br>); separate from the quoted
+			-- history with an HTML break, not CRs (which collapse inside HTML content).
+			set content of r to theBody & "<br><br>" & (content of r)
 			open r
+			activate
 		end if
 	end tell
 end run

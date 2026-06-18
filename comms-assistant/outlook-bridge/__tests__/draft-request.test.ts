@@ -1,6 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { validateDraftRequest, buildOsascriptArgs } from '../draft-request.js'
+import {
+  validateDraftRequest,
+  buildOsascriptArgs,
+  plainTextToHtml,
+  validateMarkReadRequest,
+  buildMarkReadArgs,
+  validateOpenRequest,
+  buildOpenArgs,
+} from '../draft-request.js'
 
 test('rejects non-object', () => {
   assert.equal(validateDraftRequest(null).ok, false)
@@ -53,4 +61,86 @@ test('buildOsascriptArgs reply empty recipients, passes imid', () => {
     mode: 'reply', to: [], subject: 'Re: x', body: 'Body', replyKey: { internetMessageId: '<id@x>' },
   })
   assert.deepEqual(args, ['/p/draft.applescript', 'reply', 'Re: x', 'Body', '', '<id@x>'])
+})
+
+test('plainTextToHtml maps newlines to <br> and preserves single line', () => {
+  assert.equal(plainTextToHtml('one line'), 'one line')
+  assert.equal(plainTextToHtml('a\nb'), 'a<br>b')
+  assert.equal(plainTextToHtml('p1\n\np2'), 'p1<br><br>p2')
+  assert.equal(plainTextToHtml('a\r\nb\rc'), 'a<br>b<br>c') // CRLF and lone CR normalized
+})
+
+test('plainTextToHtml escapes HTML special chars before adding markup', () => {
+  assert.equal(plainTextToHtml('a & b < c > d'), 'a &amp; b &lt; c &gt; d')
+  // & escaped to &amp; (not double-escaped), then newline → <br>
+  assert.equal(plainTextToHtml('R&D\nnext'), 'R&amp;D<br>next')
+})
+
+test('buildOsascriptArgs converts a multi-paragraph body to HTML breaks', () => {
+  const args = buildOsascriptArgs('/p/draft.applescript', {
+    mode: 'reply', to: [], subject: 'Re: x', body: 'Hi —\n\nLine two.', replyKey: { internetMessageId: '<id@x>' },
+  })
+  assert.equal(args[3], 'Hi —<br><br>Line two.')
+})
+
+// --- mark-read (bridge primary path) ---
+
+test('validateMarkReadRequest rejects non-object', () => {
+  assert.equal(validateMarkReadRequest(null).ok, false)
+  assert.equal(validateMarkReadRequest('x').ok, false)
+})
+
+test('validateMarkReadRequest requires a non-empty subject to locate the message', () => {
+  assert.equal(validateMarkReadRequest({ subject: '' }).ok, false)
+  assert.equal(validateMarkReadRequest({}).ok, false)
+})
+
+test('validateMarkReadRequest accepts subject + optional reply key', () => {
+  const r = validateMarkReadRequest({ subject: 'Weekly digest', replyKey: { internetMessageId: '<id@x>' } })
+  assert.equal(r.ok, true)
+  if (r.ok) {
+    assert.equal(r.value.subject, 'Weekly digest')
+    assert.equal(r.value.replyKey?.internetMessageId, '<id@x>')
+  }
+})
+
+test('validateMarkReadRequest accepts subject with no reply key', () => {
+  const r = validateMarkReadRequest({ subject: 'Weekly digest' })
+  assert.equal(r.ok, true)
+})
+
+test('buildMarkReadArgs uses read mode, empty body + recipients, passes imid', () => {
+  const args = buildMarkReadArgs('/p/draft.applescript', {
+    subject: 'Weekly digest', replyKey: { internetMessageId: '<id@x>' },
+  })
+  assert.deepEqual(args, ['/p/draft.applescript', 'read', 'Weekly digest', '', '', '<id@x>'])
+})
+
+test('buildMarkReadArgs tolerates a missing reply key (empty imid)', () => {
+  const args = buildMarkReadArgs('/p/draft.applescript', { subject: 'Weekly digest' })
+  assert.deepEqual(args, ['/p/draft.applescript', 'read', 'Weekly digest', '', '', ''])
+})
+
+// --- open-in-outlook (pop the desktop message) ---
+
+test('validateOpenRequest requires a non-empty subject to locate the message', () => {
+  assert.equal(validateOpenRequest({ subject: '' }).ok, false)
+  assert.equal(validateOpenRequest({}).ok, false)
+})
+
+test('validateOpenRequest accepts subject + optional reply key', () => {
+  const r = validateOpenRequest({ subject: 'Weekly digest', replyKey: { internetMessageId: '<id@x>' } })
+  assert.equal(r.ok, true)
+})
+
+test('buildOpenArgs uses open mode, empty body + recipients, passes imid', () => {
+  const args = buildOpenArgs('/p/draft.applescript', {
+    subject: 'Weekly digest', replyKey: { internetMessageId: '<id@x>' },
+  })
+  assert.deepEqual(args, ['/p/draft.applescript', 'open', 'Weekly digest', '', '', '<id@x>'])
+})
+
+test('buildOpenArgs tolerates a missing reply key (empty imid)', () => {
+  const args = buildOpenArgs('/p/draft.applescript', { subject: 'Weekly digest' })
+  assert.deepEqual(args, ['/p/draft.applescript', 'open', 'Weekly digest', '', '', ''])
 })

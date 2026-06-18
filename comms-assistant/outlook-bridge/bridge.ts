@@ -16,9 +16,11 @@ if (!Number.isInteger(port)) {
 }
 const here = path.dirname(fileURLToPath(import.meta.url))
 const scriptPath = path.join(here, 'draft.applescript')
-const allowedOrigin = process.env.OUTLOOK_BRIDGE_ORIGIN ?? 'http://localhost:5173'
+// Any loopback origin (localhost / 127.0.0.1, any port) is reflected automatically
+// by the server — this only sets the fallback for non-loopback origins (rare).
+const allowedOrigin = process.env.OUTLOOK_BRIDGE_ORIGIN ?? '*'
 
 const server = createBridge({ token, scriptPath, allowedOrigin })
 server.listen(port, '127.0.0.1', () => {
-  console.log(`outlook-bridge listening on http://127.0.0.1:${port} (origin ${allowedOrigin})`)
+  console.log(`outlook-bridge listening on http://127.0.0.1:${port} (loopback origins auto-allowed; non-loopback fallback: ${allowedOrigin})`)
 })
