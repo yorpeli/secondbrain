@@ -4,6 +4,7 @@ import { parseGatherRecords } from '../gather-parse.js'
 import { normalizeSubject, threadKey, collapseThreads } from '../gather-collapse.js'
 import { toCapturePackets } from '../gather-packets.js'
 import type { RawGatherRecord } from '../gather-types.js'
+import { pullClaudeTagged, type Exec } from '../gather.js'
 
 const US = '\x1f', RS = '\x1e'
 function rec(fields: string[]) { return fields.join(US) }
@@ -83,4 +84,29 @@ test('toCapturePackets maps fields and applies injected sensitivity', () => {
   assert.equal(p.signals.sensitive, true)
   assert.equal(p.today, '2026-06-18')
   assert.ok(p.slug.length > 0)
+})
+
+test('pullClaudeTagged: collapses, drains resolved, returns unresolved packets', async () => {
+  const US = '\x1f', RS = '\x1e'
+  const capture = [
+    ['1', 'RE: Alpha', 'a@x.com', 'me@x.com', '2026-06-18T09:00:00', '<resolved@x>', 'TA', 'alpha body'].join(US),
+    ['2', 'Beta', 'b@x.com', 'me@x.com', '2026-06-18T10:00:00', '<open@x>', 'TB', 'beta body'].join(US),
+  ].join(RS)
+  const calls: { cmd: string; args: string[] }[] = []
+  const exec: Exec = async (cmd, args) => {
+    calls.push({ cmd, args })
+    if (args[1] === 'claude-capture') return capture
+    if (args[1] === 'clear') return `cleared ${args.length - 2}`
+    return ''
+  }
+  const isResolved = async (imid: string) => imid === '<resolved@x>'
+  const res = await pullClaudeTagged({ windowDays: 7, today: '2026-06-18', exec, isResolved })
+
+  assert.equal(res.total, 2)
+  assert.equal(res.packets.length, 1)
+  assert.equal(res.packets[0].email.internet_message_id, '<open@x>')
+  assert.deepEqual(res.resolvedDrained, ['1'])
+  // the clear call carried the resolved message's outlook id
+  const clearCall = calls.find((c) => c.args[1] === 'clear')!
+  assert.ok(clearCall.args.includes('1'))
 })
