@@ -1,5 +1,5 @@
 import type { RawGatherRecord, CapturePacket } from './gather-types.js'
-import { normalizeSubject } from './gather-collapse.js'
+import { threadKey } from './gather-collapse.js'
 import type { Signals } from './gather-signals.js'
 
 // Short stable hash so two long convIds that share a 48-char slug prefix don't collide
@@ -21,7 +21,9 @@ export function toCapturePackets(
   deriveSignals: (r: RawGatherRecord) => Signals,
 ): CapturePacket[] {
   return records.map((r) => {
-    const convId = r.threadIndex && r.threadIndex.trim() !== '' ? r.threadIndex.trim() : normalizeSubject(r.subject)
+    // Same key the collapser uses (Thread-Index ROOT, or normalized subject) → conversation_id
+    // == thread_id, so re-pulls update the same card.
+    const convId = threadKey(r)
     const participants = Array.from(new Set([r.from, ...r.to].filter(Boolean)))
     return {
       slug: slugify(convId),

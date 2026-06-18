@@ -8,8 +8,22 @@ export function normalizeSubject(subject: string): string {
   return s
 }
 
+// An Outlook Thread-Index is per-MESSAGE: the first 22 decoded bytes are the conversation
+// root (6-byte time + 16-byte GUID); each reply appends a 5-byte child block. Collapsing on
+// the full value would split one conversation into a card per reply, so key on the root.
+// Short/non-base64 values (e.g. test fixtures) decode to < 22 bytes → returned unchanged.
+export function threadRoot(threadIndex: string): string {
+  try {
+    const b = Buffer.from(threadIndex, 'base64')
+    return b.length >= 22 ? b.subarray(0, 22).toString('base64') : threadIndex
+  } catch {
+    return threadIndex
+  }
+}
+
 export function threadKey(r: RawGatherRecord): string {
-  return r.threadIndex && r.threadIndex.trim() !== '' ? r.threadIndex.trim() : normalizeSubject(r.subject)
+  const ti = r.threadIndex && r.threadIndex.trim() !== '' ? r.threadIndex.trim() : ''
+  return ti !== '' ? threadRoot(ti) : normalizeSubject(r.subject)
 }
 
 const MIN_BODY = 200

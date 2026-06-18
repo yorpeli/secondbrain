@@ -42,6 +42,24 @@ test('threadKey prefers Thread-Index, falls back to normalized subject', () => {
   assert.equal(threadKey(r({ threadIndex: '', subject: 'Re: x' })), 'x')
 })
 
+test('threadKey collapses replies in one conversation by the 22-byte Thread-Index root', () => {
+  const rootBytes = Buffer.from('CONVERSATION-ROOT-22by', 'utf8') // exactly 22 bytes
+  const reply1 = Buffer.concat([rootBytes, Buffer.from('AAAAA')]).toString('base64')
+  const reply2 = Buffer.concat([rootBytes, Buffer.from('BBBBB')]).toString('base64')
+  const other = Buffer.concat([Buffer.from('DIFFERENT-CONVERSATION', 'utf8'), Buffer.from('AAAAA')]).toString('base64')
+  // two replies in the same conversation → same key
+  assert.equal(threadKey(r({ threadIndex: reply1 })), threadKey(r({ threadIndex: reply2 })))
+  // a different conversation → different key
+  assert.notEqual(threadKey(r({ threadIndex: reply1 })), threadKey(r({ threadIndex: other })))
+  // and they collapse to one
+  const out = collapseThreads([
+    r({ outlookId: '1', threadIndex: reply1, dateIso: '2026-06-01T00:00:00', body: 'first' }),
+    r({ outlookId: '2', threadIndex: reply2, dateIso: '2026-06-02T00:00:00', body: 'second is the latest reply'.padEnd(210, '.') }),
+  ])
+  assert.equal(out.length, 1)
+  assert.equal(out[0].outlookId, '2')
+})
+
 test('collapseThreads keeps the latest message per thread', () => {
   const recs = [
     r({ outlookId: '1', threadIndex: 'T', dateIso: '2026-06-09T17:00:00', body: 'old' }),
