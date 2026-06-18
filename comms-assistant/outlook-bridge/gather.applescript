@@ -55,8 +55,12 @@ on headerValue(m, fieldName)
 					else
 						set v to ""
 					end if
-					-- value folded onto the next line (e.g. Message-ID) → take the next paragraph
-					if (v is "") and (i < (count of paras)) then set v to my trimSpace(item (i + 1) of paras)
+					-- value folded onto the next line (e.g. Message-ID) → take the next paragraph,
+					-- but only if it's a real RFC-2822 fold (continuation starts with space/tab)
+					if (v is "") and (i < (count of paras)) then
+						set nextLine to (item (i + 1) of paras) as string
+						if (nextLine starts with " ") or (nextLine starts with tab) then set v to my trimSpace(nextLine)
+					end if
 					set out to v
 					exit repeat
 				end if
@@ -125,6 +129,7 @@ on run argv
 			return s
 
 		else if theMode is "clear" then
+			if (count of argv) < 2 then return "cleared 0"
 			set ids to items 2 thru -1 of argv
 			set n to 0
 			repeat with anId in ids
