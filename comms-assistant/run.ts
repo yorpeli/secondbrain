@@ -1,3 +1,4 @@
+import 'dotenv/config'
 // CLI for the comms-assistant. DB + retrieval primitives; MSFT reads happen in the agent
 // session via MCP, not here (see agents/comms-assistant.md for the Pass A / Pass B procedures).
 //   classify --payload=<json>               batch classifyEmail(EmailMeta[]) → survivors + drop breakdown
@@ -22,6 +23,8 @@ import { assembleContext, type ThreadInput, type ContextBundle } from './retriev
 import { classifyEmail, type EmailMeta } from './classify.js'
 import { buildCardPayload } from './card.js'
 import { loadUndistilledFeedback, markDistilled } from './distill.js'
+import { pullClaudeTagged } from './outlook-bridge/gather.js'
+import { getSupabase } from '../lib/supabase.js'
 
 function renderBundle(label: string, b: ContextBundle): string {
   const lines: string[] = [`── ${label} ──`]
@@ -193,6 +196,30 @@ async function main() {
       const live = await assembleContext({ ...thread, asOf: undefined })
       console.log(renderBundle(`AS-OF HONEST (asOf=${thread.asOf})`, honest))
       console.log('\n' + renderBundle('LIVE-SIM (no asOf — what live mode sees today)', live))
+      break
+    }
+    case 'pull-outlook': {
+      const source = arg('source') ?? 'claude'
+      if (source !== 'claude') throw new Error("pull-outlook: only --source=claude is supported (Plan A)")
+      const windowDays = Number(arg('window') ?? 7)
+      const today = arg('today') ?? new Date().toISOString().slice(0, 10)
+
+      const sb = getSupabase() as any
+      const isResolved = async (imid: string): Promise<boolean> => {
+        if (!imid) return false
+        const { data } = await sb
+          .from('comms_predictions')
+          .select('status,resolution')
+          .eq('internet_message_id', imid)
+          .limit(1)
+        const row = data?.[0]
+        if (!row) return false
+        return row.resolution != null || row.status === 'dismissed' || row.status === 'sent'
+      }
+
+      const res = await pullClaudeTagged({ windowDays, today, isResolved })
+      process.stderr.write(`pull-outlook claude: total=${res.total} kept=${res.packets.length} drained=${res.cleared}\n`)
+      console.log(JSON.stringify(res.packets, null, 2))
       break
     }
     default:
