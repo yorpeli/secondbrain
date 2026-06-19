@@ -419,6 +419,13 @@ git commit -m "feat(comms-cal): calendar.ts busy-read wrapper + pure arg builder
 
 ## Task 3B: `.ics` meeting-invite generator (`ics.ts`) — the create path
 
+> **SUPERSEDED during the live dogfood (2026-06-19).** The `.ics` route imports as an
+> **attendee-less Appointment** in Outlook for Mac (it ignores `ATTENDEE` lines), so it can't
+> carry the invitee. The shipped create path is **`outlook-bridge/meeting.ts` + `meeting.applescript`**:
+> attendees added before `open`, subject/start/end set after `open` (Outlook-for-Mac field-binding
+> bug — see the script header), agenda staged on the **clipboard** for a one-paste into notes.
+> `ics.ts` was removed. The code below is retained only as the design record.
+
 The create path is an `.ics` file opened in Outlook (Task 1 finding: AppleScript cannot make a reviewable unsent invite). `buildIcs` is pure and heavily unit-tested; `createMeetingInvite` does the file write + `open`.
 
 **Files:**
