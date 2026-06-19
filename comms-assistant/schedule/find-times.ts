@@ -6,7 +6,7 @@ export const DEFAULT_CONSTRAINTS: SlotConstraints = {
   lunchStartHour: 13,
   lunchEndHour: 14,
   minGapMin: 15,
-  workdays: [1, 2, 3, 4, 5], // Mon–Fri work week
+  workdays: [0, 1, 2, 3, 4], // Sun–Thu (Israel work week)
   slotStepMin: 30,
 }
 

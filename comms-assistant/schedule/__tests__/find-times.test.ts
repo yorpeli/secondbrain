@@ -40,12 +40,20 @@ test('excludes slots in the past', () => {
   for (const s of slots) assert.ok(s.start >= '2026-06-15T11:30')
 })
 
-test('skips non-workdays (Saturday=6, Sunday=0)', () => {
+test('skips non-workdays (Israel weekend: Friday=5, Saturday=6)', () => {
   const slots = rankSlots({
-    windowStartDay: '2026-06-20', windowEndDay: '2026-06-21', // Sat + Sun
+    windowStartDay: '2026-06-19', windowEndDay: '2026-06-20', // Fri + Sat
     durationMin: 30, busy: [], nowNaive: '2026-06-15T08:00',
   })
   assert.equal(slots.length, 0)
+})
+
+test('Sunday is a workday (Israel week), so it yields slots', () => {
+  const slots = rankSlots({
+    windowStartDay: '2026-06-21', windowEndDay: '2026-06-21', // Sunday
+    durationMin: 30, busy: [], nowNaive: '2026-06-15T08:00',
+  })
+  assert.ok(slots.length > 0)
 })
 
 test('pickSpread returns at most n slots across distinct days', () => {
