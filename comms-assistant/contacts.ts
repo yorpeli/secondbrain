@@ -41,12 +41,15 @@ export async function resolveRecipient(query: string): Promise<ResolvedRecipient
   const isEmail = q.includes('@')
   let person: any = null
   if (isEmail) {
+    // Exact email match is authoritative regardless of status (e.g., a departing person's email may still be valid)
     const { data } = await sb.from('people').select('slug,name,email').eq('email', q).limit(1)
     person = data?.[0] ?? null
   } else {
+    // Exact slug match is authoritative regardless of status
     const { data: bySlug } = await sb.from('people').select('slug,name,email').eq('slug', q).limit(1)
     person = bySlug?.[0] ?? null
     if (!person) {
+      // Fuzzy name lookup is scoped to active status to avoid matching a departed person
       const { data: byName } = await sb.from('people').select('slug,name,email').ilike('name', `%${q}%`).eq('status', 'active').limit(1)
       person = byName?.[0] ?? null
     }
@@ -72,6 +75,11 @@ export async function upsertExternalContact(c: { name: string; email: string }):
   if (error) throw error
 }
 
+/**
+ * Unconditionally writes the email to people.email (given a slug).
+ * CALLER RESPONSIBILITY: only call after contactBackfillDecision(existingEmail, newEmail) returned 'fill',
+ * or after the human confirmed a 'confirm' decision. Never call without that gate.
+ */
 export async function backfillPersonEmail(slug: string, email: string): Promise<void> {
   const sb = await db()
   const { error } = await sb.from('people').update({ email, updated_at: new Date().toISOString() }).eq('slug', slug)

@@ -24,7 +24,7 @@ describe('comms_contacts round-trip (DB)', () => {
   const testName = 'ZZ Plan Test Vendor'
   after(async () => {
     // restore comms_contacts to whatever it was minus our test entry
-    const { data } = await sb.from('context_store').select('content').eq('key', 'comms_contacts').single()
+    const { data } = await sb.from('context_store').select('content').eq('key', 'comms_contacts').maybeSingle()
     const list = (data?.content?.contacts ?? []).filter((c: any) => c.name !== testName)
     await sb.from('context_store').update({ content: { contacts: list } }).eq('key', 'comms_contacts')
   })
