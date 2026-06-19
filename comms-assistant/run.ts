@@ -264,9 +264,13 @@ async function main() {
       const p = payload() as { email: string; name?: string; slug?: string }
       if (p.slug) {
         const r = await resolveRecipient(p.slug)
-        const decision = contactBackfillDecision(r.email, p.email)
-        if (decision === 'fill') { await backfillPersonEmail(p.slug, p.email); console.log(JSON.stringify({ learned: 'people', slug: p.slug, decision })) }
-        else console.log(JSON.stringify({ learned: 'none', slug: p.slug, decision, existing: r.email }))
+        if (r.source !== 'people') {
+          console.log(JSON.stringify({ learned: 'none', slug: p.slug, reason: 'slug not found in people' }))
+        } else {
+          const decision = contactBackfillDecision(r.email, p.email)
+          if (decision === 'fill') { await backfillPersonEmail(p.slug, p.email); console.log(JSON.stringify({ learned: 'people', slug: p.slug, decision })) }
+          else console.log(JSON.stringify({ learned: 'none', slug: p.slug, decision, existing: r.email }))
+        }
       } else if (p.name) {
         await upsertExternalContact({ name: p.name, email: p.email })
         console.log(JSON.stringify({ learned: 'contacts', name: p.name }))
