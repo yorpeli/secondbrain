@@ -2,17 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a conversational "set up meetings" capability to the comms assistant that resolves attendees, proposes times against the user's real calendar, drafts a per-meeting agenda, and — on in-chat approval — opens each invite as an **unsent draft** in Outlook for the user to add a join link and send himself.
+**Goal:** Add a conversational "set up meetings" capability to the comms assistant that resolves attendees, proposes times against the user's real calendar, drafts a per-meeting agenda, and — on in-chat approval — opens each invite as an **editable, sendable `.ics`** in Outlook for the user to add a join link and send himself.
 
-**Architecture:** Claude Code orchestrates (resolve → find times → draft agenda → in-chat slate → create drafts), calling local CLI primitives. The create path uses `osascript` via `execFile` (the same pattern as the email `gather.ts` side — **not** the HTTP `/draft` bridge route, which exists only for the browser app). Pure logic (slot ranking, arg building) is isolated and unit-tested; AppleScript is verified manually. No Graph required for v1; no event is ever sent (`send meeting` is never called).
+**Architecture:** Claude Code orchestrates (resolve → find times → draft agenda → in-chat slate → create invites), calling local CLI primitives. The **read** path (own busy/free) uses `osascript` via `execFile` against a read-only `calendar.applescript`. The **create** path generates a standard `.ics` file and opens it in Outlook (`open -a "Microsoft Outlook"`), which renders an **editable, sendable** invite the user reviews + sends — AppleScript cannot create a reviewable unsent invite (Task 1 finding). Pure logic (slot ranking, `.ics` generation) is isolated and unit-tested. No Graph required for v1; nothing is ever sent by the agent.
 
 **Tech Stack:** TypeScript (ESM, `.js` import specifiers), Node `node:test` + `node:assert/strict`, `osascript`/AppleScript against Microsoft Outlook for Mac, Supabase (`@supabase/supabase-js` via `lib/supabase.ts`), `searchByType` from `lib/embeddings.ts`.
 
 ## Global Constraints
 
-- **Never send.** The AppleScript creates a draft (`make new calendar event`) and **never** calls the `send meeting` command. The user sends from Outlook.
+- **Never send.** The create path generates an `.ics` and **opens** it in Outlook for the user to review + send. The agent never sends. (AppleScript `make new calendar event` / `send meeting` are NOT used — see Task 1.)
 - **No auto-record.** v1 does NOT write created meetings into `meetings` / `meeting_attendees` / `agent_log`. Normal calendar sync owns the record.
-- **Local-only create path.** The create + calendar-read paths use `osascript` via `execFile`; no Azure/Graph dependency. Graph free/busy is optional enrichment only and is NOT built in v1.
+- **Local-only.** The read path uses `osascript` via `execFile`; the create path writes a temp `.ics` and `open -a "Microsoft Outlook"`. No Azure/Graph dependency. Graph free/busy is optional enrichment only and is NOT built in v1.
+- **`.ics` SUMMARY must not contain dashes** — a hyphen/dash blanks the Subject in Outlook-for-Mac (Task 1 finding). Strip/substitute dashes in the SUMMARY (aligns with the hard no-dashes rule); RFC-escape `; , \` and newline in all TEXT fields.
+- **`.ics` times use floating local time** (`YYYYMMDDTHHMMSS`, no `Z`, no `TZID`) — matches the naive-local find-times output with no DST math; correct for the Israel-based team. Proper `TZID=Asia/Jerusalem` is a future enhancement.
 - **ESM import specifiers end in `.js`** (e.g. `import { rankSlots } from './find-times.js'`) even though sources are `.ts` — match the existing codebase.
 - **No `Date.now()` / `new Date()` inside pure functions.** Pass the current time in as a parameter (`nowNaive`) so tests are deterministic.
 - **Naive local datetime strings** (`"YYYY-MM-DDTHH:MM"`, no offset) are the time format across the find-times boundary, to avoid timezone ambiguity. The calendar AppleScript emits this format; pure code parses it deterministically via `Date.UTC`.
@@ -31,9 +33,11 @@
 - `comms-assistant/schedule/meeting-request.ts` — attendee + org-group resolution (DB).
 - `comms-assistant/schedule/__tests__/meeting-request.test.ts` — tests for the pure identifier/group parsing.
 - `comms-assistant/schedule/agenda-context.ts` — gather grounding material for an agenda (DB + `searchByType`).
-- `comms-assistant/outlook-bridge/calendar.ts` — `execFile` wrappers + **pure** arg builders/validators for the two AppleScript modes (`busy`, `meeting`).
-- `comms-assistant/outlook-bridge/__tests__/calendar.test.ts` — unit tests for the pure arg builders/validators.
-- `comms-assistant/outlook-bridge/calendar.applescript` — two modes: `busy` (read events → JSON) and `meeting` (create unsent draft + open).
+- `comms-assistant/schedule/ics.ts` — **pure** `.ics` generator (`validateMeetingSpec` + `buildIcs`) + impure `createMeetingInvite` (write temp `.ics`, open in Outlook). **This is the create path** (AppleScript meeting-create is impossible — see Task 1).
+- `comms-assistant/schedule/__tests__/ics.test.ts` — unit tests for the pure `.ics` builder/validator.
+- `comms-assistant/outlook-bridge/calendar.ts` — `execFile` wrapper + **pure** arg builder/parser for the AppleScript `busy` read only.
+- `comms-assistant/outlook-bridge/__tests__/calendar.test.ts` — unit tests for the pure busy arg builder/parser.
+- `comms-assistant/outlook-bridge/calendar.applescript` — **read-only**, one mode: `busy` (read events → `start|end` lines). DONE in Task 1.
 
 **Modify:**
 - `comms-assistant/run.ts` — add `schedule:resolve`, `schedule:busy`, `schedule:find-times`, `schedule:agenda-context`, `schedule:draft-meeting` CLI commands.
@@ -43,165 +47,21 @@
 
 ---
 
-## Task 1: Spike — verify the calendar create-draft + read paths live
+## Task 1: Calendar busy-read AppleScript + create-path spike — DONE (controller-verified)
 
-This de-risks everything: confirm New/Legacy Outlook actually honors `make new calendar event` with attendees as an **unsent draft** (Send button), that opening it works, and that the `busy` read returns real events. AppleScript can't be unit-tested in CI, so this is a one-time manual verification. **If it fails, STOP and report** (per the spec's error-handling) — the local create path is the whole premise.
+**Status: COMPLETE** (commit `b2e27db`). Done by the controller, live against the user's Outlook, because AppleScript needs the real app and iterative debugging (the repo's established pattern for `.applescript` files).
 
-**Files:**
-- Create: `comms-assistant/outlook-bridge/calendar.applescript`
+**Outcome — a load-bearing finding that pivoted the create path:**
+- **`busy` read WORKS** — `calendar.applescript busy <sy> <smo> <sd> <ey> <emo> <ed>` returns real events as `start|end` naive-local lines. The `whose` filter is NOT gutted for calendar (unlike messages). Kept as the **read-only** `calendar.applescript` (busy mode only).
+- **AppleScript meeting CREATE is impossible** for our needs (verified live on Legacy Outlook, `IsRunningNewOutlook=0`):
+  - Properties set on a `calendar event` object commit on the object (readback OK), but `open ev` renders a **stale** compose window (blank subject/location/time; only `To` binds).
+  - Without `open`, a meeting **with attendees vanishes** — an unsent invitation is an **ephemeral draft** that only persists if sent. A plain appointment (no attendees) *does* persist, which confirms the mechanism.
+  - So there is **no way** to produce a persistent, reviewable, *unsent* invite via AppleScript. The `make new calendar event` path is dropped.
 
-**Interfaces:**
-- Produces: `calendar.applescript` with `on run argv` dispatching `argv item 1` ∈ {`busy`, `meeting`}; consumed by `calendar.ts` (Task 5).
+**Create path pivots to `.ics`** (spiked live, user-confirmed): generate a standard `.ics` and `open -a "Microsoft Outlook"` it → Outlook opens an **editable, sendable** invite with location, agenda, attendees, and time all populated. Fully local; preserves draft-and-send-yourself (the user reviews + adds the join link + sends). See Task 3B.
+- **Subject quirk (verified):** a **hyphen/dash** anywhere in the `.ics` `SUMMARY` **blanks the Subject** in Outlook-for-Mac's parser (a colon, e.g. "1:1 Elad", is fine). The generator must strip/substitute dashes in the SUMMARY (which also aligns with the hard no-dashes rule) and RFC-escape `; , \\ \n` in all TEXT fields.
 
-- [ ] **Step 1: Write the AppleScript with both modes**
-
-Create `comms-assistant/outlook-bridge/calendar.applescript`:
-
-```applescript
--- Calendar bridge for the comms assistant.
--- Modes:
---   busy <startEpochDays-ignored> ...        (see below) — read events in a window → JSON lines
---   meeting <subj> <bodyHtml> <attendeesCsv> <sy> <smo> <sd> <sh> <smi> <ey> <emo> <ed> <eh> <emi> <location>
--- NEVER calls `send meeting` — the event is left as an unsent draft and opened for review.
-
-on trimText(s)
-	set s to s as string
-	repeat while s starts with " "
-		set s to text 2 thru -1 of s
-	end repeat
-	repeat while s ends with " "
-		set s to text 1 thru -2 of s
-	end repeat
-	return s
-end trimText
-
--- Build a local AppleScript date from numeric components, guarding month/day overflow.
-on makeDate(y, mo, d, h, mi)
-	set theDate to current date
-	set day of theDate to 1
-	set year of theDate to (y as integer)
-	set month of theDate to (mo as integer)
-	set day of theDate to (d as integer)
-	set hours of theDate to (h as integer)
-	set minutes of theDate to (mi as integer)
-	set seconds of theDate to 0
-	return theDate
-end makeDate
-
--- Pick the real calendar: the one with the most events. `default calendar` errors (-1728)
--- and `calendar 1` is an empty placeholder, so neither is usable.
-on realCalendar()
-	tell application "Microsoft Outlook"
-		set theCal to missing value
-		set maxEvt to -1
-		repeat with c in calendars
-			set ec to (count of calendar events of c)
-			if ec > maxEvt then
-				set maxEvt to ec
-				set theCal to c
-			end if
-		end repeat
-		if theCal is missing value then error "NO_CALENDAR: no addressable calendar" number 2
-		return theCal
-	end tell
-end realCalendar
-
--- Format an AppleScript date as naive local "YYYY-MM-DDTHH:MM".
-on fmtNaive(d)
-	set y to year of d as integer
-	set mo to (month of d as integer)
-	set dy to day of d as integer
-	set hh to hours of d as integer
-	set mm to minutes of d as integer
-	set p2 to "0"
-	set moS to text -2 thru -1 of (p2 & mo)
-	set dyS to text -2 thru -1 of (p2 & dy)
-	set hhS to text -2 thru -1 of (p2 & hh)
-	set mmS to text -2 thru -1 of (p2 & mm)
-	return (y as string) & "-" & moS & "-" & dyS & "T" & hhS & ":" & mmS
-end fmtNaive
-
-on run argv
-	set theMode to item 1 of argv
-	tell application "Microsoft Outlook"
-		if theMode is "busy" then
-			-- busy <sy> <smo> <sd> <ey> <emo> <ed>  (inclusive day window, midnight..midnight+1)
-			set winStart to my makeDate(item 2 of argv, item 3 of argv, item 4 of argv, 0, 0)
-			set winEnd to my makeDate(item 5 of argv, item 6 of argv, item 7 of argv, 23, 59)
-			set theCal to my realCalendar()
-			set out to ""
-			repeat with e in (calendar events of theCal whose start time is greater than or equal to winStart and start time is less than or equal to winEnd)
-				try
-					if (all day flag of e) is false then
-						set out to out & my fmtNaive(start time of e) & "|" & my fmtNaive(end time of e) & linefeed
-					end if
-				end try
-			end repeat
-			return out
-		else if theMode is "meeting" then
-			set theSubject to item 2 of argv
-			set theBody to item 3 of argv
-			set attendeesCsv to item 4 of argv
-			set startDate to my makeDate(item 5 of argv, item 6 of argv, item 7 of argv, item 8 of argv, item 9 of argv)
-			set endDate to my makeDate(item 10 of argv, item 11 of argv, item 12 of argv, item 13 of argv, item 14 of argv)
-			set theLocation to ""
-			if (count of argv) ≥ 15 then set theLocation to item 15 of argv
-			set theCal to my realCalendar()
-			set ev to make new calendar event at theCal with properties {subject:theSubject, content:theBody, start time:startDate, end time:endDate}
-			if theLocation is not "" then set location of ev to theLocation
-			set AppleScript's text item delimiters to ","
-			repeat with addrRef in (text items of attendeesCsv)
-				set addr to my trimText(addrRef as string)
-				if addr is not "" then
-					make new required attendee at ev with properties {email address:{address:addr}}
-				end if
-			end repeat
-			set AppleScript's text item delimiters to ""
-			-- DRAFT ONLY: never `send meeting`. Open for the user to add a join link + send.
-			open ev
-			activate
-			return "OK"
-		else
-			error "BAD_MODE: " & theMode number 3
-		end if
-	end tell
-end run
-```
-
-- [ ] **Step 2: Verify the `busy` read returns real events**
-
-Run (adjust the window to a week you know has events):
-
-```bash
-osascript comms-assistant/outlook-bridge/calendar.applescript busy 2026 6 16 2026 6 20
-```
-
-Expected: one or more lines like `2026-06-17T10:00|2026-06-17T10:30`. If empty for a known-busy week, debug the calendar locator before continuing.
-
-- [ ] **Step 3: Verify the `meeting` create path against a THROWAWAY event**
-
-Run (use your own email so the invite would only go to you; pick a clearly-fake time):
-
-```bash
-osascript comms-assistant/outlook-bridge/calendar.applescript meeting "ZZZ DELETE ME spike" "test body" "yorpeli@gmail.com" 2027 1 5 9 0 2027 1 5 9 30 ""
-```
-
-Expected: prints `OK`; an Outlook window opens showing a **meeting** titled "ZZZ DELETE ME spike" with you as a required attendee and a **Send** button (i.e. it is an unsent draft, NOT auto-sent).
-
-- [ ] **Step 4: Confirm it did NOT send, then delete the throwaway**
-
-Visually confirm no invitation was sent (no "sent" state). Close the window **without sending** and delete the "ZZZ DELETE ME spike" event from your calendar.
-
-- [ ] **Step 5: Record the verification result**
-
-If all three behaviors hold, note it in the commit message and proceed. If creating the event auto-sends, or it lands in the wrong calendar, or no Send button appears — **STOP** and report; the design's draft-only premise needs revisiting before any more work.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add comms-assistant/outlook-bridge/calendar.applescript
-git commit -m "feat(comms-cal): calendar.applescript busy+meeting modes (draft-only, verified live)"
-```
+No further action — proceed to Task 2.
 
 ---
 
@@ -449,21 +309,18 @@ git commit -m "feat(comms-cal): pure slot ranking (find-times) with workday/lunc
 
 ---
 
-## Task 3: Calendar AppleScript arg builders/validators (`calendar.ts`)
+## Task 3: Calendar busy-read wrapper (`calendar.ts`)
 
 **Files:**
 - Create: `comms-assistant/outlook-bridge/calendar.ts`
 - Test: `comms-assistant/outlook-bridge/__tests__/calendar.test.ts`
 
 **Interfaces:**
-- Consumes: `MeetingSpec`, `BusyBlock` from `../schedule/types.js`.
+- Consumes: `BusyBlock` from `../schedule/types.js`.
 - Produces:
-  - `validateMeetingSpec(input: unknown): { ok: true; value: MeetingSpec } | { ok: false; error: string }`
-  - `buildMeetingArgs(scriptPath: string, spec: MeetingSpec): string[]`
   - `buildBusyArgs(scriptPath: string, windowStartDay: string, windowEndDay: string): string[]`
   - `parseBusyOutput(stdout: string): BusyBlock[]`
-  - `readBusy(windowStartDay: string, windowEndDay: string): Promise<BusyBlock[]>` (execFile)
-  - `createMeetingDraft(spec: MeetingSpec): Promise<void>` (execFile; throws on non-OK)
+  - `readBusy(windowStartDay: string, windowEndDay: string): Promise<BusyBlock[]>` (execFile against the read-only `calendar.applescript` from Task 1)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -472,42 +329,17 @@ Create `comms-assistant/outlook-bridge/__tests__/calendar.test.ts`:
 ```ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  validateMeetingSpec, buildMeetingArgs, buildBusyArgs, parseBusyOutput,
-} from '../calendar.js'
+import { buildBusyArgs, parseBusyOutput } from '../calendar.js'
 
-test('validateMeetingSpec rejects missing fields', () => {
-  assert.equal(validateMeetingSpec(null).ok, false)
-  assert.equal(validateMeetingSpec({ subject: '', body: 'b', attendees: ['a@b.com'], start: '2026-06-17T10:00', end: '2026-06-17T10:30' }).ok, false)
-  assert.equal(validateMeetingSpec({ subject: 's', body: 'b', attendees: [], start: '2026-06-17T10:00', end: '2026-06-17T10:30' }).ok, false)
-})
-
-test('validateMeetingSpec rejects malformed datetimes', () => {
-  const r = validateMeetingSpec({ subject: 's', body: 'b', attendees: ['a@b.com'], start: 'June 17', end: '2026-06-17T10:30' })
-  assert.equal(r.ok, false)
-})
-
-test('validateMeetingSpec accepts a well-formed spec', () => {
-  const r = validateMeetingSpec({ subject: '1:1 Elad', body: 'agenda', attendees: ['elad@x.com'], start: '2026-06-17T10:00', end: '2026-06-17T10:30', location: 'Zoom' })
-  assert.equal(r.ok, true)
-})
-
-test('buildMeetingArgs splits datetimes into numeric components, HTML body, csv attendees', () => {
-  const args = buildMeetingArgs('/p/calendar.applescript', {
-    subject: '1:1', body: 'line1\nline2', attendees: ['a@b.com', 'c@d.com'],
-    start: '2026-06-17T10:00', end: '2026-06-17T10:30', location: 'Zoom',
-  })
-  assert.deepEqual(args, [
-    '/p/calendar.applescript', 'meeting', '1:1', 'line1<br>line2', 'a@b.com,c@d.com',
-    '2026', '6', '17', '10', '0', '2026', '6', '17', '10', '30', 'Zoom',
-  ])
-})
-
-test('buildBusyArgs emits day components', () => {
+test('buildBusyArgs emits busy mode + day components', () => {
   assert.deepEqual(
     buildBusyArgs('/p/calendar.applescript', '2026-06-16', '2026-06-20'),
     ['/p/calendar.applescript', 'busy', '2026', '6', '16', '2026', '6', '20'],
   )
+})
+
+test('buildBusyArgs rejects malformed day strings', () => {
+  assert.throws(() => buildBusyArgs('/p/calendar.applescript', '2026/06/16', '2026-06-20'))
 })
 
 test('parseBusyOutput parses pipe-delimited lines, ignoring blanks', () => {
@@ -532,60 +364,11 @@ Create `comms-assistant/outlook-bridge/calendar.ts`:
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { BusyBlock, MeetingSpec } from '../schedule/types.js'
+import type { BusyBlock } from '../schedule/types.js'
 
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'calendar.applescript')
 
-const NAIVE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/
 const DAY = /^\d{4}-\d{2}-\d{2}$/
-
-function plainTextToHtml(s: string): string {
-  return s
-    .replace(/\r\n?/g, '\n')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>')
-}
-
-export type MeetingValidation =
-  | { ok: true; value: MeetingSpec }
-  | { ok: false; error: string }
-
-export function validateMeetingSpec(input: unknown): MeetingValidation {
-  if (typeof input !== 'object' || input === null) return { ok: false, error: 'spec must be a JSON object' }
-  const o = input as Record<string, unknown>
-  if (typeof o.subject !== 'string' || o.subject.trim() === '') return { ok: false, error: 'subject required' }
-  if (typeof o.body !== 'string') return { ok: false, error: 'body must be a string' }
-  if (!Array.isArray(o.attendees) || o.attendees.length === 0 || !o.attendees.every((a) => typeof a === 'string' && a.includes('@')))
-    return { ok: false, error: 'attendees must be a non-empty array of email addresses' }
-  if (typeof o.start !== 'string' || !NAIVE.test(o.start)) return { ok: false, error: 'start must be YYYY-MM-DDTHH:MM' }
-  if (typeof o.end !== 'string' || !NAIVE.test(o.end)) return { ok: false, error: 'end must be YYYY-MM-DDTHH:MM' }
-  if (o.location !== undefined && typeof o.location !== 'string') return { ok: false, error: 'location must be a string' }
-  return {
-    ok: true,
-    value: {
-      subject: o.subject, body: o.body, attendees: o.attendees as string[],
-      start: o.start, end: o.end, location: (o.location as string | undefined),
-    },
-  }
-}
-
-function parts(naive: string): string[] {
-  // ['2026','6','17','10','0'] — numeric (no zero-pad; AppleScript coerces to integer)
-  return [
-    String(+naive.slice(0, 4)), String(+naive.slice(5, 7)), String(+naive.slice(8, 10)),
-    String(+naive.slice(11, 13)), String(+naive.slice(14, 16)),
-  ]
-}
-
-export function buildMeetingArgs(scriptPath: string, spec: MeetingSpec): string[] {
-  const csv = spec.attendees.map((s) => s.trim()).filter(Boolean).join(',')
-  return [
-    scriptPath, 'meeting', spec.subject, plainTextToHtml(spec.body), csv,
-    ...parts(spec.start), ...parts(spec.end), spec.location ?? '',
-  ]
-}
 
 export function buildBusyArgs(scriptPath: string, windowStartDay: string, windowEndDay: string): string[] {
   if (!DAY.test(windowStartDay) || !DAY.test(windowEndDay)) throw new Error('window days must be YYYY-MM-DD')
@@ -618,23 +401,231 @@ export async function readBusy(windowStartDay: string, windowEndDay: string): Pr
   const out = await exec('osascript', buildBusyArgs(SCRIPT, windowStartDay, windowEndDay))
   return parseBusyOutput(out)
 }
-
-export async function createMeetingDraft(spec: MeetingSpec): Promise<void> {
-  const out = await exec('osascript', buildMeetingArgs(SCRIPT, spec))
-  if (out.trim() !== 'OK') throw new Error(`unexpected osascript output: ${out.trim().slice(-300)}`)
-}
 ```
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npx tsx --test comms-assistant/outlook-bridge/__tests__/calendar.test.ts`
-Expected: PASS (6 tests).
+Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add comms-assistant/outlook-bridge/calendar.ts comms-assistant/outlook-bridge/__tests__/calendar.test.ts
-git commit -m "feat(comms-cal): calendar.ts execFile wrappers + pure arg builders/validators"
+git commit -m "feat(comms-cal): calendar.ts busy-read wrapper + pure arg builder/parser"
+```
+
+---
+
+## Task 3B: `.ics` meeting-invite generator (`ics.ts`) — the create path
+
+The create path is an `.ics` file opened in Outlook (Task 1 finding: AppleScript cannot make a reviewable unsent invite). `buildIcs` is pure and heavily unit-tested; `createMeetingInvite` does the file write + `open`.
+
+**Files:**
+- Create: `comms-assistant/schedule/ics.ts`
+- Test: `comms-assistant/schedule/__tests__/ics.test.ts`
+
+**Interfaces:**
+- Consumes: `MeetingSpec` from `./types.js`.
+- Produces:
+  - `validateMeetingSpec(input: unknown): { ok: true; value: MeetingSpec } | { ok: false; error: string }`
+  - `escapeIcsText(s: string): string`
+  - `sanitizeSummary(s: string): string`
+  - `foldLine(line: string): string`
+  - `buildIcs(spec: MeetingSpec, opts: { uid: string; dtstamp: string; organizerEmail?: string; organizerName?: string }): string`
+  - `createMeetingInvite(spec: MeetingSpec, opts?: Partial<{uid,dtstamp,organizerEmail,organizerName}>): Promise<string>` (writes temp `.ics`, opens in Outlook, returns the path)
+
+- [ ] **Step 1: Write the failing test**
+
+Create `comms-assistant/schedule/__tests__/ics.test.ts`:
+
+```ts
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { buildIcs, validateMeetingSpec, escapeIcsText, sanitizeSummary } from '../ics.js'
+
+const OPTS = { uid: 'u1@sb', dtstamp: '20260619T120000Z' }
+
+test('validateMeetingSpec rejects bad input', () => {
+  assert.equal(validateMeetingSpec(null).ok, false)
+  assert.equal(validateMeetingSpec({ subject: '', body: 'b', attendees: ['a@b.com'], start: '2026-06-17T10:00', end: '2026-06-17T10:30' }).ok, false)
+  assert.equal(validateMeetingSpec({ subject: 's', body: 'b', attendees: [], start: '2026-06-17T10:00', end: '2026-06-17T10:30' }).ok, false)
+  assert.equal(validateMeetingSpec({ subject: 's', body: 'b', attendees: ['a@b.com'], start: 'June', end: '2026-06-17T10:30' }).ok, false)
+})
+
+test('validateMeetingSpec accepts a 1:1 with a colon subject', () => {
+  const r = validateMeetingSpec({ subject: '1:1 Elad', body: 'agenda', attendees: ['elad@x.com'], start: '2026-06-17T10:00', end: '2026-06-17T10:30', location: 'Zoom' })
+  assert.equal(r.ok, true)
+})
+
+test('sanitizeSummary strips dashes (which blank the Subject in Outlook) but keeps colons', () => {
+  assert.equal(sanitizeSummary('Weekly Sync - Elad'), 'Weekly Sync Elad')
+  assert.equal(sanitizeSummary('1:1 Elad'), '1:1 Elad')
+  assert.equal(sanitizeSummary('Q3 — KYC'), 'Q3 KYC') // em-dash too
+})
+
+test('escapeIcsText escapes RFC 5545 special chars', () => {
+  assert.equal(escapeIcsText('a; b, c\\ d\ne'), 'a\; b\\, c\\\\ d\\ne')
+})
+
+test('buildIcs emits floating-local DTSTART/DTEND, a colon-safe SUMMARY, and attendees', () => {
+  const ics = buildIcs({ subject: '1:1 Elad', body: 'agenda line', attendees: ['elad@x.com'], start: '2027-03-10T14:00', end: '2027-03-10T14:30', location: 'Zoom' }, OPTS)
+  assert.match(ics, /DTSTART:20270310T140000\r\n/)
+  assert.match(ics, /DTEND:20270310T143000\r\n/)
+  assert.match(ics, /SUMMARY:1:1 Elad\r\n/)
+  assert.match(ics, /LOCATION:Zoom\r\n/)
+  assert.match(ics, /ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:elad@x.com\r\n/)
+  assert.match(ics, /^BEGIN:VCALENDAR\r\n/)
+  assert.match(ics, /END:VCALENDAR\r\n$/)
+})
+
+test('buildIcs substitutes a dash subject so the Subject will not blank', () => {
+  const ics = buildIcs({ subject: 'Weekly Sync - Elad', body: 'x', attendees: ['e@x.com'], start: '2027-03-10T14:00', end: '2027-03-10T14:30' }, OPTS)
+  assert.match(ics, /SUMMARY:Weekly Sync Elad\r\n/)
+  assert.doesNotMatch(ics, /SUMMARY:[^\r\n]*-/)
+})
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `npx tsx --test comms-assistant/schedule/__tests__/ics.test.ts`
+Expected: FAIL — cannot find module `../ics.js`.
+
+- [ ] **Step 3: Write the implementation**
+
+Create `comms-assistant/schedule/ics.ts`:
+
+```ts
+import { writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import os from 'node:os'
+import path from 'node:path'
+import type { MeetingSpec } from './types.js'
+
+const NAIVE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/
+
+export type MeetingValidation =
+  | { ok: true; value: MeetingSpec }
+  | { ok: false; error: string }
+
+export function validateMeetingSpec(input: unknown): MeetingValidation {
+  if (typeof input !== 'object' || input === null) return { ok: false, error: 'spec must be a JSON object' }
+  const o = input as Record<string, unknown>
+  if (typeof o.subject !== 'string' || o.subject.trim() === '') return { ok: false, error: 'subject required' }
+  if (typeof o.body !== 'string') return { ok: false, error: 'body must be a string' }
+  if (!Array.isArray(o.attendees) || o.attendees.length === 0 || !o.attendees.every((a) => typeof a === 'string' && a.includes('@')))
+    return { ok: false, error: 'attendees must be a non-empty array of email addresses' }
+  if (typeof o.start !== 'string' || !NAIVE.test(o.start)) return { ok: false, error: 'start must be YYYY-MM-DDTHH:MM' }
+  if (typeof o.end !== 'string' || !NAIVE.test(o.end)) return { ok: false, error: 'end must be YYYY-MM-DDTHH:MM' }
+  if (o.location !== undefined && typeof o.location !== 'string') return { ok: false, error: 'location must be a string' }
+  return {
+    ok: true,
+    value: {
+      subject: o.subject, body: o.body, attendees: o.attendees as string[],
+      start: o.start, end: o.end, location: o.location as string | undefined,
+    },
+  }
+}
+
+// RFC 5545 TEXT escaping: backslash, semicolon, comma, newline.
+export function escapeIcsText(s: string): string {
+  return s
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n?|\n/g, '\\n')
+}
+
+// A dash/hyphen anywhere in SUMMARY blanks the Subject in Outlook-for-Mac (Task 1 finding),
+// and Yonatan's hard no-dashes rule wants them gone anyway. Replace dash-likes with a space,
+// collapse runs, then RFC-escape. Colons are fine and preserved ("1:1 Elad").
+export function sanitizeSummary(s: string): string {
+  const noDash = s.replace(/[‒–—―-]/g, ' ').replace(/\s{2,}/g, ' ').trim()
+  return escapeIcsText(noDash)
+}
+
+// Naive "YYYY-MM-DDTHH:MM" -> floating-local iCal "YYYYMMDDTHHMMSS".
+function icsLocal(naive: string): string {
+  return naive.replace(/[-:]/g, '') + '00'
+}
+
+// Fold a content line to <=75 octets per RFC 5545 (continuation lines start with a space).
+export function foldLine(line: string): string {
+  if (line.length <= 75) return line
+  const parts: string[] = [line.slice(0, 75)]
+  let i = 75
+  while (i < line.length) {
+    parts.push(' ' + line.slice(i, i + 74))
+    i += 74
+  }
+  return parts.join('\r\n')
+}
+
+export interface IcsOpts {
+  uid: string
+  dtstamp: string
+  organizerEmail?: string
+  organizerName?: string
+}
+
+export function buildIcs(spec: MeetingSpec, opts: IcsOpts): string {
+  const orgEmail = opts.organizerEmail ?? 'yonatanorp@payoneer.com'
+  const orgName = opts.organizerName ?? 'Yonatan Orpeli'
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//SecondBrain//Comms Calendar//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${opts.uid}`,
+    `DTSTAMP:${opts.dtstamp}`,
+    `DTSTART:${icsLocal(spec.start)}`,
+    `DTEND:${icsLocal(spec.end)}`,
+    `SUMMARY:${sanitizeSummary(spec.subject)}`,
+  ]
+  if (spec.location && spec.location.trim()) lines.push(`LOCATION:${escapeIcsText(spec.location)}`)
+  if (spec.body && spec.body.trim()) lines.push(`DESCRIPTION:${escapeIcsText(spec.body)}`)
+  lines.push(`ORGANIZER;CN=${orgName}:mailto:${orgEmail}`)
+  for (const a of spec.attendees) {
+    lines.push(`ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${a.trim()}`)
+  }
+  lines.push('END:VEVENT', 'END:VCALENDAR')
+  return lines.map(foldLine).join('\r\n') + '\r\n'
+}
+
+function pad(n: number): string { return String(n).padStart(2, '0') }
+function utcStamp(d: Date): string {
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
+}
+
+// Write the .ics to a temp file and open it in Outlook (editable, sendable invite).
+// Returns the temp path. NEVER sends — the user reviews, adds the join link, and sends.
+export async function createMeetingInvite(spec: MeetingSpec, opts?: Partial<IcsOpts>): Promise<string> {
+  const now = new Date()
+  const uid = opts?.uid ?? `sb-${now.getTime()}-${Math.round(Math.random() * 1e6)}@secondbrain`
+  const dtstamp = opts?.dtstamp ?? utcStamp(now)
+  const ics = buildIcs(spec, { uid, dtstamp, organizerEmail: opts?.organizerEmail, organizerName: opts?.organizerName })
+  const safe = spec.subject.replace(/[^a-z0-9]+/gi, '-').slice(0, 40) || 'meeting'
+  const file = path.join(os.tmpdir(), `sb-invite-${now.getTime()}-${safe}.ics`)
+  await writeFile(file, ics, 'utf8')
+  await new Promise<void>((resolve, reject) => {
+    execFile('open', ['-a', 'Microsoft Outlook', file], (err) => (err ? reject(err) : resolve()))
+  })
+  return file
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `npx tsx --test comms-assistant/schedule/__tests__/ics.test.ts`
+Expected: PASS (6 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add comms-assistant/schedule/ics.ts comms-assistant/schedule/__tests__/ics.test.ts
+git commit -m "feat(comms-cal): .ics meeting-invite generator (dash-safe SUMMARY, floating local time)"
 ```
 
 ---
@@ -884,7 +875,8 @@ In `comms-assistant/run.ts`, after the existing imports (the block ending at the
 import { rankSlots, pickSpread } from './schedule/find-times.js'
 import { resolveGroup, resolveNames, normalizeGroup } from './schedule/meeting-request.js'
 import { gatherAgendaContext } from './schedule/agenda-context.js'
-import { readBusy, createMeetingDraft, validateMeetingSpec } from './outlook-bridge/calendar.js'
+import { readBusy } from './outlook-bridge/calendar.js'
+import { validateMeetingSpec, createMeetingInvite } from './schedule/ics.js'
 ```
 
 - [ ] **Step 2: Add the command cases**
@@ -930,11 +922,12 @@ In the `switch (cmd)` block, before the `default:` case, add:
       break
     }
     case 'schedule:draft-meeting': {
-      // --payload=<MeetingSpec>. Creates ONE unsent draft meeting in Outlook and opens it.
+      // --payload=<MeetingSpec>. Generates ONE .ics and opens it in Outlook as an
+      // editable, sendable invite (the user reviews, adds the join link, sends). Never sends.
       const v = validateMeetingSpec(payload())
       if (!v.ok) throw new Error(v.error)
-      await createMeetingDraft(v.value)
-      console.log(JSON.stringify({ drafted: v.value.subject, start: v.value.start }))
+      const file = await createMeetingInvite(v.value)
+      console.log(JSON.stringify({ drafted: v.value.subject, start: v.value.start, ics: file }))
       break
     }
 ```
@@ -948,7 +941,7 @@ In the top-of-file comment block (lines 2–15), add these lines describing the 
 //   schedule:busy --window=A..B                  the user's own busy blocks (local osascript)
 //   schedule:find-times --payload=<json>         rank candidate slots (pure); --payload.count to spread
 //   schedule:agenda-context --slug=<slug>        grounding material for an agenda
-//   schedule:draft-meeting --payload=<MeetingSpec>  create ONE unsent Outlook draft + open it
+//   schedule:draft-meeting --payload=<MeetingSpec>  generate ONE .ics + open it in Outlook (editable, sendable; never sent)
 ```
 
 - [ ] **Step 4: Smoke-test each command (non-mutating ones first)**
@@ -962,14 +955,16 @@ npx tsx comms-assistant/run.ts schedule:find-times --payload=/tmp/ft.json
 
 Expected: resolve prints attendees with emails; busy prints your real busy blocks; find-times prints 3 spread slots. (If you are not on the Mac / Outlook is closed, `schedule:busy` will error — that is expected off-device.)
 
-- [ ] **Step 5: Smoke-test the mutating draft command with a throwaway**
+- [ ] **Step 5: Smoke-test the .ics create command with a throwaway**
+
+Use a subject WITHOUT a dash (a dash blanks the Subject — Task 1 finding) and a colon to confirm "1:1" works:
 
 ```bash
-echo '{"subject":"ZZZ DELETE ME cli","body":"agenda line 1\nagenda line 2","attendees":["yorpeli@gmail.com"],"start":"2027-01-06T09:00","end":"2027-01-06T09:30","location":"Zoom"}' > /tmp/mtg.json
+echo '{"subject":"ZZZ 1:1 spike","body":"agenda line 1\nagenda line 2","attendees":["yorpeli@gmail.com"],"start":"2027-01-06T09:00","end":"2027-01-06T09:30","location":"Zoom"}' > /tmp/mtg.json
 npx tsx comms-assistant/run.ts schedule:draft-meeting --payload=/tmp/mtg.json
 ```
 
-Expected: prints `{"drafted":"ZZZ DELETE ME cli",...}` and opens an unsent draft in Outlook. Confirm it did not send, close without sending, and delete the event.
+Expected: prints `{"drafted":"ZZZ 1:1 spike", ..., "ics":"/var/folders/.../sb-invite-...ics"}` and opens an editable invite in Outlook with Subject, Location, agenda body, time, and attendee all populated. Confirm the Subject shows (colon is fine), then close without sending. Nothing persists (it's an unsent draft window). Delete the temp `.ics` if you like.
 
 - [ ] **Step 6: Commit**
 
@@ -994,17 +989,17 @@ In `agents/comms-assistant.md`, add a new section documenting the calendar limb.
 ```markdown
 ## Set up meetings (create flow) — Yonatan never runs the CLI; you do
 
-Triggers: "set up meetings with X", "schedule 1:1s with my skip-levels", "book time with my directs next week". **Create-only** (responding to invites is a future v2). The agent proposes; Yonatan approves in chat; the bridge opens **unsent drafts** in Outlook; **Yonatan adds the Teams/Zoom link and sends himself** (never the agent — preserves read-only MSFT).
+Triggers: "set up meetings with X", "schedule 1:1s with my skip-levels", "book time with my directs next week". **Create-only** (responding to invites is a future v2). The agent proposes; Yonatan approves in chat; each invite opens in Outlook as an **editable, sendable `.ics`**; **Yonatan adds the Teams/Zoom link and sends himself** (never the agent — preserves read-only MSFT).
 
 1. **Resolve attendees.** Groups: `npx tsx comms-assistant/run.ts schedule:resolve --group=skip-levels` (or `directs`, or `--names=elad-schnarch,ira-martinenko`). Flag any `unresolved` — never invent an email.
 2. **Read your own availability.** `schedule:busy --window=YYYY-MM-DD..YYYY-MM-DD` (local osascript; your calendar only). Attendee free/busy is NOT available locally — note that proposed times are based on your openings; invitees accept or counter.
 3. **Rank times.** Feed busy blocks into `schedule:find-times --payload=<{windowStartDay,windowEndDay,durationMin,busy,nowNaive,count}>`. Defaults: 30-min, Sun–Thu, 09:00–18:00, no 13:00 lunch slot, 15-min buffer. Pass `count` = number of meetings to spread one-per-day.
 4. **Draft an agenda per meeting.** `schedule:agenda-context --slug=<person>` returns current focus + recent 1:1s + open action items + narrative. **You write the agenda prose** from that material (ground via `searchByType` if you want more) — keep it short and specific.
 5. **Present the slate in chat** — one row per meeting: attendee · proposed time · agenda summary. Yonatan approves or edits inline ("move Elad to Thursday", "drop the X line").
-6. **Create drafts on approval.** For each meeting: `schedule:draft-meeting --payload=<MeetingSpec>` (`{subject,body,attendees[email],start,end,location?}`). This opens an **unsent** draft in Outlook. Each meeting is independent — report per-row failures, don't abort the batch.
-7. **Hand off.** Tell Yonatan the drafts are open; he adds the join link and sends. **No auto-record** — normal calendar sync owns the record.
+6. **Create invites on approval.** For each meeting: `schedule:draft-meeting --payload=<MeetingSpec>` (`{subject,body,attendees[email],start,end,location?}`) — generates an `.ics` and opens it in Outlook as an **editable, sendable** invite. Keep subjects dash-free (a dash blanks the Subject; the generator strips them anyway). Each meeting is independent — report per-row failures, don't abort the batch.
+7. **Hand off.** Tell Yonatan the invites are open in Outlook; he adds the join link and sends. **No auto-record** — normal calendar sync owns the record.
 
-Requires Outlook for Mac running locally (calendar AppleScript verified live). If `schedule:busy` returns nothing for a known-busy window, the calendar isn't addressable — report it rather than guessing.
+Requires Outlook for Mac running locally. The busy-read AppleScript and the `.ics` create path were verified live (2026-06-19). If `schedule:busy` returns nothing for a known-busy window, the calendar isn't addressable — report it rather than guessing.
 ```
 
 - [ ] **Step 2: Add to the folder index**
@@ -1012,7 +1007,7 @@ Requires Outlook for Mac running locally (calendar AppleScript verified live). I
 In `comms-assistant/CLAUDE.md`, under the `## Files` section, add to the `outlook-bridge/` description (or as a new bullet near it):
 
 ```markdown
-- **Calendar create flow** (`schedule/` + `outlook-bridge/calendar.*`): `schedule:resolve` (attendees/org-groups) · `schedule:busy` (your own free/busy, local osascript) · `schedule:find-times` (pure slot ranking — Sun–Thu, 9–18, skip lunch, 15-min buffer) · `schedule:agenda-context` (grounding for the agenda) · `schedule:draft-meeting` (create ONE **unsent** Outlook draft + open). **Never sends** (Yonatan adds the join link + sends). **No auto-record.** Full procedure: [../agents/comms-assistant.md](../agents/comms-assistant.md).
+- **Calendar create flow** (`schedule/` + `outlook-bridge/calendar.applescript`): `schedule:resolve` (attendees/org-groups) · `schedule:busy` (your own free/busy, local osascript) · `schedule:find-times` (pure slot ranking — Sun–Thu, 9–18, skip lunch, 15-min buffer) · `schedule:agenda-context` (grounding for the agenda) · `schedule:draft-meeting` (generate ONE `.ics` + open in Outlook as an editable, sendable invite). **Never sends** (Yonatan reviews, adds the join link, sends). **No auto-record.** AppleScript is read-only (busy); create is `.ics` (AppleScript can't make a reviewable unsent invite). Full procedure: [../agents/comms-assistant.md](../agents/comms-assistant.md).
 ```
 
 - [ ] **Step 3: Note the limb in the root CLAUDE.md**
@@ -1020,7 +1015,7 @@ In `comms-assistant/CLAUDE.md`, under the `## Files` section, add to the `outloo
 In `CLAUDE.md` (root), in the Comms Assistant row of the agent table, append to the purpose cell:
 
 ```markdown
-Also a calendar **create-meetings** limb: resolve attendees → find times (your openings) → draft agenda → in-chat approval → bridge opens **unsent** Outlook drafts (you add the join link + send; never auto-sent; no auto-record).
+Also a calendar **create-meetings** limb: resolve attendees → find times (your openings) → draft agenda → in-chat approval → opens an editable, sendable `.ics` invite in Outlook (you add the join link + send; never auto-sent; no auto-record).
 ```
 
 - [ ] **Step 4: Commit**
@@ -1039,11 +1034,11 @@ git commit -m "docs(comms-cal): document the set-up-meetings create flow + sched
 - [ ] **Step 1: Run the comms-assistant test suite**
 
 Run: `npx tsx --test comms-assistant/schedule/__tests__/*.test.ts comms-assistant/outlook-bridge/__tests__/*.test.ts`
-Expected: all tests pass (find-times 5, meeting-request 3, calendar 6, plus the existing bridge tests).
+Expected: all tests pass (find-times 5, meeting-request 3, ics 6, calendar 3, plus the existing bridge tests).
 
-- [ ] **Step 2: Confirm no throwaway events remain**
+- [ ] **Step 2: Confirm no throwaway artifacts remain**
 
-Check the calendar for any `ZZZ DELETE ME` events from spikes/smokes and delete them.
+Remove any temp invites: `rm -f /tmp/sb-invite-*.ics`. Close any leftover unsent invite windows in Outlook (they don't persist). Check the calendar for stray `ZZZ` events and delete any.
 
 - [ ] **Step 3: Final commit (if anything changed)**
 
@@ -1061,13 +1056,13 @@ git add -A && git commit -m "chore(comms-cal): regression pass for calendar crea
 - Find times (own openings; Graph optional/not-built) → Tasks 2, 3 (busy read), 6.
 - Draft agenda (grounded) → Task 5 + orchestrator prose (Task 7).
 - In-chat slate approval → Task 7 procedure (no code surface, by design).
-- Create unsent draft + open, never `send meeting` → Tasks 1, 3, 6.
+- Create editable, sendable invite via `.ics` + open; agent never sends → Tasks 3B, 6 (AppleScript create dropped per Task 1).
 - No auto-record → enforced by omission; stated in Global Constraints + Task 7.
 - Error handling (bridge down, calendar not addressable, unresolved attendee, per-meeting failure) → Tasks 4, 6, 7 + AppleScript `NO_CALENDAR` error.
-- The three spec "verify in planning" items → Task 1 (write path + calendar locator) and Task 7/agent-doc note (Graph free/busy not built in v1).
+- The three spec "verify in planning" items → Task 1 (create-path spike: AppleScript can't make a reviewable unsent invite → pivoted to `.ics`; busy-read + calendar locator verified) and Task 7/agent-doc note (Graph free/busy not built in v1).
 
 **Refinement vs. spec:** the spec described a `POST /meeting` HTTP bridge route and an `agenda.ts` module. This plan instead uses the **CLI/`execFile`** transport (consistent with the email `gather.ts` side, since the orchestrator is Claude Code, not the browser) and replaces `agenda.ts` with `agenda-context.ts` (grounding gatherer) + orchestrator-written prose (agenda text is LLM work, not a pure function). Both are deliberate simplifications that reduce moving parts (no bridge server needed for v1); noted here so the change from the spec is explicit.
 
 **Placeholder scan:** none — every code step has complete code; every command has expected output.
 
-**Type consistency:** `BusyBlock`/`Slot`/`MeetingSpec`/`ResolvedAttendee` defined in `schedule/types.ts` (Task 2) and consumed unchanged in `calendar.ts` (Task 3), `meeting-request.ts` (Task 4), and `run.ts` (Task 6). `rankSlots`/`pickSpread`/`resolveGroup`/`resolveNames`/`normalizeGroup`/`gatherAgendaContext`/`readBusy`/`createMeetingDraft`/`validateMeetingSpec` names are identical across their definition and call sites.
+**Type consistency:** `BusyBlock`/`Slot`/`MeetingSpec`/`ResolvedAttendee` defined in `schedule/types.ts` (Task 2); `BusyBlock` consumed in `calendar.ts` (Task 3); `MeetingSpec` consumed in `ics.ts` (Task 3B) and `run.ts` (Task 6). `rankSlots`/`pickSpread`/`resolveGroup`/`resolveNames`/`normalizeGroup`/`gatherAgendaContext`/`readBusy`/`buildBusyArgs`/`parseBusyOutput`/`buildIcs`/`createMeetingInvite`/`validateMeetingSpec` names are identical across their definition and call sites.
