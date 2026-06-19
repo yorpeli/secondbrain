@@ -4,6 +4,7 @@ import {
   validateDraftRequest,
   buildOsascriptArgs,
   plainTextToHtml,
+  normalizeDashes,
   validateMarkReadRequest,
   buildMarkReadArgs,
   validateOpenRequest,
@@ -76,11 +77,31 @@ test('plainTextToHtml escapes HTML special chars before adding markup', () => {
   assert.equal(plainTextToHtml('R&D\nnext'), 'R&amp;D<br>next')
 })
 
-test('buildOsascriptArgs converts a multi-paragraph body to HTML breaks', () => {
+test('buildOsascriptArgs converts a multi-paragraph body to HTML breaks (and strips dashes)', () => {
   const args = buildOsascriptArgs('/p/draft.applescript', {
     mode: 'reply', to: [], subject: 'Re: x', body: 'Hi —\n\nLine two.', replyKey: { internetMessageId: '<id@x>' },
   })
-  assert.equal(args[3], 'Hi —<br><br>Line two.')
+  // PINNED no-dash rule: the em-dash in the body is normalized to a hyphen.
+  assert.equal(args[3], 'Hi -<br><br>Line two.')
+})
+
+test('normalizeDashes maps em/en/figure/bar dashes to a hyphen, leaves hyphens alone', () => {
+  assert.equal(normalizeDashes('a — b'), 'a - b')   // em
+  assert.equal(normalizeDashes('a – b'), 'a - b')   // en
+  assert.equal(normalizeDashes('word—word'), 'word-word')
+  assert.equal(normalizeDashes('already - fine'), 'already - fine')
+})
+
+test('buildOsascriptArgs strips dashes from a FRESH subject but preserves a reply subject (locate)', () => {
+  const fresh = buildOsascriptArgs('/p/draft.applescript', {
+    mode: 'fresh', to: ['a@b.com'], subject: 'eBay workshop — thank you', body: 'b',
+  })
+  assert.equal(fresh[2], 'eBay workshop - thank you')
+  const reply = buildOsascriptArgs('/p/draft.applescript', {
+    mode: 'reply', to: [], subject: 'Re: eBay workshop — thank you', body: 'b', replyKey: { internetMessageId: '<id@x>' },
+  })
+  // reply subject left intact so the AppleScript can still locate the original by subject
+  assert.equal(reply[2], 'Re: eBay workshop — thank you')
 })
 
 // --- mark-read (bridge primary path) ---

@@ -86,12 +86,24 @@ export function plainTextToHtml(s: string): string {
     .replace(/\n/g, '<br>')
 }
 
+// Yonatan's PINNED rule: never em-dashes/en-dashes — always a hyphen. This is the
+// deterministic chokepoint: every draft pushed to Outlook (fresh OR reply) passes
+// through buildOsascriptArgs, so normalizing here guarantees no dash survives into the
+// compose window regardless of what the drafter produced.
+export function normalizeDashes(s: string): string {
+  return s.replace(/[‒–—―]/g, '-') // figure/en/em/horizontal-bar → hyphen
+}
+
 export function buildOsascriptArgs(scriptPath: string, req: DraftRequest): string[] {
   const recipientsCsv = req.to.map((s) => s.trim()).filter(Boolean).join(',')
   const imid = req.replyKey?.internetMessageId ?? ''
+  // Normalize the body always; normalize the subject ONLY for fresh sends — a reply's
+  // subject is used to LOCATE the original message (subject-contains), so stripping its
+  // dashes could break the match against the real (possibly dash-bearing) subject.
+  const subject = req.mode === 'fresh' ? normalizeDashes(req.subject) : req.subject
   // Body crosses into Outlook's HTML content — convert here so both fresh and
   // reply drafts keep their paragraph breaks (was a single collapsed run).
-  return [scriptPath, req.mode, req.subject, plainTextToHtml(req.body), recipientsCsv, imid]
+  return [scriptPath, req.mode, subject, plainTextToHtml(normalizeDashes(req.body)), recipientsCsv, imid]
 }
 
 // --- mark-read (bridge primary path) -------------------------------------
