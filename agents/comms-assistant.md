@@ -114,9 +114,10 @@ draft it**, not a blind sub-agent. Read-only: the bridge opens a draft in Outloo
 
 1. **Resolve recipient.** `npm run comms-assistant -- contacts:resolve --query="<name|email>"` →
    `{slug?,name?,email?,source}`. If `source:'unknown'` or `email` missing → ask Yonatan once.
-2. **Gather.** Build a `ThreadInput` (`subject`=topic, `participants`=[yonatan-orpeli, recipient],
-   `bodyToDate`=brief of what was discussed) and run `context:assemble` — rule spine + T1/T2/T3.
-   Surface the `memory_brief` + sources.
+2. **Gather.** Build a `ThreadInput` (`subject`=topic, `participants`=[Yonatan's email, the recipient's email
+   (from step 1's `contacts:resolve`)], `bodyToDate`=brief of what was discussed) and run `context:assemble`
+   — rule spine + T1/T2/T3. **T1 resolves participants by email (exact `people.email` match), not slug —
+   always pass email addresses here.** Surface the `memory_brief` + sources.
 3. **Draft** in Yonatan's voice applying the rule spine + pinned executive-voice (see
    `prompts/prediction-subagent.md` → *Initiated mode*). Opening conventions: greeting + purpose
    in the first line (no stale-thread acknowledgment — there's no lag to own). Self-eval

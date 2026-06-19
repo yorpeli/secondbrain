@@ -148,9 +148,10 @@ Triggers (mid-conversation): "send Elad an email about it", "draft an email to Y
 heads-up on this". The email is about **what you just discussed** — you (the conversation agent) draft it.
 1. **Resolve recipient.** `npm run comms-assistant -- contacts:resolve --query="<name|email>"` → `{slug?,name?,email?,source}`.
    If `source:'unknown'` or `email` missing → ask Yonatan once (or he adds it in Outlook). Capture the address.
-2. **Gather.** Build a `ThreadInput` (`subject`=topic, `participants`=[yonatan-orpeli, recipient], `bodyToDate`=a short
-   brief of what we discussed) and run `assembleContext` (`context:assemble --file=…`) — rule spine + T1/T2/T3.
-   Surface what you pulled (`memory_brief` + sources).
+2. **Gather.** Build a `ThreadInput` (`subject`=topic, `participants`=[Yonatan's email, the recipient's email
+   (from step 1's `contacts:resolve`)], `bodyToDate`=a short brief of what we discussed) and run `assembleContext`
+   (`context:assemble --file=…`) — rule spine + T1/T2/T3. **T1 resolves participants by email (exact `people.email`
+   match), not slug — always pass email addresses here.** Surface what you pulled (`memory_brief` + sources).
 3. **Draft** in Yonatan's voice applying the rule spine + pinned executive-voice (see `prompts/prediction-subagent.md`
    → *Initiated mode*). Self-eval (language/etiquette/exec-voice). Compute **stakes**: SVP+ / external-or-vendor /
    sensitive / grounding-heavy claims → **escalate**.
@@ -159,7 +160,7 @@ heads-up on this". The email is about **what you just discussed** — you (the c
    inline before showing the draft.
 5. **Show + approve in chat.** Present draft + recipient + `memory_brief`/sources + confidence + any flags. Yonatan
    approves / edits / asks for a revision (loop 3).
-6. **Push + persist + learn (one command).** `npm run comms-assistant -- send-initiated --payload=<InitiatedInput.json>`:
+6. **Push + persist + record the learning signal (one command).** `npm run comms-assistant -- send-initiated --payload=<InitiatedInput.json>`:
    pushes a fresh Outlook draft via the bridge (best-effort — needs `npm run outlook-bridge` + Legacy Outlook; if
    down, fall back to pasting the approved text), then persists the `mode:'initiated'` card and records the
    **approve-time signal** (edit → `comms_feedback` kind `edit` with the `delta`; verbatim → kind `note`

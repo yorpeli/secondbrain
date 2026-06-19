@@ -103,8 +103,10 @@ what you just discussed. **The conversation is the source material** — the mai
 that context), not a blind sub-agent. The same voice + rulebook + grounding apply. Differences:
 
 - **Source of intent:** the conversation (distilled into `trigger_text`), not an incoming thread.
-- **Gather first:** build a `ThreadInput` (`subject`=synthesized topic, `participants`=[Yonatan, recipient],
-  `bodyToDate`=the brief) and run `assembleContext` — same tiers, same `memory_brief` + `sources` transparency.
+- **Gather first:** build a `ThreadInput` (`subject`=synthesized topic, `participants`=[Yonatan's email,
+  the recipient's email (from `contacts:resolve`)], `bodyToDate`=the brief) and run `assembleContext` — same
+  tiers, same `memory_brief` + `sources` transparency. **T1 resolves participants by email (exact `people.email`
+  match), not slug — always pass email addresses, not names or slugs.**
 - **Opening conventions:** a fresh initiated email opens with a greeting in the recipient's register/language
   and states the purpose in the first line — no "stale-thread acknowledgment" (there's no lag to own). Terse
   still governs; structure multi-point asks as a list.
