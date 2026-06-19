@@ -3,8 +3,7 @@
 // Learn: backfill people.email when empty; confirm before overwriting a different value;
 // externals (not in people) go to context_store.comms_contacts. NEVER embedded.
 async function db() {
-  const { default: dotenv } = await import('dotenv')
-  dotenv.config()
+  await import('dotenv/config')
   const { getSupabase } = await import('../lib/supabase.js')
   return getSupabase() as any
 }
