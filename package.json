@@ -35,7 +35,7 @@
     "outlook-bridge": "tsx comms-assistant/outlook-bridge/bridge.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "2.49.4",
     "chart.js": "^4.5.1",
     "chartjs-node-canvas": "^5.0.0",
     "chartjs-plugin-annotation": "^3.1.0",
