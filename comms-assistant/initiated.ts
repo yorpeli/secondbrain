@@ -32,13 +32,12 @@ export interface InitiatedInput {
 }
 
 const CONF_SCORE: Record<string, number> = { high: 0.85, med: 0.6, low: 0.35 }
-const EMPTY_BUNDLE = { thread: '', rules: [], participants: [], ownership: null, narrative: [], meta: {} }
 
 export async function buildInitiatedRow(input: InitiatedInput): Promise<PredictionRow> {
   const now = new Date().toISOString()
   const actionType = input.action_type ?? 'reply'
   const target = input.action_target ?? input.recipient.slug ?? input.recipient.name ?? input.recipient.email
-  let bundle: any = EMPTY_BUNDLE
+  let bundle: any = { thread: '', rules: [], participants: [], ownership: null, narrative: [], meta: {} }
   try { if (input.thread) bundle = await assembleContext(input.thread) } catch { /* sparse context */ }
   // Shape an `it`-like object for buildCardPayload (same contract as run.ts itemToRow).
   const it = {
