@@ -17,7 +17,7 @@ import 'dotenv/config'
 //   schedule:busy --window=A..B                  the user's own busy blocks (local osascript)
 //   schedule:find-times --payload=<json>         rank candidate slots (pure); --payload.count to spread
 //   schedule:agenda-context --slug=<slug>        grounding material for an agenda
-//   schedule:draft-meeting --payload=<MeetingSpec>  generate ONE .ics + open it in Outlook (editable, sendable; never sent)
+//   schedule:draft-meeting --payload=<MeetingSpec>  open ONE unsent invite in Outlook (To+subject+time; agenda to clipboard; never sent)
 //   send-initiated --payload=<InitiatedInput>  outgoing flow: push Outlook draft + persist initiated card + feedback
 //   contacts:resolve --query=<name|email>      resolve a recipient → {slug?,name?,email?,source}
 //   contacts:learn --payload={email,name?|slug?} backfill people.email / upsert comms_contacts
@@ -40,7 +40,7 @@ import { rankSlots, pickSpread } from './schedule/find-times.js'
 import { resolveGroup, resolveNames, normalizeGroup } from './schedule/meeting-request.js'
 import { gatherAgendaContext } from './schedule/agenda-context.js'
 import { readBusy } from './outlook-bridge/calendar.js'
-import { validateMeetingSpec, createMeetingInvite } from './schedule/ics.js'
+import { validateMeetingSpec, createMeeting } from './outlook-bridge/meeting.js'
 
 function renderBundle(label: string, b: ContextBundle): string {
   const lines: string[] = [`── ${label} ──`]
@@ -327,12 +327,13 @@ async function main() {
       break
     }
     case 'schedule:draft-meeting': {
-      // --payload=<MeetingSpec>. Generates ONE .ics and opens it in Outlook as an
-      // editable, sendable invite (the user reviews, adds the join link, sends). Never sends.
+      // --payload=<MeetingSpec>. Opens ONE reviewable, UNSENT meeting invite in Outlook
+      // (To + subject + time pre-filled); the agenda body is left on the clipboard for a
+      // single paste into the notes field. Never sends — the user adds the join link + sends.
       const v = validateMeetingSpec(payload())
       if (!v.ok) throw new Error(v.error)
-      const file = await createMeetingInvite(v.value)
-      console.log(JSON.stringify({ drafted: v.value.subject, start: v.value.start, ics: file }))
+      await createMeeting(v.value)
+      console.log(JSON.stringify({ drafted: v.value.subject, start: v.value.start, attendees: v.value.attendees, agendaOnClipboard: !!v.value.body }))
       break
     }
     default:
