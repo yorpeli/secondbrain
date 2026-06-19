@@ -13,6 +13,9 @@ import 'dotenv/config'
 //   rules:supersede --payload=<json>        { oldId, rule }
 //   rules:pin --id=<uuid>
 //   rules:distill [--mark=<ids>]            load undistilled feedback (or stamp processed ids)
+//   send-initiated --payload=<InitiatedInput>  outgoing flow: push Outlook draft + persist initiated card + feedback
+//   contacts:resolve --query=<name|email>      resolve a recipient → {slug?,name?,email?,source}
+//   contacts:learn --payload={email,name?|slug?} backfill people.email / upsert comms_contacts
 import { readFileSync } from 'node:fs'
 import {
   insertPrediction, upsertPredictions, listPredictions, reconcilePrediction,
@@ -24,6 +27,9 @@ import { classifyEmail, type EmailMeta } from './classify.js'
 import { buildCardPayload } from './card.js'
 import { loadUndistilledFeedback, markDistilled } from './distill.js'
 import { pullClaudeTagged, pullUnread } from './outlook-bridge/gather.js'
+import { pushFreshDraft } from './outlook-bridge/push-client.js'
+import { recordInitiated, type InitiatedInput } from './initiated.js'
+import { resolveRecipient, upsertExternalContact, backfillPersonEmail, contactBackfillDecision } from './contacts.js'
 import { getSupabase } from '../lib/supabase.js'
 
 function renderBundle(label: string, b: ContextBundle): string {
@@ -228,6 +234,45 @@ async function main() {
       const res = await pullClaudeTagged({ windowDays, today, isResolved })
       process.stderr.write(`pull-outlook claude: total=${res.total} kept=${res.packets.length} drained=${res.cleared}/${res.resolvedDrained.length}\n`)
       console.log(JSON.stringify(res.packets, null, 2))
+      break
+    }
+    case 'send-initiated': {
+      // Outgoing flow post-approval. --payload=<InitiatedInput json>. Pushes a fresh Outlook
+      // draft via the bridge (best-effort) and persists the initiated card + approve-time signal.
+      const input = payload() as InitiatedInput
+      const push = await pushFreshDraft(
+        { to: [input.recipient.email], subject: input.subject, body: input.approved },
+      )
+      const rec = await recordInitiated(input)
+      console.log(JSON.stringify({
+        pushed: push.ok,
+        pushError: push.ok ? undefined : push.error,
+        predictionId: rec.predictionId,
+        signal: rec.signal,
+      }, null, 2))
+      break
+    }
+    case 'contacts:resolve': {
+      const q = arg('query')
+      if (!q) throw new Error('--query=<name|email> required')
+      console.log(JSON.stringify(await resolveRecipient(q), null, 2))
+      break
+    }
+    case 'contacts:learn': {
+      // --payload={ email, name?, slug? }. Known person → backfill people.email (fill/confirm/noop);
+      // external → upsert context_store.comms_contacts.
+      const p = payload() as { email: string; name?: string; slug?: string }
+      if (p.slug) {
+        const r = await resolveRecipient(p.slug)
+        const decision = contactBackfillDecision(r.email, p.email)
+        if (decision === 'fill') { await backfillPersonEmail(p.slug, p.email); console.log(JSON.stringify({ learned: 'people', slug: p.slug, decision })) }
+        else console.log(JSON.stringify({ learned: 'none', slug: p.slug, decision, existing: r.email }))
+      } else if (p.name) {
+        await upsertExternalContact({ name: p.name, email: p.email })
+        console.log(JSON.stringify({ learned: 'contacts', name: p.name }))
+      } else {
+        throw new Error('contacts:learn needs slug (person) or name (external)')
+      }
       break
     }
     default:
