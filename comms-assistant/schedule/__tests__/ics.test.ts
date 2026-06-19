@@ -20,6 +20,13 @@ test('sanitizeSummary strips dashes (which blank the Subject in Outlook) but kee
   assert.equal(sanitizeSummary('Weekly Sync - Elad'), 'Weekly Sync Elad')
   assert.equal(sanitizeSummary('1:1 Elad'), '1:1 Elad')
   assert.equal(sanitizeSummary('Q3 — KYC'), 'Q3 KYC') // em-dash too
+  assert.equal(sanitizeSummary('Q3 − KYC'), 'Q3 KYC') // minus sign U+2212
+  assert.equal(sanitizeSummary('Plan­ning'), 'Planning') // soft hyphen U+00AD
+})
+
+test('validateMeetingSpec rejects end not after start', () => {
+  assert.equal(validateMeetingSpec({ subject: 's', body: 'b', attendees: ['a@b.com'], start: '2026-06-17T10:30', end: '2026-06-17T10:00' }).ok, false)
+  assert.equal(validateMeetingSpec({ subject: 's', body: 'b', attendees: ['a@b.com'], start: '2026-06-17T10:00', end: '2026-06-17T10:00' }).ok, false)
 })
 
 test('escapeIcsText escapes RFC 5545 special chars', () => {

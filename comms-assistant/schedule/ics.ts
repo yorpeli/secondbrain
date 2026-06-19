@@ -19,6 +19,8 @@ export function validateMeetingSpec(input: unknown): MeetingValidation {
     return { ok: false, error: 'attendees must be a non-empty array of email addresses' }
   if (typeof o.start !== 'string' || !NAIVE.test(o.start)) return { ok: false, error: 'start must be YYYY-MM-DDTHH:MM' }
   if (typeof o.end !== 'string' || !NAIVE.test(o.end)) return { ok: false, error: 'end must be YYYY-MM-DDTHH:MM' }
+  // Naive datetime strings are fixed-length + zero-padded, so lexical order == chronological.
+  if (o.end <= o.start) return { ok: false, error: 'end must be after start' }
   if (o.location !== undefined && typeof o.location !== 'string') return { ok: false, error: 'location must be a string' }
   return {
     ok: true,
@@ -42,7 +44,10 @@ export function escapeIcsText(s: string): string {
 // and Yonatan's hard no-dashes rule wants them gone anyway. Replace dash-likes with a space,
 // collapse runs, then RFC-escape. Colons are fine and preserved ("1:1 Elad").
 export function sanitizeSummary(s: string): string {
-  const noDash = s.replace(/[‒–—―-]/g, ' ').replace(/\s{2,}/g, ' ').trim()
+  // Any dash blanks the Outlook Subject. Soft hyphen (U+00AD) is an invisible mid-word hint —
+  // delete it (no space); visible dashes (figure/en/em/horizontal-bar U+2012-2015, minus U+2212,
+  // ASCII hyphen) are separators — replace with a space, then collapse runs.
+  const noDash = s.replace(/­/g, '').replace(/[‒–—―−-]/g, ' ').replace(/\s{2,}/g, ' ').trim()
   return escapeIcsText(noDash)
 }
 
