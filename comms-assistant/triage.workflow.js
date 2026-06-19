@@ -81,14 +81,16 @@ function draftPrompt(it, tier, today) {
     : `TODAY = (not provided — reason relative to the latest message date in the thread; do not assume a specific calendar date).`
   return `Follow the contract in \`comms-assistant/prompts/triage-runner.md\` (read it first, then \`comms-assistant/prompts/prediction-subagent.md\`). Repo root: ${REPO}. ${dateLine} slug: ${it.slug}.
 ${deep
-    ? `DEEP (T2): write the THREAD json to /tmp/ti-${it.slug}.json and run \`npx tsx comms-assistant/run.ts context:assemble --file=/tmp/ti-${it.slug}.json\` to ground (rules spine, T1 people, T2 ownership incl. referenceFacts, T3 narrative). You MAY searchByType for more.`
+    ? `DEEP (T2): the \`thread\` object${it.bodyFile ? ` in ${it.bodyFile}` : ''} is a ThreadInput — write just that object to /tmp/cx-${it.slug}.json and run \`npx tsx comms-assistant/run.ts context:assemble --file=/tmp/cx-${it.slug}.json\` to ground (rules spine, T1 people, T2 ownership incl. referenceFacts, T3 narrative). You MAY searchByType for more.`
     : `SHALLOW (T1): do NOT run deep grounding — reason from the thread + the ownership note below. ${it.ownership_note || ''}`}
 Apply the pinned rules (executive voice; route = name owner don't publicly instruct; stale-thread delay-acknowledgment if it's been waiting ~1wk+). ${it.lang_hint || ''}
 Produce suggestion + self_check via the enforced schema. Return ONLY the structured object.
-EMAIL: ${JSON.stringify(it.email)}
+${it.bodyFile
+    ? `EMAIL, THREAD and BODY are in the JSON file at ${it.bodyFile} — Read it FIRST (keys: \`email\`, \`thread\`, \`body\`) and reason from its full contents.`
+    : `EMAIL: ${JSON.stringify(it.email)}
 THREAD: ${JSON.stringify(it.thread)}
 BODY:
-${it.body || it.email.excerpt || ''}`
+${it.body || it.email.excerpt || ''}`}`
 }
 
 const LENS_GUIDE = {
@@ -99,9 +101,11 @@ const LENS_GUIDE = {
 function verifyPrompt(d, lens) {
   return `You are an ADVERSARIAL verifier. Find the strongest reason the suggestion below is WRONG, through the "${lens}" lens. Assume there is a flaw; default refuted=true unless it clearly survives. Repo: ${REPO}; slug: ${d.slug}.
 LENS — ${lens}: ${LENS_GUIDE[lens]}
-THREAD: ${JSON.stringify(d.thread)}
+${d.bodyFile
+    ? `THREAD and BODY are in the JSON file at ${d.bodyFile} — Read it FIRST (keys: \`thread\`, \`body\`).`
+    : `THREAD: ${JSON.stringify(d.thread)}
 BODY:
-${d.body || d.email.excerpt || ''}
+${d.body || d.email.excerpt || ''}`}
 SUGGESTED ACTION: ${JSON.stringify(d.suggestion.action)}
 DRAFT TEXT: ${d.suggestion.text || '(no drafted message — non-message action)'}
 WHY: ${d.suggestion.why}
@@ -124,7 +128,7 @@ const out = await pipeline(items,
     if (tier === 0) { log(`#${it.slug}: T0 templated`); return { email: it.email, thread: it.thread, tier, ...t0Card(it) } }
     const r = await agent(draftPrompt(it, tier, TODAY), { label: `draft:${it.slug} (T${tier})`, phase: 'Draft', schema: SUGGESTION_SCHEMA })
     if (!r) return { email: it.email, thread: it.thread, tier, suggestion: null, verdict: null }
-    return { email: it.email, thread: it.thread, body: it.body, slug: it.slug, tier, suggestion: r.suggestion, self_check: r.self_check, verdict: null }
+    return { email: it.email, thread: it.thread, body: it.body, bodyFile: it.bodyFile, slug: it.slug, tier, suggestion: r.suggestion, self_check: r.self_check, verdict: null }
   },
   // Stage 2 — adversarial verify (T2 only): 3 diverse lenses, majority refute = flagged
   async (d) => {
