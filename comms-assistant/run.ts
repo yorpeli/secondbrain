@@ -13,6 +13,11 @@ import 'dotenv/config'
 //   rules:supersede --payload=<json>        { oldId, rule }
 //   rules:pin --id=<uuid>
 //   rules:distill [--mark=<ids>]            load undistilled feedback (or stamp processed ids)
+//   schedule:resolve --group=<g>|--names=<csv>   resolve attendees → {slug,name,email}
+//   schedule:busy --window=A..B                  the user's own busy blocks (local osascript)
+//   schedule:find-times --payload=<json>         rank candidate slots (pure); --payload.count to spread
+//   schedule:agenda-context --slug=<slug>        grounding material for an agenda
+//   schedule:draft-meeting --payload=<MeetingSpec>  generate ONE .ics + open it in Outlook (editable, sendable; never sent)
 //   send-initiated --payload=<InitiatedInput>  outgoing flow: push Outlook draft + persist initiated card + feedback
 //   contacts:resolve --query=<name|email>      resolve a recipient → {slug?,name?,email?,source}
 //   contacts:learn --payload={email,name?|slug?} backfill people.email / upsert comms_contacts
@@ -31,6 +36,11 @@ import { pushFreshDraft } from './outlook-bridge/push-client.js'
 import { recordInitiated, type InitiatedInput } from './initiated.js'
 import { resolveRecipient, upsertExternalContact, backfillPersonEmail, contactBackfillDecision } from './contacts.js'
 import { getSupabase } from '../lib/supabase.js'
+import { rankSlots, pickSpread } from './schedule/find-times.js'
+import { resolveGroup, resolveNames, normalizeGroup } from './schedule/meeting-request.js'
+import { gatherAgendaContext } from './schedule/agenda-context.js'
+import { readBusy } from './outlook-bridge/calendar.js'
+import { validateMeetingSpec, createMeetingInvite } from './schedule/ics.js'
 
 function renderBundle(label: string, b: ContextBundle): string {
   const lines: string[] = [`── ${label} ──`]
@@ -277,6 +287,52 @@ async function main() {
       } else {
         throw new Error('contacts:learn needs slug (person) or name (external)')
       }
+      break
+    }
+    case 'schedule:resolve': {
+      // --group=skip-levels|directs  OR  --names=elad-schnarch,ira-martinenko
+      const group = arg('group')
+      const names = arg('names')
+      if (group) {
+        const out = await resolveGroup(group)
+        console.log(JSON.stringify({ group: normalizeGroup(group), resolved: out }, null, 2))
+      } else if (names) {
+        const out = await resolveNames(names.split(',').map((s) => s.trim()).filter(Boolean))
+        console.log(JSON.stringify(out, null, 2))
+      } else {
+        throw new Error('schedule:resolve needs --group=<group> or --names=<csv>')
+      }
+      break
+    }
+    case 'schedule:busy': {
+      // --window=YYYY-MM-DD..YYYY-MM-DD — the user's own busy blocks (local osascript)
+      const win = arg('window')
+      if (!win || !win.includes('..')) throw new Error('schedule:busy needs --window=YYYY-MM-DD..YYYY-MM-DD')
+      const [a, b] = win.split('..')
+      console.log(JSON.stringify(await readBusy(a, b), null, 2))
+      break
+    }
+    case 'schedule:find-times': {
+      // --payload=<{ windowStartDay, windowEndDay, durationMin, busy[], nowNaive, constraints?, count? }>
+      const p = payload()
+      const slots = rankSlots(p)
+      const out = p.count ? pickSpread(slots, p.count) : slots
+      console.log(JSON.stringify(out, null, 2))
+      break
+    }
+    case 'schedule:agenda-context': {
+      const slug = arg('slug')
+      if (!slug) throw new Error('schedule:agenda-context needs --slug=<person-slug>')
+      console.log(JSON.stringify(await gatherAgendaContext(slug), null, 2))
+      break
+    }
+    case 'schedule:draft-meeting': {
+      // --payload=<MeetingSpec>. Generates ONE .ics and opens it in Outlook as an
+      // editable, sendable invite (the user reviews, adds the join link, sends). Never sends.
+      const v = validateMeetingSpec(payload())
+      if (!v.ok) throw new Error(v.error)
+      const file = await createMeetingInvite(v.value)
+      console.log(JSON.stringify({ drafted: v.value.subject, start: v.value.start, ics: file }))
       break
     }
     default:
