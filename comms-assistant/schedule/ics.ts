@@ -51,11 +51,6 @@ function icsLocal(naive: string): string {
   return naive.replace(/[-:]/g, '') + '00'
 }
 
-// Fold a content line to <=75 octets per RFC 5545 (continuation lines start with a space).
-export function foldLine(line: string): string {
-  return line
-}
-
 export interface IcsOpts {
   uid: string
   dtstamp: string
@@ -86,7 +81,10 @@ export function buildIcs(spec: MeetingSpec, opts: IcsOpts): string {
     lines.push(`ATTENDEE;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${a.trim()}`)
   }
   lines.push('END:VEVENT', 'END:VCALENDAR')
-  return lines.map(foldLine).join('\r\n') + '\r\n'
+  // No RFC line-folding: our only consumer (Outlook for Mac) accepts long unfolded
+  // lines (verified live), and folding risks splitting a value if the reader doesn't
+  // unfold correctly. Add folding here if a stricter .ics consumer is ever introduced.
+  return lines.join('\r\n') + '\r\n'
 }
 
 function pad(n: number): string { return String(n).padStart(2, '0') }
