@@ -103,7 +103,7 @@ as-of-safe for backtests — but that's secondary to the predict-vs-assist split
 ## Commands (`npm run comms-assistant -- <cmd>`)
 Live wiring: `classify`, `context:assemble`, `context:probe`.
 DB: `predictions:add|add-many|list|reconcile`, `rules:list|add|supersede|pin`, `rules:distill [--mark=<ids>]`.
-Outgoing: `send-initiated --payload=<InitiatedInput.json>`, `contacts:resolve --query=<name|email>`, `contacts:learn --payload='{...}'`.
+Outgoing: `send-initiated --payload=<InitiatedInput.json>`, `contacts:resolve --query=<name|email>`, `contacts:learn --payload=<file.json>` (file holds `{slug|name, email}`; `--payload` is always a FILE PATH, not inline JSON).
 Still to build: Pass B Sent-Items reconcile (demoted fallback; see Two-flow architecture above).
 
 ## Outgoing email flow ("send X an email about it")
@@ -136,9 +136,11 @@ draft it**, not a blind sub-agent. Read-only: the bridge opens a draft in Outloo
    signal: edit → `comms_feedback` kind `edit` with the `delta`; verbatim → kind `note`
    `approved_verbatim`. `rules:distill` consumes it like any feedback. The approve-time edit diff
    is the primary signal — not a Sent-Items reconcile.
-7. **Learn the contact (if you had to ask).** `npm run comms-assistant -- contacts:learn --payload='{"slug":"…","email":"…"}'`
-   (known person → backfills `people.email`; `fill` silently, `confirm` if it differs) or
-   `--payload='{"name":"Vendor X","email":"…"}'` (external → `comms_contacts`). Next time, no ask.
+7. **Learn the contact (if you had to ask).** `--payload` is a **file path**, not inline JSON. Write the JSON to a temp
+   file, then `npm run comms-assistant -- contacts:learn --payload=/tmp/learn.json`. File shape:
+   `{"slug":"elad-schnarch","email":"…"}` (known person → backfills `people.email`; `fill` silently, `confirm` if it
+   differs; an unresolved slug → `{"learned":"none","reason":"slug not found in people"}`) or
+   `{"name":"Vendor X","email":"…"}` (external → `comms_contacts`). Next time, no ask.
 
 `InitiatedInput`: `{ recipient:{email,name?,slug?}, subject, draft, approved, trigger_text,
 action_type?, action_target?, thread?:ThreadInput, tier?, verdict?, confidence?, why?, memory_brief?, sensitive? }`.

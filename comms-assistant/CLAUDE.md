@@ -165,9 +165,11 @@ heads-up on this". The email is about **what you just discussed** — you (the c
    down, fall back to pasting the approved text), then persists the `mode:'initiated'` card and records the
    **approve-time signal** (edit → `comms_feedback` kind `edit` with the `delta`; verbatim → kind `note`
    `approved_verbatim`). `rules:distill` consumes it like any feedback.
-7. **Learn the contact (if you had to ask).** `npm run comms-assistant -- contacts:learn --payload='{"slug":"…","email":"…"}'`
-   (known person → backfill `people.email`; `fill` silently, `confirm` first if it differs) or
-   `--payload='{"name":"Vendor X","email":"…"}'` (external → `comms_contacts`). Next time, no ask.
+7. **Learn the contact (if you had to ask).** `--payload` is a **file path** (like every other command), NOT inline JSON.
+   Write the JSON to a temp file, then `npm run comms-assistant -- contacts:learn --payload=/tmp/learn.json`. File shape:
+   `{"slug":"elad-schnarch","email":"…"}` (known person → backfill `people.email`; `fill` silently, `confirm` first if it
+   differs; a slug that doesn't resolve to a person → `{"learned":"none","reason":"slug not found in people"}`) or
+   `{"name":"Vendor X","email":"…"}` (external → `comms_contacts`). Next time, no ask.
 
 `InitiatedInput` (step 6 payload): `{ recipient:{email,name?,slug?}, subject, draft, approved, trigger_text,
 action_type?, action_target?, thread?:ThreadInput, tier?, verdict?, confidence?, why?, memory_brief?, sensitive? }`.
