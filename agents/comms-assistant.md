@@ -103,7 +103,49 @@ as-of-safe for backtests — but that's secondary to the predict-vs-assist split
 ## Commands (`npm run comms-assistant -- <cmd>`)
 Live wiring: `classify`, `context:assemble`, `context:probe`.
 DB: `predictions:add|add-many|list|reconcile`, `rules:list|add|supersede|pin`, `rules:distill [--mark=<ids>]`.
+Outgoing: `send-initiated --payload=<InitiatedInput.json>`, `contacts:resolve --query=<name|email>`, `contacts:learn --payload='{...}'`.
 Still to build: Pass B Sent-Items reconcile (demoted fallback; see Two-flow architecture above).
+
+## Outgoing email flow ("send X an email about it")
+
+Triggered mid-conversation when Yonatan says "send Elad an email about it", "draft an email to Yael re: …",
+"email Yaron a heads-up on this". The conversation is the source material — **you (the conversation agent)
+draft it**, not a blind sub-agent. Read-only: the bridge opens a draft in Outlook, **never sends**.
+
+1. **Resolve recipient.** `npm run comms-assistant -- contacts:resolve --query="<name|email>"` →
+   `{slug?,name?,email?,source}`. If `source:'unknown'` or `email` missing → ask Yonatan once.
+2. **Gather.** Build a `ThreadInput` (`subject`=topic, `participants`=[yonatan-orpeli, recipient],
+   `bodyToDate`=brief of what was discussed) and run `context:assemble` — rule spine + T1/T2/T3.
+   Surface the `memory_brief` + sources.
+3. **Draft** in Yonatan's voice applying the rule spine + pinned executive-voice (see
+   `prompts/prediction-subagent.md` → *Initiated mode*). Opening conventions: greeting + purpose
+   in the first line (no stale-thread acknowledgment — there's no lag to own). Self-eval
+   (language / etiquette / exec-voice). Compute **stakes**: SVP+ recipient (Yaron, Oren) /
+   external or vendor / sensitive topic / grounding-heavy factual claims → **escalate**.
+4. **Escalate (high-stakes only).** Dispatch three fresh/blind adversarial verifiers (faithfulness /
+   ownership-and-facts / voice-and-etiquette) over {draft, bundle, brief}. Majority-refute
+   (≥2/3, severity > none) → surface the flags inline before showing the draft. Verifiers stay
+   fresh (independent, never sharing the drafter's context).
+5. **Show + approve in chat.** Present draft + recipient + `memory_brief`/sources + confidence +
+   any flags. Yonatan approves / edits / asks for a revision (loop back to 3 up to three times).
+6. **Push + persist (one command).** `npm run comms-assistant -- send-initiated --payload=<InitiatedInput.json>`:
+   pushes a fresh Outlook draft via the bridge (needs `npm run outlook-bridge` + Legacy Outlook;
+   if bridge is down, fall back to pasting the approved text). Then persists the `mode:'initiated'`
+   card to `comms_predictions` and records the **approve-time edit diff** as the primary learning
+   signal: edit → `comms_feedback` kind `edit` with the `delta`; verbatim → kind `note`
+   `approved_verbatim`. `rules:distill` consumes it like any feedback. The approve-time edit diff
+   is the primary signal — not a Sent-Items reconcile.
+7. **Learn the contact (if you had to ask).** `npm run comms-assistant -- contacts:learn --payload='{"slug":"…","email":"…"}'`
+   (known person → backfills `people.email`; `fill` silently, `confirm` if it differs) or
+   `--payload='{"name":"Vendor X","email":"…"}'` (external → `comms_contacts`). Next time, no ask.
+
+`InitiatedInput`: `{ recipient:{email,name?,slug?}, subject, draft, approved, trigger_text,
+action_type?, action_target?, thread?:ThreadInput, tier?, verdict?, confidence?, why?, memory_brief?, sensitive? }`.
+`draft` = what you first composed; `approved` = what Yonatan OK'd (equal if verbatim).
+
+Sensitive topics: drafted-but-flagged (he explicitly asked), unlike incoming-sensitive which is never
+drafted. Always show the flag. Contact learning: known-person backfills `people.email`; external
+upserts to `comms_contacts`. Full procedure: [comms-assistant/CLAUDE.md](../comms-assistant/CLAUDE.md).
 
 ## Triage sweep (repeatable) — natural-language trigger
 When Yonatan says **"sweep my unread"**, **"triage my inbox"**, **"morning triage"**, or **"what

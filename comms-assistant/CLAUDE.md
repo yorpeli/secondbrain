@@ -143,6 +143,35 @@ Triggers: "sweep my unread", "triage my inbox", "morning triage", "what needs a 
 
 Single-email help ("draft a reply to X") = the same pipeline for one thread.
 
+## Outgoing flow — "send X an email about it" (Yonatan never runs the CLI; you do)
+Triggers (mid-conversation): "send Elad an email about it", "draft an email to Yael re: …", "email Yaron a
+heads-up on this". The email is about **what you just discussed** — you (the conversation agent) draft it.
+1. **Resolve recipient.** `npm run comms-assistant -- contacts:resolve --query="<name|email>"` → `{slug?,name?,email?,source}`.
+   If `source:'unknown'` or `email` missing → ask Yonatan once (or he adds it in Outlook). Capture the address.
+2. **Gather.** Build a `ThreadInput` (`subject`=topic, `participants`=[yonatan-orpeli, recipient], `bodyToDate`=a short
+   brief of what we discussed) and run `assembleContext` (`context:assemble --file=…`) — rule spine + T1/T2/T3.
+   Surface what you pulled (`memory_brief` + sources).
+3. **Draft** in Yonatan's voice applying the rule spine + pinned executive-voice (see `prompts/prediction-subagent.md`
+   → *Initiated mode*). Self-eval (language/etiquette/exec-voice). Compute **stakes**: SVP+ / external-or-vendor /
+   sensitive / grounding-heavy claims → **escalate**.
+4. **Escalate (high-stakes only).** Dispatch three fresh/blind adversarial verifiers (faithfulness /
+   ownership-and-facts / voice-and-etiquette) over {draft, bundle, brief}; majority-refute → surface the flags
+   inline before showing the draft.
+5. **Show + approve in chat.** Present draft + recipient + `memory_brief`/sources + confidence + any flags. Yonatan
+   approves / edits / asks for a revision (loop 3).
+6. **Push + persist + learn (one command).** `npm run comms-assistant -- send-initiated --payload=<InitiatedInput.json>`:
+   pushes a fresh Outlook draft via the bridge (best-effort — needs `npm run outlook-bridge` + Legacy Outlook; if
+   down, fall back to pasting the approved text), then persists the `mode:'initiated'` card and records the
+   **approve-time signal** (edit → `comms_feedback` kind `edit` with the `delta`; verbatim → kind `note`
+   `approved_verbatim`). `rules:distill` consumes it like any feedback.
+7. **Learn the contact (if you had to ask).** `npm run comms-assistant -- contacts:learn --payload='{"slug":"…","email":"…"}'`
+   (known person → backfill `people.email`; `fill` silently, `confirm` first if it differs) or
+   `--payload='{"name":"Vendor X","email":"…"}'` (external → `comms_contacts`). Next time, no ask.
+
+`InitiatedInput` (step 6 payload): `{ recipient:{email,name?,slug?}, subject, draft, approved, trigger_text,
+action_type?, action_target?, thread?:ThreadInput, tier?, verdict?, confidence?, why?, memory_brief?, sensitive? }`.
+`draft` = what you first composed; `approved` = what Yonatan OK'd (equal if verbatim).
+
 ## Grounding (live mode) — use the vector search we already built
 We have embeddings + vector search built **for exactly this**. If you believe more of our own data
 would make a draft better, **just go get it** via `searchByType(query, [types])` (`lib/embeddings.ts`) —
@@ -183,12 +212,15 @@ sanctioned grounding path; **don't hand-write ad-hoc SQL** and don't build a sep
   and for meeting/scheduling items, drop confirms whose date already passed.
 
 ## Files
-`run.ts` (CLI: classify · context:assemble/probe · predictions:* · rules:*) · `classify.ts` (triage gate — keeps fresh+reply, drops noise/sensitive; `--backtest` = Re:-only `needsPrediction`)
+`run.ts` (CLI: classify · context:assemble/probe · predictions:* · rules:* · **send-initiated · contacts:resolve/learn**) · `classify.ts` (triage gate — keeps fresh+reply, drops noise/sensitive; `--backtest` = Re:-only `needsPrediction`)
 · `retrieve.ts` (tiered context: T1 identity / T2 ownership / T3 narrative + rule spine; `assembleContext`, `ThreadInput`, `ContextBundle`)
 · `render-triage.ts` (triage HTML fallback/export — **▸ action line**, channel icons, HE⇄EN toggle, collapsible context, structured brief) · `templates/triage.html` (page look)
 · `card.ts` (`buildCardPayload` — assembles the full presentation payload written to `comms_predictions.card`)
 · `sweep.ts` (`classifyThreadForSweep` — skip/refresh policy; guards `user_touched` cards from clobber)
 · `distill.ts` (Flow 2 load/mark — reads undistilled `comms_feedback`, marks rows processed after `rules:distill`)
+· `initiated.ts` (outgoing flow: `buildInitiatedRow` + `recordInitiated` — persist a `mode:'initiated'` card + approve-time `comms_feedback`)
+· `contacts.ts` (`resolveRecipient` / `upsertExternalContact` / `backfillPersonEmail` / `contactBackfillDecision` — recipient resolution + contact learning)
 · `store.ts` `asof.ts` `delta.ts` (`actionDelta` — suggested-vs-actual action diff) `confidence.ts` `types.ts` (`SuggestedAction`/`ActionType`) · `prompts/prediction-subagent.md` · `RUNBOOK.md` (v1 backtest).
 · **`outlook-bridge/`** — the **"✉ Push to Outlook draft"** path: `/triage` button → local Node bridge (`npm run outlook-bridge`, 127.0.0.1:7777, token-gated) → `osascript` (argv, no shell) → `draft.applescript` opens a reviewable Outlook draft (fresh compose / threaded **reply-all**). **Never sends** (read-only/human-in-the-loop preserved). The same bridge backs **"Open in Outlook"** (`POST /open`) — pops the actual message open in the desktop app (locate-only, **no mutation**), **bridge-first with OWA web-link fallback** when the bridge is down / the message isn't in the Inbox. **Requires Legacy Outlook for Mac** (New Outlook's AppleScript is dead — compose-only). Reply keys are read from the **top-level `comms_predictions` columns** (`mode`/`internet_message_id`/`last_message_id`), NOT `card.email`. Full doc + hard-won AppleScript/data-shape lessons: [`outlook-bridge/README.md`](outlook-bridge/README.md).
   The same `outlook-bridge/` is also the **DEFAULT email GATHER** (not just the send/open side): `npx tsx comms-assistant/run.ts pull-outlook --source=unread|claude` → osascript reads unread (`whose is read is false`) or `Claude`-category emails → classify (drop noise / flag sensitive; Claude-tag bypasses) → collapse by **Thread-Index root** → emits `CapturePacket[]` for the `comms-triage` workflow → `predictions:add-many` → `/triage`. **Email gather is bridge-first; MCP `outlook_email_search` is the fallback; Teams stays MCP.** Trigger "pull Claude emails" = `--source=claude` (curated, with lazy tag-drain). Full doc: [`outlook-bridge/GATHER.md`](outlook-bridge/GATHER.md).
+· `outlook-bridge/push-client.ts` (`pushFreshDraft` — terminal-side POST /draft fresh compose) for the outgoing flow (`run.ts send-initiated`). The app's browser caller is `app/src/lib/draft-request.ts`.

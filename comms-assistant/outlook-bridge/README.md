@@ -80,6 +80,8 @@ Files:
 - `server.ts` — `createBridge()`: token gate, CORS, single-response guard, shared `runScript` spawn (injectable `spawnFn`); routes `/draft` + `/read` + `/open`.
 - `draft.applescript` — `on run argv` → fresh compose / threaded reply-all / read-flag flip / open-message.
 - `bridge.ts` — entrypoint: loads env, binds `127.0.0.1:7777`.
+- `push-client.ts` — Node/terminal caller of `POST /draft` (fresh compose) for the comms-assistant
+  **outgoing flow** (`run.ts send-initiated`). The app's browser caller is `app/src/lib/draft-request.ts`.
 - App side: `app/src/lib/draft-request.ts` (`buildDraftRequest`, `buildMarkReadRequest`, `canBridgeMarkRead`, `buildOpenRequest`, `canBridgeOpen`), `app/src/hooks/use-triage.ts` (`usePushOutlookDraft`, `useMarkRead`, `useOpenInOutlook`), `app/src/pages/triage.tsx` (push/mark-read buttons), `app/src/components/triage/triage-detail.tsx` (the "Open in Outlook" header button).
 - DB side: `comms_mark_read(p_prediction_id, p_queue_sync default true)` — dismisses the card + logs feedback always; queues the `outlook-sync` task only when `p_queue_sync` (the fallback).
 

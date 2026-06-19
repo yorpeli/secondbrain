@@ -335,6 +335,32 @@ prediction is delegated to clean contexts.
 **Prediction and analysis run on *different* items each sweep:** Pass B reconciles yesterday's
 predictions while Pass A predicts today's new mail.
 
+### 9.1 Initiated (outgoing) flow
+
+A second surface on the same architecture: mid-conversation, Yonatan asks to send someone an email
+about what was just discussed. The conversation is the source material — **the main agent drafts**
+(it holds that context), not a blind sub-agent. The flow reuses every layer:
+
+- **Gather:** `assembleContext` on a synthesized `ThreadInput` (topic, participants, brief) — same
+  rule spine + T1/T2/T3, same `memory_brief` + sources transparency.
+- **Draft + evaluate:** same voice, pinned executive-voice, same stakes-adaptive verification.
+  High-stakes (SVP+ / external or vendor / sensitive topic / grounding-heavy claims) → escalate to
+  three fresh/blind adversarial verifiers; otherwise self-eval is sufficient — Yonatan is the live reviewer.
+- **Push:** `send-initiated` (CLI) calls `pushFreshDraft` (`outlook-bridge/push-client.ts`) to POST
+  `/draft` (fresh compose) to the local bridge → osascript → reviewable Outlook draft window.
+  **Never sends** — the human-in-the-loop invariant is identical to the incoming flow.
+- **Persist:** `recordInitiated` (`initiated.ts`) writes the `mode:'initiated'` card to
+  `comms_predictions` and records the **approve-time edit diff** as the primary learning signal
+  (`comms_feedback` kind `edit` with the `delta`, or kind `note` `approved_verbatim`). This is the
+  primary signal — not a Sent-Items reconcile (which does not apply here).
+- **Contact learning:** `resolveRecipient` (`contacts.ts`) looks up the recipient before drafting;
+  after approval, `contactBackfillDecision` / `backfillPersonEmail` / `upsertExternalContact`
+  backfill `people.email` (known persons) or `comms_contacts` (external) so the address is never
+  re-asked. `rules:distill` consumes the approve-time feedback identically to the incoming loop.
+
+Sensitive topics are drafted-but-flagged (unlike incoming-sensitive, which is never drafted — here
+the person explicitly asked). The flag is always shown.
+
 ---
 
 ## 10. Data model & privacy
@@ -432,13 +458,18 @@ should compound what it learns from being wrong.**
 | `prompts/triage-runner.md` | the per-thread sub-agent contract — steps, output schema, self-eval checklist |
 | `triage.workflow.js` | the 3-layer Workflow — tier → schema-forced draft → self-eval → adversarial verify |
 | `render-triage.ts` / `templates/triage.html` | the numbered, newest-first triage page (tier/verdict/age/channel badges) |
-| `run.ts` | CLI — `classify`, `context:assemble`, `predictions:*`, `rules:*` |
-| `CLAUDE.md` | operational index / runbook for the sweep |
+| `run.ts` | CLI — `classify`, `context:assemble`, `predictions:*`, `rules:*`, `send-initiated`, `contacts:resolve/learn` |
+| `initiated.ts` | outgoing flow: `buildInitiatedRow` + `recordInitiated` — persist `mode:'initiated'` card + approve-time `comms_feedback` |
+| `contacts.ts` | `resolveRecipient` / `upsertExternalContact` / `backfillPersonEmail` / `contactBackfillDecision` — recipient resolution + contact learning |
+| `outlook-bridge/push-client.ts` | `pushFreshDraft` — terminal-side POST `/draft` (fresh compose) for the outgoing flow (`send-initiated`); app's browser caller is `app/src/lib/draft-request.ts` |
+| `CLAUDE.md` | operational index / runbook for the sweep + outgoing flow |
 | `RUNBOOK.md` | v1 backtest procedure |
 
 ---
 
-*Living document. Write-side persistence is wired (2026-06-15); the **Pass-B reconcile helper**
-(match Sent Items → delta → resolution → distill into `comms_rules`) is the next missing piece. When
-the build moves ahead — the reconcile helper, new evaluation lenses, auto-revise, a generalized
-template extraction — update this file in the same PR.*
+*Living document. Write-side persistence wired (2026-06-15); **outgoing (initiated) flow shipped
+(2026-06-19)** — `send-initiated`, `contacts:resolve/learn`, `initiated.ts`, `contacts.ts`,
+`outlook-bridge/push-client.ts`. The **Pass-B reconcile helper** (match Sent Items → delta →
+resolution → distill into `comms_rules`) remains the next missing piece for the incoming loop.
+When the build moves ahead — the reconcile helper, new evaluation lenses, auto-revise, a
+generalized template extraction — update this file in the same PR.*

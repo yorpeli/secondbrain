@@ -93,3 +93,25 @@ Return the structured prediction, ready to map to a `comms_predictions` row + th
 - `memory_brief` — 1-3 lines: what from memory bears on this email / what he should know ("nothing material in memory" if so)
 - `confidence` — band (high|med|low) + `confidence_score` (0-1), set BEFORE any truth
 - `context_available` — copied from `meta` (so the good-with-context / poor-when-cold diagnostic keeps working)
+
+---
+
+## Initiated (outgoing) mode — "send X an email about it"
+
+This is the inverse of prediction. Yonatan, mid-conversation, asks to send someone an email about
+what you just discussed. **The conversation is the source material** — the main agent drafts (it holds
+that context), not a blind sub-agent. The same voice + rulebook + grounding apply. Differences:
+
+- **Source of intent:** the conversation (distilled into `trigger_text`), not an incoming thread.
+- **Gather first:** build a `ThreadInput` (`subject`=synthesized topic, `participants`=[Yonatan, recipient],
+  `bodyToDate`=the brief) and run `assembleContext` — same tiers, same `memory_brief` + `sources` transparency.
+- **Opening conventions:** a fresh initiated email opens with a greeting in the recipient's register/language
+  and states the purpose in the first line — no "stale-thread acknowledgment" (there's no lag to own). Terse
+  still governs; structure multi-point asks as a list.
+- **Executive voice (PINNED) still applies** — cooperative, never accusatory.
+- **Stakes → verify:** escalate to fresh/blind adversarial verifiers (faithfulness / ownership-and-facts /
+  voice-and-etiquette) when the recipient is SVP+ (Yaron, Oren), external/a vendor, the topic is sensitive,
+  or the draft makes grounding-heavy factual claims. Otherwise self-eval + exec-voice is enough — Yonatan is
+  the live reviewer.
+- **Sensitive topics are drafted-but-flagged here** (he explicitly asked), unlike incoming-sensitive which is
+  never drafted. Always show the flag.
