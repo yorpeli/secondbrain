@@ -215,17 +215,17 @@ freely; card data comes from `render-triage.ts` + the retrieval layer.
 
 ## Set up meetings (create flow) — Yonatan never runs the CLI; you do
 
-Triggers: "set up meetings with X", "schedule 1:1s with my skip-levels", "book time with my directs next week". **Create-only** (responding to invites is a future v2). The agent proposes; Yonatan approves in chat; each invite opens in Outlook as an **editable, sendable `.ics`**; **Yonatan adds the Teams/Zoom link and sends himself** (never the agent — preserves read-only MSFT).
+Triggers: "set up meetings with X", "schedule 1:1s with my skip-levels", "book time with my directs next week". **Create-only** (responding to invites is a future v2). The agent proposes; Yonatan approves in chat; each invite opens in Outlook as a **reviewable, unsent meeting** (To + subject + time pre-filled) with the **agenda staged on the clipboard**; **Yonatan pastes the agenda (⌘V), adds the Teams/Zoom link, and sends himself** (never the agent — preserves read-only MSFT).
 
 1. **Resolve attendees.** Groups: `npx tsx comms-assistant/run.ts schedule:resolve --group=skip-levels` (or `directs`, or `--names=elad-schnarch,ira-martinenko`). Flag any `unresolved` — never invent an email. (Note: only people with an `email` in `people` resolve; backfill missing ones first.)
 2. **Read your own availability.** `schedule:busy --window=YYYY-MM-DD..YYYY-MM-DD` (local osascript; your calendar only). Attendee free/busy is NOT available locally — proposed times are based on your openings; invitees accept or counter.
 3. **Rank times.** Feed busy blocks into `schedule:find-times --payload=<{windowStartDay,windowEndDay,durationMin,busy,nowNaive,count}>`. Defaults: 30-min, Sun–Thu, 09:00–18:00, no 13:00 lunch slot, 15-min buffer. Pass `count` = number of meetings to spread one-per-day.
 4. **Draft an agenda per meeting.** `schedule:agenda-context --slug=<person>` returns current focus + recent 1:1s + open action items + narrative. **You write the agenda prose** from that material — keep it short and specific.
 5. **Present the slate in chat** — one row per meeting: attendee · proposed time · agenda summary. Yonatan approves or edits inline ("move Elad to Thursday", "drop the X line").
-6. **Create invites on approval.** For each meeting: `schedule:draft-meeting --payload=<MeetingSpec>` (`{subject,body,attendees[email],start,end,location?}`) — generates an `.ics` and opens it in Outlook as an **editable, sendable** invite. Keep subjects dash-free (a dash blanks the Subject; the generator strips them anyway). Each meeting is independent — report per-row failures, don't abort the batch.
-7. **Hand off.** Tell Yonatan the invites are open in Outlook; he adds the join link and sends. **No auto-record** — normal calendar sync owns the record.
+6. **Create invites on approval.** For each meeting: `schedule:draft-meeting --payload=<MeetingSpec>` (`{subject,body,attendees[email],start,end,location?}`) — opens a reviewable, **unsent** meeting in Outlook with **To + subject + time** pre-filled and the **agenda on the clipboard**. (Outlook-for-Mac can't auto-fill the body alongside a correct time — see `outlook-bridge/meeting.applescript` header; `location` is omitted, Yonatan adds the join link there.) Run these **one at a time** — each leaves its agenda on the clipboard, so tell Yonatan to ⌘V before you create the next. Each meeting is independent — report per-row failures, don't abort the batch.
+7. **Hand off.** Tell Yonatan each invite is open; he pastes the agenda (⌘V), adds the join link, and sends. **No auto-record** — normal calendar sync owns the record.
 
-Requires Outlook for Mac running locally. The busy-read AppleScript and the `.ics` create path were verified live (2026-06-19). If `schedule:busy` returns nothing for a known-busy window, the calendar isn't addressable — report it rather than guessing.
+Requires Outlook for Mac running locally. The busy-read and the meeting-create AppleScript were verified live (2026-06-19). If `schedule:busy` returns nothing for a known-busy window, the calendar isn't addressable — report it rather than guessing.
 
 ## Files
 `run.ts` (CLI) · `classify.ts` (noise/sensitive gate) · `retrieve.ts` (tiered context) ·
