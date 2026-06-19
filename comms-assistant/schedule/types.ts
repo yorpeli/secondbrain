@@ -26,6 +26,8 @@ export interface ResolvedAttendee {
   slug: string
   name: string
   email: string
+  timezone?: string | null // IANA zone (people.timezone) — drives tz/work-week-aware scheduling
+  location?: string | null // office/city label (people.location)
 }
 
 export interface MeetingSpec {

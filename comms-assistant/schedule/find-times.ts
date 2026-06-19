@@ -1,4 +1,13 @@
 import type { BusyBlock, Slot, SlotConstraints } from './types.js'
+import { zonedToUtcMin, partsInZone, workdaysForZone } from './tz.js'
+
+// A meeting attendee in their own timezone/work-week, for cross-zone slot filtering.
+export interface AttendeeWindow {
+  timezone: string // IANA, e.g. 'America/New_York'
+  workdays?: number[] // 0=Sun..6=Sat; defaults from the timezone (Israel Sun–Thu, else Mon–Fri)
+  dayStartHour?: number // local working-hours start (default = organizer's dayStartHour)
+  dayEndHour?: number // local working-hours end
+}
 
 export const DEFAULT_CONSTRAINTS: SlotConstraints = {
   dayStartHour: 9,
@@ -39,10 +48,14 @@ export function rankSlots(opts: {
   busy: BusyBlock[]
   nowNaive: string
   constraints?: Partial<SlotConstraints>
+  organizerTz?: string // IANA zone the busy blocks / candidate slots are expressed in (default Asia/Jerusalem)
+  attendees?: AttendeeWindow[] // keep only slots that also fall in every attendee's local work window
 }): Slot[] {
   const c: SlotConstraints = { ...DEFAULT_CONSTRAINTS, ...(opts.constraints ?? {}) }
   const now = parse(opts.nowNaive).abs
   const busy = opts.busy.map((b) => ({ s: parse(b.start).abs, e: parse(b.end).abs }))
+  const organizerTz = opts.organizerTz ?? 'Asia/Jerusalem'
+  const attendees = opts.attendees ?? []
 
   const startDay = parse(opts.windowStartDay + 'T00:00')
   const endDay = parse(opts.windowEndDay + 'T00:00')
@@ -67,6 +80,22 @@ export function rankSlots(opts: {
       // busy overlap with gap buffer
       const blocked = busy.some((b) => startAbs < b.e + c.minGapMin && endAbs + c.minGapMin > b.s)
       if (blocked) continue
+
+      // attendee timezones: the slot must also land inside every attendee's local work window
+      if (attendees.length) {
+        const u = zonedToUtcMin(fmt(startAbs), organizerTz)
+        const uEnd = u + opts.durationMin
+        const okForAll = attendees.every((a) => {
+          const wd = a.workdays ?? workdaysForZone(a.timezone)
+          const aStart = (a.dayStartHour ?? c.dayStartHour) * 60
+          const aEnd = (a.dayEndHour ?? c.dayEndHour) * 60
+          const ps = partsInZone(u, a.timezone)
+          const pe = partsInZone(uEnd, a.timezone)
+          if (!wd.includes(ps.dow) || ps.dow !== pe.dow) return false // off-day or crosses their midnight
+          return (ps.hour * 60 + ps.minute) >= aStart && (pe.hour * 60 + pe.minute) <= aEnd
+        })
+        if (!okForAll) continue
+      }
 
       slots.push({ start: fmt(startAbs), end: fmt(endAbs), score: scoreSlot(startH, dayIndex) })
     }

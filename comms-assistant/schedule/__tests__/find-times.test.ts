@@ -66,3 +66,30 @@ test('pickSpread returns at most n slots across distinct days', () => {
   const days = new Set(picked.map((s) => s.start.slice(0, 10)))
   assert.equal(days.size, 3) // one per distinct day
 })
+
+test('attendee in New York: drops Sunday (their weekend) and keeps only Israel-evening slots that hit NY mornings', () => {
+  const slots = rankSlots({
+    windowStartDay: '2026-06-21', windowEndDay: '2026-06-25', // Sun..Thu in Israel
+    durationMin: 30, busy: [], nowNaive: '2026-06-19T08:00',
+    organizerTz: 'Asia/Jerusalem',
+    attendees: [{ timezone: 'America/New_York' }],
+  })
+  assert.ok(slots.length > 0)
+  for (const s of slots) {
+    assert.notEqual(s.start.slice(0, 10), '2026-06-21') // 2026-06-21 is Sunday = NY weekend
+    assert.ok(Number(s.start.slice(11, 13)) >= 16, `${s.start} should be >= 16:00 Israel (NY >= 9:00)`)
+  }
+  // Israel Mon 16:00 == NY Mon 09:00 — should be offered
+  assert.ok(slots.some((s) => s.start === '2026-06-22T16:00'))
+})
+
+test('attendee timezone with no overlap yields no slots', () => {
+  // Organizer Israel 9-18 vs an attendee whose 9-18 never overlaps (UTC+14 / Kiritimati): pathological
+  const slots = rankSlots({
+    windowStartDay: '2026-06-22', windowEndDay: '2026-06-22',
+    durationMin: 30, busy: [], nowNaive: '2026-06-19T08:00',
+    organizerTz: 'Asia/Jerusalem',
+    attendees: [{ timezone: 'Pacific/Kiritimati' }],
+  })
+  assert.equal(slots.length, 0)
+})

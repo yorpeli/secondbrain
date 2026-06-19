@@ -15,11 +15,15 @@ export function normalizeGroup(raw: string): string | null {
   return null
 }
 
-function toAttendees(rows: Array<{ slug: string; name: string; email: string | null }>): ResolvedAttendee[] {
+function toAttendees(
+  rows: Array<{ slug: string; name: string; email: string | null; timezone?: string | null; location?: string | null }>,
+): ResolvedAttendee[] {
   return rows
     .filter((r) => r.email && r.email.includes('@'))
-    .map((r) => ({ slug: r.slug, name: r.name, email: r.email as string }))
+    .map((r) => ({ slug: r.slug, name: r.name, email: r.email as string, timezone: r.timezone ?? null, location: r.location ?? null }))
 }
+
+const COLS = 'slug,name,email,timezone,location'
 
 // directs = people whose reports_to_id is the root; skip-levels = reports of those directs.
 export async function resolveGroup(group: string, rootSlug: string = ROOT_SLUG): Promise<ResolvedAttendee[]> {
@@ -32,12 +36,12 @@ export async function resolveGroup(group: string, rootSlug: string = ROOT_SLUG):
   const rootId = root?.[0]?.id
   if (!rootId) throw new Error(`root person not found: ${rootSlug}`)
 
-  const { data: directs } = await sb.from('people').select('id,slug,name,email').eq('reports_to_id', rootId)
+  const { data: directs } = await sb.from('people').select('id,' + COLS).eq('reports_to_id', rootId).eq('status', 'active')
   if (key === 'directs') return toAttendees(directs ?? [])
 
   const directIds = (directs ?? []).map((d: any) => d.id)
   if (directIds.length === 0) return []
-  const { data: skips } = await sb.from('people').select('slug,name,email').in('reports_to_id', directIds)
+  const { data: skips } = await sb.from('people').select(COLS).in('reports_to_id', directIds).eq('status', 'active')
   return toAttendees(skips ?? [])
 }
 
@@ -50,9 +54,9 @@ export async function resolveNames(identifiers: string[]): Promise<{ resolved: R
   for (const id of identifiers) {
     const term = id.trim()
     if (!term) continue
-    let { data } = await sb.from('people').select('slug,name,email').eq('slug', term).limit(1)
+    let { data } = await sb.from('people').select(COLS).eq('slug', term).eq('status', 'active').limit(1)
     if (!data?.length) {
-      ;({ data } = await sb.from('people').select('slug,name,email').ilike('name', `%${term}%`).limit(2))
+      ;({ data } = await sb.from('people').select(COLS).ilike('name', `%${term}%`).eq('status', 'active').limit(2))
     }
     const matches = toAttendees(data ?? [])
     if (matches.length === 1) resolved.push(matches[0])
