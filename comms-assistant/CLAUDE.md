@@ -175,6 +175,17 @@ heads-up on this". The email is about **what you just discussed** — you (the c
 action_type?, action_target?, thread?:ThreadInput, tier?, verdict?, confidence?, why?, memory_brief?, sensitive? }`.
 `draft` = what you first composed; `approved` = what Yonatan OK'd (equal if verbatim).
 
+**Reconcile-on-report (the real Pass B for outgoing).** Chat-approval is usually verbatim, then Yonatan
+often edits again in Outlook before sending. When he tells you what he actually sent, reconcile the row:
+delete the stale `note` (`approved_verbatim`) feedback, then `comms_apply_feedback(id, 'edit', {from:draft,
+to:sent, delta:structuralDelta(draft,sent), mode:'initiated', source:'sent-from-outlook'})` so `edited_reply`
+= the sent text and `rules:distill` learns the real draft→sent diff (not the chat-approved version).
+
+**Known limitation.** `send-initiated` handles a **single** `recipient.email` today. For a multi-recipient
+send (e.g. two leads), drive the internals directly (`pushFreshDraft({to:[a,b],...})` + `recordInitiated`)
+or add the recipient in Outlook. Multi-recipient support (a `recipients[]`/`to` array on `InitiatedInput`
++ the CLI) is a TODO. The bridge itself already accepts multiple recipients.
+
 ## Grounding (live mode) — use the vector search we already built
 We have embeddings + vector search built **for exactly this**. If you believe more of our own data
 would make a draft better, **just go get it** via `searchByType(query, [types])` (`lib/embeddings.ts`) —
