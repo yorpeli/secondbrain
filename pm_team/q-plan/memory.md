@@ -10,6 +10,15 @@
 | Quarter | Status | Initiatives Tracked | Notes |
 |---------|--------|-------------------|-------|
 | Q1-2026 | Active | KYC Vendor Optimization | First quarter tracked. 5 HL items, 14 deliverables. |
+| Q3-2026 | Active | Whole CLM org | Plan `Q3-2026`; 6 strategic threads as plan_items. Knowledge home: `quarter-planning` pillar → `q3-2026-planning` child. Line-item (deliverable) capture pending. |
+
+## Quarter Planning pillar (knowledge home)
+
+Quarterly planning now has a canonical knowledge home in the `initiatives` table:
+- **Pillar `quarter-planning`** (kind=`pillar`) — the planning **method** + **metrics glossary** (BRR, FFT, CVR, TICP, MW/capacity). Its memory doc is the operating manual.
+- **Per-quarter children** (kind=`initiative`, parent_id → pillar) — e.g. `q3-2026-planning`. Each child's memory doc holds that quarter's threads, postures, decisions, owners, risks, and links to its `quarterly_plans` row.
+
+**This agent maintains both** the pillar memory (method + metrics) and each quarter child's memory, alongside the structured `quarterly_plans` / `_items` / `_deliverables` tables. Read the child memory before working a quarter: `searchByType(query, ['initiative_memory'])` or the memory doc directly. Structured plan = machine-readable; memory docs = narrative knowledge. No duplication.
 
 ## Initiative Planning Patterns
 

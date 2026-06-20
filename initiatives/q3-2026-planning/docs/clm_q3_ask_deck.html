@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLM — Q3 Prioritization Asks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#0f1c33;
+    --navy-2:#16263f;
+    --navy-card:#1b2c47;
+    --coral:#ff6b5e;
+    --coral-soft:#ff8c80;
+    --paper:#f5f1e8;
+    --ink:#11203a;
+    --muted:#8ea0bd;
+    --muted-2:#aebccf;
+    --line:rgba(255,255,255,.10);
+    --gold:#e8c97a;
+    --green:#76c79a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--navy);
+    font-family:'Inter',sans-serif;
+    color:#eaf0f9;
+    -webkit-font-smoothing:antialiased;
+  }
+  .deck{max-width:1040px;margin:0 auto;padding:48px 28px 80px;}
+
+  /* ---- slide shell ---- */
+  .slide{
+    background:linear-gradient(160deg,var(--navy-2) 0%,var(--navy) 100%);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:44px 46px 40px;
+    margin-bottom:30px;
+    position:relative;
+    overflow:hidden;
+  }
+  .slide::before{
+    content:"";position:absolute;top:0;left:0;width:5px;height:100%;
+    background:linear-gradient(var(--coral),var(--coral-soft));
+  }
+  .kicker{
+    display:flex;align-items:center;gap:12px;
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--coral);font-weight:600;margin-bottom:14px;
+  }
+  .kicker .num{
+    font-family:'Fraunces',serif;font-size:13px;
+    color:var(--navy);background:var(--coral);
+    width:26px;height:26px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-weight:600;
+  }
+  .kicker .focus{color:var(--muted);font-weight:500;}
+  h1.title{
+    font-family:'Fraunces',serif;font-weight:600;
+    font-size:34px;line-height:1.1;color:#fff;letter-spacing:-.01em;
+    margin-bottom:8px;
+  }
+  .subtitle{font-size:15px;color:var(--muted-2);max-width:78%;margin-bottom:28px;line-height:1.5;}
+
+  /* ---- okr + numbers chips ---- */
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:26px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:999px;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);
+  }
+  .chip .lbl{color:var(--muted);font-weight:500;letter-spacing:.04em;text-transform:uppercase;font-size:10.5px;}
+  .chip.okr{border-color:rgba(232,201,122,.35);background:rgba(232,201,122,.08);color:var(--gold);}
+  .chip.num{border-color:rgba(118,199,154,.35);background:rgba(118,199,154,.08);color:var(--green);}
+  .chip.tbd{border-color:var(--line);background:rgba(255,255,255,.03);color:var(--muted);}
+
+  /* ---- body rows ---- */
+  .rows{display:flex;flex-direction:column;gap:0;}
+  .row{
+    display:grid;grid-template-columns:150px 1fr;gap:22px;
+    padding:16px 0;border-top:1px solid var(--line);
+  }
+  .row:first-child{border-top:none;}
+  .row .rlabel{
+    font-size:11px;letter-spacing:.10em;text-transform:uppercase;
+    color:var(--coral-soft);font-weight:600;padding-top:2px;
+  }
+  .row .rbody{font-size:14.5px;line-height:1.55;color:#dde6f3;}
+  .row .rbody strong{color:#fff;font-weight:600;}
+  .row .rbody .em{color:var(--coral-soft);font-weight:600;}
+
+  .ask{
+    margin-top:26px;padding:16px 20px;border-radius:12px;
+    background:rgba(255,107,94,.10);border:1px solid rgba(255,107,94,.30);
+    font-size:14.5px;line-height:1.5;color:#ffe2dd;
+  }
+  .ask b{color:#fff;font-family:'Fraunces',serif;font-weight:600;
+    letter-spacing:.02em;font-size:12px;text-transform:uppercase;
+    display:block;margin-bottom:5px;color:var(--coral);}
+
+  .link{
+    display:inline-flex;align-items:center;gap:7px;margin-top:4px;
+    color:var(--coral-soft);text-decoration:none;font-weight:600;font-size:13.5px;
+    border-bottom:1px dashed rgba(255,140,128,.4);padding-bottom:1px;
+  }
+  .link:hover{color:#fff;}
+  .link::before{content:"→";font-weight:700;}
+
+  .need{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .need span{
+    font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:7px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);color:#cdd9ea;
+  }
+
+  /* ---- cover ---- */
+  .cover{
+    background:radial-gradient(120% 100% at 0% 0%,#1d3052 0%,var(--navy) 60%);
+    border-radius:18px;padding:64px 50px 58px;margin-bottom:36px;
+    border:1px solid var(--line);position:relative;overflow:hidden;
+  }
+  .cover::after{
+    content:"";position:absolute;right:-80px;top:-80px;width:320px;height:320px;
+    background:radial-gradient(circle,rgba(255,107,94,.22),transparent 70%);
+  }
+  .cover .ey{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--coral);font-weight:600;margin-bottom:22px;}
+  .cover h1{font-family:'Fraunces',serif;font-weight:600;font-size:52px;line-height:1.04;color:#fff;letter-spacing:-.02em;margin-bottom:18px;}
+  .cover p{font-size:16px;color:var(--muted-2);max-width:60%;line-height:1.55;}
+  .cover .meta{margin-top:34px;display:flex;gap:34px;flex-wrap:wrap;}
+  .cover .meta div{font-size:12px;}
+  .cover .meta .k{color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
+  .cover .meta .v{color:#fff;font-weight:600;font-size:14px;}
+
+  .toc{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:38px;}
+  .toc a{
+    display:flex;align-items:center;gap:12px;text-decoration:none;
+    padding:13px 16px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(255,255,255,.03);color:#dde6f3;font-size:14px;font-weight:500;
+    transition:.15s;
+  }
+  .toc a:hover{background:rgba(255,107,94,.10);border-color:rgba(255,107,94,.3);color:#fff;}
+  .toc a .n{font-family:'Fraunces',serif;color:var(--coral);font-weight:600;font-size:15px;}
+
+  .footnote{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5;font-style:italic;}
+
+  @media(max-width:720px){
+    .cover h1{font-size:36px;} .cover p,.cover .meta{max-width:100%;}
+    .toc{grid-template-columns:1fr;}
+    .row{grid-template-columns:1fr;gap:6px;}
+    h1.title{font-size:27px;} .subtitle{max-width:100%;}
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="ey">Enterprise Product · CLM</div>
+    <h1>Q3 Prioritization Asks</h1>
+    <p>CLM-dependent workstreams the Enterprise team needs sequenced into the Q3 track — each tied to a company objective.</p>
+    <div class="meta">
+      <div><div class="k">Audience</div><div class="v">Yonatan &amp; CLM Leadership</div></div>
+      <div><div class="k">From</div><div class="v">Gal Appel · Enterprise PM</div></div>
+      <div><div class="k">Focus areas</div><div class="v">6</div></div>
+    </div>
+    <div class="toc">
+      <a href="#s1"><span class="n">01</span> KYC Services Monitoring</a>
+      <a href="#s2"><span class="n">02</span> CLM Rollout Improvements</a>
+      <a href="#s3"><span class="n">03</span> Expose Final CRP — Walmart</a>
+      <a href="#s4"><span class="n">04</span> AHA — Audit Risky-Payee Attempts</a>
+      <a href="#s5"><span class="n">05</span> Payees Journey Control</a>
+      <a href="#s6"><span class="n">06</span> Unified KYC Dashboard</a>
+    </div>
+  </div>
+
+  <!-- SLIDE 1 -->
+  <section class="slide" id="s1">
+    <div class="kicker"><span class="num">01</span> Focus 1 of 6 <span class="focus">· Monitoring &amp; Cleanup</span></div>
+    <h1 class="title">KYC Services Monitoring</h1>
+    <div class="subtitle">Forward-looking monitoring of KYC compliance across partner programs, plus a one-time cleanup of the existing population.</div>
+    <div class="chips">
+      <span class="chip okr"><span class="lbl">OKR</span> Flawless at the Fundamentals</span>
+      <span class="chip num"><span class="lbl">Revenue today</span> ~$10M / yr</span>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="rlabel">Why</div><div class="rbody">KYC-as-a-service partners (eBay, Best Buy) generate <strong>~$10M / yr</strong> today. There is no forward-looking monitoring of KYC compliance across these programs — gaps surface only via escalation, most recently <strong>eBay / CN</strong>.</div></div>
+      <div class="row"><div class="rlabel">Cost of inaction</div><div class="rbody">The <strong>~$10M / yr</strong> from these programs is exposed. Without monitoring, the same pattern resurfaces on <strong>Etsy, Best Buy</strong> and future programs — recurring escalations, remediation cost, partner-trust erosion.</div></div>
+      <div class="row"><div class="rlabel">Going forward</div><div class="rbody">Stand up a <strong>temporary monitoring mechanism</strong> as an interim measure.
+        <div class="need"><span>Needs: P&amp;Q help to define it</span></div>
+      </div></div>
+      <div class="row"><div class="rlabel">Existing base</div><div class="rbody">One-time cleanup across the existing population — will <strong>improve next audit results</strong> and ensure we provide a high level of service to our clients.
+        <div class="need"><span>Needs: CLM Analyst</span><span>+ P&amp;Q help to execute</span></div>
+      </div></div>
+    </div>
+    <div class="ask"><b>The Ask</b>CLM + P&amp;Q prioritization in Q3 for the monitoring build and the existing-population cleanup.</div>
+  </section>
+
+  <!-- SLIDE 2 -->
+  <section class="slide" id="s2">
+    <div class="kicker"><span class="num">02</span> Focus 2 of 6 <span class="focus">· Onboarding Corrections</span></div>
+    <h1 class="title">CLM Rollout Improvements</h1>
+    <div class="subtitle">Two corrections to the existing onboarding experience.</div>
+    <div class="chips">
+      <span class="chip okr"><span class="lbl">OKR</span> Flawless at the Fundamentals</span>
+      <span class="chip okr"><span class="lbl">OKR</span> Grow Up-Market · conversion</span>
+      <span class="chip tbd"><span class="lbl">Drop-off delta</span> TBD</span>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="rlabel">Consent flow</div><div class="rbody">Today consent redirects the AH <strong>outside</strong> CLM registration — friction and drop-off at a costly moment. <span class="em">Push the consent step to after document submission</span> so the AH stays inside CLM.</div></div>
+      <div class="row"><div class="rlabel">Billing country — Companies</div><div class="rbody">When a client sends billing country in the API token, CLM currently <strong>double-locks both Incorporation and billing</strong> fields. Move to role-based locking: <strong>Individuals lock billing; Companies lock Incorporation only</strong> (billing stays open, KYC driven by Incorporation).</div></div>
+      <div class="row"><div class="rlabel">Reference</div><div class="rbody"><a class="link" href="#">Incorporation vs. Billing — Integrations brief (HTML)</a><div class="footnote">Replace with hosted URL.</div></div></div>
+    </div>
+    <div class="ask"><b>The Ask</b>CLM to sequence the consent move and the role-based country-locking rules into the Q3 rollout track.</div>
+  </section>
+
+  <!-- SLIDE 3 -->
+  <section class="slide" id="s3">
+    <div class="kicker"><span class="num">03</span> Focus 3 of 6 <span class="focus">· Strategic Partner</span></div>
+    <h1 class="title">Expose the Final CRP — Walmart</h1>
+    <div class="subtitle">Make the post-registration CRP value identifiable and externally shareable to Walmart.</div>
+    <div class="chips">
+      <span class="chip okr"><span class="lbl">OKR</span> Grow Up-Market · protect Strategic Partner</span>
+      <span class="chip tbd"><span class="lbl">Revenue</span> TBD</span>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="rlabel">Why</div><div class="rbody">CRP is calculated multiple times during onboarding. Today there is <strong>no clear signal</strong> for which calculation is the final one — the value Walmart needs us to share.</div></div>
+      <div class="row"><div class="rlabel">Cost of inaction</div><div class="rbody">Without that signal we cannot reliably surface an AH's CRP after registration, <strong>blocking the data commitment we owe Walmart</strong>.</div></div>
+      <div class="row"><div class="rlabel">What's needed</div><div class="rbody">
+        <div class="need"><span>Final-calculation flag</span><span>Exposure layer (queryable / consumable)</span><span>External sharing basis</span></div>
+      </div></div>
+    </div>
+    <div class="ask"><b>The Ask</b>CLM to define and expose the final CRP signal post-AH-registration in Q3 to unblock Walmart.</div>
+    <div class="footnote">No revenue figure available — to be sourced before the meeting if needed.</div>
+  </section>
+
+  <!-- SLIDE 4 -->
+  <section class="slide" id="s4">
+    <div class="kicker"><span class="num">04</span> Focus 4 of 6 <span class="focus">· Risk / Compliance</span></div>
+    <h1 class="title">AHA — Audit Login Attempts of Risky Payees</h1>
+    <div class="subtitle">Close the visibility gap created when bad actors pivot to the AHA path after the release-block control.</div>
+    <div class="chips">
+      <span class="chip okr"><span class="lbl">OKR</span> Flawless at the Fundamentals</span>
+      <span class="chip okr"><span class="lbl">OKR</span> Keep Our Brand Trusted</span>
+      <span class="chip num"><span class="lbl">TFL</span> ~$40.5M</span>
+      <span class="chip num"><span class="lbl">Closed AHs</span> 15.2K</span>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="rlabel">Background</div><div class="rbody">We now block Payee-ID <strong>release</strong> from Risk-blocked AHs. Bad actors pivot to the <strong>AHA path</strong> — attaching the same Payee ID to a new AH.</div></div>
+      <div class="row"><div class="rlabel">The gap</div><div class="rbody">The system blocks the attempt <span class="em">before login completes</span>, so the new suspicious AH is <strong>never identified</strong> — we lose the audit trail.</div></div>
+      <div class="row"><div class="rlabel">The ask</div><div class="rbody">Allow login to complete <strong>first</strong> (establishing the link to the new AH), then show "request cancelled" and block reuse — generating an audit trail required by the <strong>VP of Compliance</strong> for regulatory defensibility.</div></div>
+      <div class="row"><div class="rlabel">Scale</div><div class="rbody">~<strong>$40.5M TFL</strong> across <strong>15.2K closed accounts</strong> attributed to this typology.</div></div>
+      <div class="row"><div class="rlabel">Reference</div><div class="rbody"><a class="link" href="#">AHA Attempt Audit — flow diagrams (HTML)</a><div class="footnote">Replace with hosted URL. Source: "Audit AHA Attempt on the same payee" Teams chat.</div></div></div>
+    </div>
+    <div class="ask"><b>The Ask</b>CLM to support allowing AHA login to complete before blocking reuse, so Compliance captures the new suspicious AH.</div>
+  </section>
+
+  <!-- SLIDE 5 -->
+  <section class="slide" id="s5">
+    <div class="kicker"><span class="num">05</span> Focus 5 of 6 <span class="focus">· Payee Activation</span></div>
+    <h1 class="title">Payees Journey Control</h1>
+    <div class="subtitle">Gate payee activation on full onboarding, and shift payee actions &amp; communications to the Enterprise team.</div>
+    <div class="chips">
+      <span class="chip okr"><span class="lbl">OKR</span> Flawless at the Fundamentals</span>
+      <span class="chip okr"><span class="lbl">OKR</span> Keep Our Brand Trusted</span>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="rlabel">The issue</div><div class="rbody">Payees can complete AHA and <strong>receive money before the AH finishes KYC</strong> — a gap of <strong>hours to days</strong> between payee activation and registration completion. Partners read an active payee status as a green light to send funds.</div></div>
+      <div class="row"><div class="rlabel">Today</div><div class="rbody">This generic activation fires for all programs <strong>except</strong> those with KYC-as-a-service (currently eBay / Best Buy). We need a default that gates activation on onboarding completion.</div></div>
+      <div class="row"><div class="rlabel">The ask</div><div class="rbody">Gate payee activation on full onboarding completion, and shift payee <strong>actions and communications</strong> (IPCN events + email notifications) to the Enterprise team.</div></div>
+      <div class="row"><div class="rlabel">Reference</div><div class="rbody"><a class="link" href="#">"AHA — activating balances before onboarding approval" (email + transcript)</a><div class="footnote">Source: CLM Onboarding — Payees activation meeting.</div></div></div>
+    </div>
+    <div class="ask"><b>The Ask</b>CLM to tie payee activation to onboarding completion and expose payee status + communications control to Enterprise Product in Q3.</div>
+  </section>
+
+  <!-- SLIDE 6 -->
+  <section class="slide" id="s6">
+    <div class="kicker"><span class="num">06</span> Focus 6 of 6 <span class="focus">· Platform</span></div>
+    <h1 class="title">Unified KYC Dashboard</h1>
+    <div class="subtitle">Consolidate fragmented KYC views into one modern dashboard.</div>
+    <div class="chips">
+      <span class="chip okr"><span class="lbl">OKR</span> Flawless at the Fundamentals</span>
+    </div>
+    <div class="rows">
+      <div class="row"><div class="rlabel">Why</div><div class="rbody">KYC visibility is spread across disconnected views. <strong>Modernization</strong> — one consolidated dashboard — gives Enterprise and Ops a single reliable surface.</div></div>
+    </div>
+    <div class="ask"><b>The Ask</b>CLM to scope a unified KYC dashboard as part of the Q3 modernization track.</div>
+  </section>
+
+</div>
+</body>
+</html>
