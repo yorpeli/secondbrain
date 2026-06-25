@@ -23,7 +23,7 @@ export function PersonHeaderCard({ person }: { person: PersonDetail }) {
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">Strengths</div>
             <div className="flex flex-wrap gap-1.5">
-              {person.strengths.map((s, i) => <Badge key={i} variant="success">{s}</Badge>)}
+              {person.strengths.map(s => <Badge key={s} variant="success">{s}</Badge>)}
             </div>
           </div>
         )}
@@ -31,7 +31,7 @@ export function PersonHeaderCard({ person }: { person: PersonDetail }) {
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">Growth areas</div>
             <div className="flex flex-wrap gap-1.5">
-              {person.growthAreas.map((g, i) => <Badge key={i} variant="warning">{g}</Badge>)}
+              {person.growthAreas.map(g => <Badge key={g} variant="warning">{g}</Badge>)}
             </div>
           </div>
         )}
