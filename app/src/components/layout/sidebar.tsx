@@ -87,7 +87,7 @@ export function Sidebar() {
           className={cn("w-full", collapsed ? "justify-center" : "justify-start gap-3")}
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? <Sun className="h-4 w-4 text-amber-500" /> : <Moon className="h-4 w-4 text-indigo-500" />}
           {!collapsed && <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
         </Button>
         <Button
