@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useDirectReports } from '@/hooks/use-people'
 import { PersonRail } from '@/components/people/person-rail'
 import { PersonDetailView } from '@/components/people/person-detail'
@@ -9,12 +9,8 @@ export function PeoplePage() {
   const { data: people, isLoading, error } = useDirectReports()
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
 
-  // Default selection: first direct once loaded
-  useEffect(() => {
-    if (!selectedSlug && people && people.length > 0) {
-      setSelectedSlug(people[0].slug)
-    }
-  }, [people, selectedSlug])
+  // Default selection: first direct once loaded (derived, no setState in effect)
+  const activeSlug = selectedSlug ?? people?.[0]?.slug ?? null
 
   if (error) {
     return (
@@ -43,7 +39,7 @@ export function PeoplePage() {
               {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
             </div>
           ) : people && people.length > 0 ? (
-            <PersonRail people={people} selectedSlug={selectedSlug} onSelect={setSelectedSlug} />
+            <PersonRail people={people} selectedSlug={activeSlug} onSelect={setSelectedSlug} />
           ) : (
             <div className="rounded-lg border border-dashed p-6 text-center">
               <p className="text-sm text-muted-foreground">No direct reports found.</p>
@@ -51,8 +47,8 @@ export function PeoplePage() {
           )}
         </div>
         <div>
-          {selectedSlug ? (
-            <PersonDetailView slug={selectedSlug} />
+          {activeSlug ? (
+            <PersonDetailView slug={activeSlug} />
           ) : (
             !isLoading && <p className="text-sm text-muted-foreground">Select a person to see details.</p>
           )}

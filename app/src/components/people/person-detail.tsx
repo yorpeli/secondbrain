@@ -1,6 +1,8 @@
 import { usePersonDetail } from '@/hooks/use-people'
 import { PersonHeaderCard } from './person-header-card'
 import { CurrentFocusCard } from './current-focus-card'
+import { OpenItemsCard } from './open-items-card'
+import { OneOnOneCard } from './one-on-one-card'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function PersonDetailView({ slug }: { slug: string }) {
@@ -35,6 +37,8 @@ export function PersonDetailView({ slug }: { slug: string }) {
     <div className="space-y-4">
       <PersonHeaderCard person={person} />
       <CurrentFocusCard person={person} />
+      <OpenItemsCard person={person} />
+      <OneOnOneCard person={person} />
     </div>
   )
 }
