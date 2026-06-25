@@ -26,6 +26,7 @@ export function OneOnOneCard({ person }: { person: PersonDetail }) {
                 <div key={m.id} className="rounded-md border">
                   <button
                     onClick={() => setExpanded(open ? null : m.id)}
+                    aria-expanded={open}
                     className="flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm"
                   >
                     <span className="font-medium">{m.topic ?? '1:1'}</span>

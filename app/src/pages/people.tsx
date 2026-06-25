@@ -48,7 +48,7 @@ export function PeoplePage() {
         </div>
         <div>
           {activeSlug ? (
-            <PersonDetailView slug={activeSlug} />
+            <PersonDetailView key={activeSlug} slug={activeSlug} />
           ) : (
             !isLoading && <p className="text-sm text-muted-foreground">Select a person to see details.</p>
           )}
