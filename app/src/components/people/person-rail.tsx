@@ -15,11 +15,12 @@ export function PersonRail({
   onSelect: (slug: string) => void
 }) {
   return (
-    <nav className="space-y-1">
+    <nav aria-label="Direct reports" className="space-y-1">
       {people.map(p => {
         const selected = p.slug === selectedSlug
         return (
           <button
+            type="button"
             key={p.id}
             onClick={() => onSelect(p.slug)}
             className={cn(
