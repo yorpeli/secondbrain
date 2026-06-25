@@ -1,6 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { splitOneOnOnes, sortOpenItems } from '@/lib/people-data'
+import {
+  splitOneOnOnes,
+  sortOpenItems,
+  commitmentStatus,
+  computeCadenceDays,
+  cadenceLabel,
+  daysSince,
+  nextOneOnOneKind,
+  deriveAttention,
+  assembleAgenda,
+} from '@/lib/people-data'
 import type { DirectReportSummary, PersonOneOnOne, PersonDetail, PersonCoachingEntry, PersonTeamWork, PersonTeamInitiative, PersonPppStatus } from '@/lib/types'
 
 interface OrgTreeRow {
@@ -37,21 +47,31 @@ export function useDirectReports() {
 
       const ids = directs.map(d => d.id)
 
-      // Open tasks (not done) per owner
+      // started_date (for the "new"/ramping signal) - not in v_org_tree
+      const { data: peopleData } = await supabase
+        .from('people' as never)
+        .select('id, started_date')
+        .in('id', ids)
+      const startedById = new Map(
+        ((peopleData ?? []) as unknown as Array<{ id: string; started_date: string | null }>)
+          .map(r => [r.id, r.started_date]),
+      )
+
+      // Open tasks (not done) per owner, with due dates
       const { data: taskData } = await supabase
         .from('tasks' as never)
-        .select('owner_id, status')
+        .select('owner_id, status, due_date')
         .in('owner_id', ids)
         .neq('status', 'done')
-      const taskRows = (taskData ?? []) as unknown as Array<{ owner_id: string }>
+      const taskRows = (taskData ?? []) as unknown as Array<{ owner_id: string; due_date: string | null }>
 
-      // Open action items per owner
+      // Open action items per owner, with due dates
       const { data: aiData } = await supabase
         .from('meeting_action_items' as never)
-        .select('owner_id, status')
+        .select('owner_id, status, due_date')
         .in('owner_id', ids)
         .eq('status', 'open')
-      const aiRows = (aiData ?? []) as unknown as Array<{ owner_id: string }>
+      const aiRows = (aiData ?? []) as unknown as Array<{ owner_id: string; due_date: string | null }>
 
       // 1:1 meetings these people attend
       const { data: attData } = await supabase
@@ -74,13 +94,13 @@ export function useDirectReports() {
 
       const todayISO = new Date().toISOString().slice(0, 10)
 
-      const countByOwner = (rows: Array<{ owner_id: string }>) => {
-        const m = new Map<string, number>()
-        for (const r of rows) m.set(r.owner_id, (m.get(r.owner_id) ?? 0) + 1)
-        return m
+      // person_id -> open-item due dates (for overdue/due-soon counts)
+      const dueByOwner = new Map<string, (string | null)[]>()
+      for (const r of [...taskRows, ...aiRows]) {
+        const list = dueByOwner.get(r.owner_id) ?? []
+        list.push(r.due_date)
+        dueByOwner.set(r.owner_id, list)
       }
-      const taskCounts = countByOwner(taskRows)
-      const aiCounts = countByOwner(aiRows)
 
       // person_id -> 1:1 dates
       const datesByPerson = new Map<string, PersonOneOnOne[]>()
@@ -93,16 +113,33 @@ export function useDirectReports() {
       }
 
       return directs.map(d => {
-        const { recent, next } = splitOneOnOnes(datesByPerson.get(d.id) ?? [], todayISO)
+        const oneOnOnes = datesByPerson.get(d.id) ?? []
+        const { recent, next } = splitOneOnOnes(oneOnOnes, todayISO)
+        const dues = dueByOwner.get(d.id) ?? []
+        const overdueCount = dues.filter(due => commitmentStatus(due, todayISO) === 'overdue').length
+        const dueSoonCount = dues.filter(due => commitmentStatus(due, todayISO) === 'due-soon').length
+        const lastOneOnOne = recent[0]?.date ?? null
+        const daysSinceLast = daysSince(lastOneOnOne, todayISO)
+        const cadence = computeCadenceDays(oneOnOnes)
         return {
           id: d.id,
           slug: d.slug,
           name: d.name,
           role: d.role,
           teamName: d.team_name,
-          openItemsCount: (taskCounts.get(d.id) ?? 0) + (aiCounts.get(d.id) ?? 0),
-          lastOneOnOne: recent[0]?.date ?? null,
+          openItemsCount: dues.length,
+          overdueCount,
+          lastOneOnOne,
           nextOneOnOne: next?.date ?? null,
+          daysSinceLast,
+          cadenceLabel: cadenceLabel(cadence),
+          attention: deriveAttention({
+            overdueCount,
+            dueSoonCount,
+            daysSinceLast,
+            startedDateISO: startedById.get(d.id) ?? null,
+            todayISO,
+          }),
         }
       })
     },
@@ -125,6 +162,14 @@ export function usePersonDetail(slug: string) {
       if (error && error.code !== 'PGRST116') throw error
       if (!orgData) return null
       const p = orgData as unknown as OrgTreeRow
+
+      // started_date (for the "new"/ramping signal) - not in v_org_tree
+      const { data: personRow } = await supabase
+        .from('people' as never)
+        .select('started_date')
+        .eq('id', p.id)
+        .single()
+      const startedDateISO = (personRow as unknown as { started_date: string | null } | null)?.started_date ?? null
 
       // Open tasks
       const { data: taskData } = await supabase
@@ -165,6 +210,16 @@ export function usePersonDetail(slug: string) {
       }
       const todayISO = new Date().toISOString().slice(0, 10)
       const { recent, next } = splitOneOnOnes(oneOnOnes, todayISO)
+
+      // Derived cockpit signals
+      const overdueCount = openItems.filter(i => commitmentStatus(i.dueDate, todayISO) === 'overdue').length
+      const dueSoonCount = openItems.filter(i => commitmentStatus(i.dueDate, todayISO) === 'due-soon').length
+      const lastDate = recent[0]?.date ?? null
+      const daysSinceLast = daysSince(lastDate, todayISO)
+      const cadence = computeCadenceDays(oneOnOnes)
+      const nextKind = nextOneOnOneKind(next?.date ?? null, todayISO)
+      const attention = deriveAttention({ overdueCount, dueSoonCount, daysSinceLast, startedDateISO, todayISO })
+      const agenda = assembleAgenda({ commitments: openItems, nextKind, daysSinceLast, todayISO })
 
       // Coaching + dev-plan (non-private only)
       const { data: csData } = await supabase
@@ -207,6 +262,13 @@ export function usePersonDetail(slug: string) {
         nextOneOnOne: next,
         coaching,
         perfReview,
+        overdueCount,
+        dueSoonCount,
+        daysSinceLast,
+        cadenceLabel: cadenceLabel(cadence),
+        nextKind,
+        attention,
+        agenda,
       }
     },
   })

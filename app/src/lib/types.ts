@@ -75,6 +75,16 @@ export interface QuarterDeliverable extends QuarterlyPlanDeliverable {
 
 // --- People page ---
 
+/** Derived per-person status signal driving the rail dot + hero badge. */
+export type AttentionLevel = 'high' | 'watch' | 'new' | 'ok'
+
+/** A single auto-assembled "to cover in your next 1:1" agenda item. */
+export interface PersonAgendaItem {
+  title: string
+  meta: string
+  tag: 'Focus' | 'Overdue' | 'Cadence' | 'Carry-over' | 'Blocker' | 'Growth' | 'Topic' | 'Ramp'
+}
+
 export interface DirectReportSummary {
   id: string
   slug: string
@@ -82,8 +92,12 @@ export interface DirectReportSummary {
   role: string
   teamName: string | null
   openItemsCount: number
+  overdueCount: number
   lastOneOnOne: string | null
   nextOneOnOne: string | null
+  daysSinceLast: number | null
+  cadenceLabel: string | null
+  attention: AttentionLevel
 }
 
 export interface PersonOpenItem {
@@ -135,6 +149,13 @@ export interface PersonDetail {
   nextOneOnOne: PersonOneOnOne | null
   coaching: PersonCoachingEntry[]
   perfReview: PersonPerfReview | null
+  overdueCount: number
+  dueSoonCount: number
+  daysSinceLast: number | null
+  cadenceLabel: string | null
+  nextKind: 'today' | 'soon' | 'date' | 'none'
+  attention: AttentionLevel
+  agenda: PersonAgendaItem[]
 }
 
 export interface PersonTeamInitiative {
