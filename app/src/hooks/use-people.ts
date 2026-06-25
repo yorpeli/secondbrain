@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { splitOneOnOnes, sortOpenItems } from '@/lib/people-data'
-import type { DirectReportSummary, PersonOneOnOne, PersonDetail, PersonCoachingEntry } from '@/lib/types'
+import type { DirectReportSummary, PersonOneOnOne, PersonDetail, PersonCoachingEntry, PersonTeamWork, PersonTeamInitiative, PersonPppStatus } from '@/lib/types'
 
 interface OrgTreeRow {
   id: string
@@ -208,6 +208,73 @@ export function usePersonDetail(slug: string) {
         coaching,
         perfReview,
       }
+    },
+  })
+}
+
+export function usePersonTeamWork(
+  personId: string | undefined,
+  personName: string | undefined,
+  slug: string | undefined,
+) {
+  return useQuery({
+    queryKey: ['person-team-work', personId],
+    enabled: !!personId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<PersonTeamWork> => {
+      // Initiatives where this person is a stakeholder
+      const { data: stkData } = await supabase
+        .from('initiative_stakeholders' as never)
+        .select('initiative_id')
+        .eq('person_id', personId as string)
+      const stakeholderInitiativeIds = [...new Set(
+        ((stkData ?? []) as unknown as Array<{ initiative_id: string }>).map(s => s.initiative_id),
+      )]
+
+      const byId = new Map<string, PersonTeamInitiative>()
+
+      // Initiatives owned by this person (owner_name match), kind = initiative
+      if (personName) {
+        const { data: ownData } = await supabase
+          .from('v_initiative_dashboard' as never)
+          .select('id, slug, title, status, priority, owner_name, kind')
+          .eq('kind', 'initiative')
+          .eq('owner_name', personName)
+        for (const r of (ownData ?? []) as unknown as Array<PersonTeamInitiative & { owner_name: string; kind: string }>) {
+          byId.set(r.id, { id: r.id, slug: r.slug, title: r.title, status: r.status, priority: r.priority })
+        }
+      }
+
+      // Initiatives where they're a stakeholder
+      if (stakeholderInitiativeIds.length > 0) {
+        const { data: stkInitData } = await supabase
+          .from('v_initiative_dashboard' as never)
+          .select('id, slug, title, status, priority, kind')
+          .eq('kind', 'initiative')
+          .in('id', stakeholderInitiativeIds)
+        for (const r of (stkInitData ?? []) as unknown as Array<PersonTeamInitiative & { kind: string }>) {
+          byId.set(r.id, { id: r.id, slug: r.slug, title: r.title, status: r.status, priority: r.priority })
+        }
+      }
+
+      const initiatives = Array.from(byId.values()).sort((a, b) =>
+        a.priority < b.priority ? -1 : a.priority > b.priority ? 1 : (a.title < b.title ? -1 : 1),
+      )
+
+      // Latest PPP swimlane for this lead
+      let ppp: PersonPppStatus | null = null
+      if (slug) {
+        const { data: pppData } = await supabase
+          .from('v_ppp_swimlanes' as never)
+          .select('week_date, workstream_name, status, summary, lead_slug')
+          .eq('lead_slug', slug)
+          .order('week_date', { ascending: false })
+          .limit(1)
+        const row = ((pppData ?? []) as unknown as Array<{ week_date: string; workstream_name: string; status: string; summary: string | null }>)[0]
+        if (row) ppp = { weekDate: row.week_date, workstreamName: row.workstream_name, status: row.status, summary: row.summary }
+      }
+
+      return { initiatives, ppp }
     },
   })
 }
