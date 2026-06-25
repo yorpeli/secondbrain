@@ -4,6 +4,7 @@ import { CurrentFocusCard } from './current-focus-card'
 import { TeamWorkCard } from './team-work-card'
 import { OpenItemsCard } from './open-items-card'
 import { OneOnOneCard } from './one-on-one-card'
+import { CoachingCard } from './coaching-card'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export function PersonDetailView({ slug }: { slug: string }) {
@@ -41,6 +42,7 @@ export function PersonDetailView({ slug }: { slug: string }) {
       <TeamWorkCard person={person} />
       <OpenItemsCard person={person} />
       <OneOnOneCard person={person} />
+      <CoachingCard person={person} />
     </div>
   )
 }
