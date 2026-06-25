@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/people-data'
 import type { PersonDetail } from '@/lib/types'
 import Markdown from 'react-markdown'
@@ -7,39 +8,46 @@ import remarkGfm from 'remark-gfm'
 
 export function OneOnOneCard({ person }: { person: PersonDetail }) {
   const [expanded, setExpanded] = useState<string | null>(person.recentOneOnOnes[0]?.id ?? null)
+  const sessions = person.recentOneOnOnes
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium">1:1 continuity</CardTitle>
-        {person.nextOneOnOne && (
-          <p className="text-xs text-muted-foreground">Next 1:1 scheduled {formatDate(person.nextOneOnOne.date)}</p>
-        )}
+      <CardHeader className="flex-row items-center justify-between pb-3">
+        <span className="text-sm font-semibold text-foreground">1:1 continuity</span>
+        <span className="text-xs text-muted-foreground">{sessions.length} sessions</span>
       </CardHeader>
       <CardContent>
-        {person.recentOneOnOnes.length === 0 ? (
+        {sessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No 1:1 notes logged.</p>
         ) : (
-          <div className="space-y-2">
-            {person.recentOneOnOnes.map(m => {
+          <div>
+            {sessions.map((m, i) => {
               const open = expanded === m.id
               return (
-                <div key={m.id} className="rounded-md border">
+                <div key={m.id} className="relative border-l-2 border-border pb-4 pl-5 last:pb-0">
+                  <span
+                    className={cn(
+                      'absolute -left-[7px] top-0.5 h-3 w-3 rounded-full border-2 border-background',
+                      i === 0 ? 'bg-primary' : 'bg-muted-foreground/40',
+                    )}
+                  />
                   <button
+                    type="button"
                     onClick={() => setExpanded(open ? null : m.id)}
                     aria-expanded={open}
-                    className="flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm"
+                    className="flex w-full flex-wrap items-center gap-2 text-left"
                   >
-                    <span className="font-medium">{m.topic ?? '1:1'}</span>
+                    <span className="text-sm font-semibold text-foreground">{m.topic ?? '1:1'}</span>
                     <span className="text-xs text-muted-foreground">{formatDate(m.date)}</span>
                   </button>
-                  {open && m.notes && (
-                    <div className="border-t p-2.5 prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5">
+                  {open && m.notes ? (
+                    <div className="prose prose-sm dark:prose-invert mt-1 max-w-none prose-p:my-1.5">
                       <Markdown remarkPlugins={[remarkGfm]}>{m.notes}</Markdown>
                     </div>
-                  )}
-                  {open && !m.notes && (
-                    <div className="border-t p-2.5 text-sm text-muted-foreground">No notes recorded.</div>
+                  ) : (
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                      {m.notes ?? 'No notes recorded.'}
+                    </p>
                   )}
                 </div>
               )

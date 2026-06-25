@@ -3,7 +3,6 @@ import { useDirectReports } from '@/hooks/use-people'
 import { PersonRail } from '@/components/people/person-rail'
 import { PersonDetailView } from '@/components/people/person-detail'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Users } from 'lucide-react'
 
 export function PeoplePage() {
   const { data: people, isLoading, error } = useDirectReports()
@@ -11,6 +10,7 @@ export function PeoplePage() {
 
   // Default selection: first direct once loaded (derived, no setState in effect)
   const activeSlug = selectedSlug ?? people?.[0]?.slug ?? null
+  const needAttention = (people ?? []).filter(p => p.attention === 'high').length
 
   if (error) {
     return (
@@ -21,18 +21,33 @@ export function PeoplePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Users className="h-6 w-6 text-muted-foreground" />
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex items-end justify-between gap-4">
         <div>
+          <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+            Second Brain <span className="text-muted-foreground/50">›</span> People
+          </div>
           <h1 className="text-2xl font-bold tracking-tight">People</h1>
           {!isLoading && (
-            <p className="text-sm text-muted-foreground">{people?.length ?? 0} direct reports</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {people?.length ?? 0} direct reports
+              {needAttention > 0 && (
+                <>
+                  {' · '}
+                  <span className="font-semibold text-destructive">{needAttention} need attention</span>
+                </>
+              )}
+            </p>
           )}
+        </div>
+        <div className="flex items-center rounded-lg border bg-muted/50 p-0.5 text-xs font-medium">
+          <span className="rounded-md bg-foreground px-3.5 py-1.5 text-background">Per person</span>
+          <span className="cursor-not-allowed px-3.5 py-1.5 text-muted-foreground/60" title="Coming soon">Overview</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[264px_1fr]">
         <div>
           {isLoading ? (
             <div className="space-y-2">
@@ -46,7 +61,7 @@ export function PeoplePage() {
             </div>
           )}
         </div>
-        <div>
+        <div className="min-w-0">
           {activeSlug ? (
             <PersonDetailView key={activeSlug} slug={activeSlug} />
           ) : (

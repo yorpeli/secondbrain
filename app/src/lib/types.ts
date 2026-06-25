@@ -96,6 +96,7 @@ export interface DirectReportSummary {
   lastOneOnOne: string | null
   nextOneOnOne: string | null
   daysSinceLast: number | null
+  cadenceDays: number | null
   cadenceLabel: string | null
   attention: AttentionLevel
 }

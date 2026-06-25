@@ -1,7 +1,7 @@
 import { usePersonDetail } from '@/hooks/use-people'
-import { PersonHeaderCard } from './person-header-card'
+import { PersonHeroCard } from './person-hero-card'
+import { AgendaCard } from './agenda-card'
 import { CurrentFocusCard } from './current-focus-card'
-import { TeamWorkCard } from './team-work-card'
 import { OpenItemsCard } from './open-items-card'
 import { OneOnOneCard } from './one-on-one-card'
 import { CoachingCard } from './coaching-card'
@@ -21,8 +21,11 @@ export function PersonDetailView({ slug }: { slug: string }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-40" />
-        <Skeleton className="h-32" />
+        <Skeleton className="h-48" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
       </div>
     )
   }
@@ -37,12 +40,18 @@ export function PersonDetailView({ slug }: { slug: string }) {
 
   return (
     <div className="space-y-4">
-      <PersonHeaderCard person={person} />
-      <CurrentFocusCard person={person} />
-      <TeamWorkCard person={person} />
-      <OpenItemsCard person={person} />
-      <OneOnOneCard person={person} />
-      <CoachingCard person={person} />
+      <PersonHeroCard person={person} />
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.15fr_1fr]">
+        <div className="flex flex-col gap-4">
+          <AgendaCard person={person} />
+          <CurrentFocusCard person={person} />
+          <OpenItemsCard person={person} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <OneOnOneCard person={person} />
+          <CoachingCard person={person} />
+        </div>
+      </div>
     </div>
   )
 }

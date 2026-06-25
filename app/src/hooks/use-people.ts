@@ -132,6 +132,7 @@ export function useDirectReports() {
           lastOneOnOne,
           nextOneOnOne: next?.date ?? null,
           daysSinceLast,
+          cadenceDays: cadence,
           cadenceLabel: cadenceLabel(cadence),
           attention: deriveAttention({
             overdueCount,
