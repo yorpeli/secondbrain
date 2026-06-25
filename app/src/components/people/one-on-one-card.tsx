@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatDate } from '@/lib/people-data'
 import type { PersonDetail } from '@/lib/types'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -12,7 +13,7 @@ export function OneOnOneCard({ person }: { person: PersonDetail }) {
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium">1:1 continuity</CardTitle>
         {person.nextOneOnOne && (
-          <p className="text-xs text-muted-foreground">Next 1:1 scheduled {person.nextOneOnOne.date}</p>
+          <p className="text-xs text-muted-foreground">Next 1:1 scheduled {formatDate(person.nextOneOnOne.date)}</p>
         )}
       </CardHeader>
       <CardContent>
@@ -30,7 +31,7 @@ export function OneOnOneCard({ person }: { person: PersonDetail }) {
                     className="flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm"
                   >
                     <span className="font-medium">{m.topic ?? '1:1'}</span>
-                    <span className="text-xs text-muted-foreground">{m.date}</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(m.date)}</span>
                   </button>
                   {open && m.notes && (
                     <div className="border-t p-2.5 prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5">

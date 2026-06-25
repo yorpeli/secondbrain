@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { formatDate } from '@/lib/people-data'
 import type { PersonDetail } from '@/lib/types'
 
 export function OpenItemsCard({ person }: { person: PersonDetail }) {
@@ -24,7 +25,7 @@ export function OpenItemsCard({ person }: { person: PersonDetail }) {
                     <Badge variant="outline">{item.status}</Badge>
                   </div>
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">{item.dueDate ?? 'No date'}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{item.dueDate ? formatDate(item.dueDate) : 'No date'}</span>
               </li>
             ))}
           </ul>

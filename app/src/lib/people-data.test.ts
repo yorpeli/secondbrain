@@ -1,6 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { sortOpenItems, splitOneOnOnes } from './people-data'
+import { sortOpenItems, splitOneOnOnes, formatDate } from './people-data'
 import type { PersonOpenItem, PersonOneOnOne } from './types'
+
+describe('formatDate', () => {
+  it('formats a date-only string without timezone shift', () => {
+    expect(formatDate('2026-06-30')).toBe('Jun 30, 2026')
+  })
+
+  it('formats a full timestamp', () => {
+    expect(formatDate('2026-01-05T14:30:00Z')).toBe('Jan 5, 2026')
+  })
+
+  it('returns empty string for null, undefined, or unparseable input', () => {
+    expect(formatDate(null)).toBe('')
+    expect(formatDate(undefined)).toBe('')
+    expect(formatDate('not-a-date')).toBe('')
+  })
+})
 
 describe('sortOpenItems', () => {
   it('sorts by due date ascending with nulls last', () => {

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { usePersonTeamWork } from '@/hooks/use-people'
+import { formatDate } from '@/lib/people-data'
 import type { PersonDetail } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -45,7 +46,7 @@ export function TeamWorkCard({ person }: { person: PersonDetail }) {
                 <div className="text-sm">
                   <div className="flex items-center gap-2">
                     <Badge variant="info">{data.ppp.status}</Badge>
-                    <span className="text-xs text-muted-foreground">{data.ppp.workstreamName} · {data.ppp.weekDate}</span>
+                    <span className="text-xs text-muted-foreground">{data.ppp.workstreamName} · {formatDate(data.ppp.weekDate)}</span>
                   </div>
                   {data.ppp.summary && <p className="mt-1.5 text-muted-foreground">{data.ppp.summary}</p>}
                 </div>

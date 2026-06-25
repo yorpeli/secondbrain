@@ -1,4 +1,17 @@
+import { parseISO, isValid, format } from 'date-fns'
 import type { PersonOpenItem, PersonOneOnOne } from './types'
+
+/**
+ * Format an ISO date/timestamp string into a friendly absolute date
+ * (e.g. "Jun 30, 2026"). Returns "" for null or unparseable input.
+ * Pure - uses parseISO so date-only strings are not shifted by timezone.
+ */
+export function formatDate(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = parseISO(iso)
+  if (!isValid(d)) return ''
+  return format(d, 'MMM d, yyyy')
+}
 
 /** Ascending by dueDate, nulls last. Pure - returns a new array. */
 export function sortOpenItems(items: PersonOpenItem[]): PersonOpenItem[] {

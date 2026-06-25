@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { formatDate } from '@/lib/people-data'
 import type { PersonDetail } from '@/lib/types'
 import { Lock } from 'lucide-react'
 import Markdown from 'react-markdown'
@@ -27,7 +28,7 @@ export function CoachingCard({ person }: { person: PersonDetail }) {
             <div className="flex items-center gap-2">
               {person.perfReview.overallRating && <Badge variant="purple">{person.perfReview.overallRating}</Badge>}
               <span className="text-xs text-muted-foreground">
-                {person.perfReview.reviewPeriod ?? person.perfReview.reviewDate ?? ''}
+                {person.perfReview.reviewPeriod ?? formatDate(person.perfReview.reviewDate)}
               </span>
             </div>
           </div>
@@ -36,7 +37,7 @@ export function CoachingCard({ person }: { person: PersonDetail }) {
         {latestCoaching && (
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">
-              Latest coaching log{latestCoaching.date ? ` · ${latestCoaching.date}` : ''}
+              Latest coaching log{latestCoaching.date ? ` · ${formatDate(latestCoaching.date)}` : ''}
             </div>
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5">
               <Markdown remarkPlugins={[remarkGfm]}>{latestCoaching.content}</Markdown>
@@ -47,7 +48,7 @@ export function CoachingCard({ person }: { person: PersonDetail }) {
         {latestDevPlan && (
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">
-              Development plan{latestDevPlan.date ? ` · ${latestDevPlan.date}` : ''}
+              Development plan{latestDevPlan.date ? ` · ${formatDate(latestDevPlan.date)}` : ''}
             </div>
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5">
               <Markdown remarkPlugins={[remarkGfm]}>{latestDevPlan.content}</Markdown>

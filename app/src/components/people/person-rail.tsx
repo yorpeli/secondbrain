@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { formatDate } from '@/lib/people-data'
 import type { DirectReportSummary } from '@/lib/types'
 
 function initials(name: string): string {
@@ -39,7 +40,7 @@ export function PersonRail({
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>{p.openItemsCount} open item{p.openItemsCount === 1 ? '' : 's'}</span>
-              <span>{p.nextOneOnOne ? `Next 1:1 ${p.nextOneOnOne}` : p.lastOneOnOne ? `Last 1:1 ${p.lastOneOnOne}` : 'No 1:1s'}</span>
+              <span>{p.nextOneOnOne ? `Next 1:1 ${formatDate(p.nextOneOnOne)}` : p.lastOneOnOne ? `Last 1:1 ${formatDate(p.lastOneOnOne)}` : 'No 1:1s'}</span>
             </div>
           </button>
         )
