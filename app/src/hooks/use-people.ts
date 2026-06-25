@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { splitOneOnOnes } from '@/lib/people-data'
-import type { DirectReportSummary, PersonOneOnOne } from '@/lib/types'
+import { splitOneOnOnes, sortOpenItems } from '@/lib/people-data'
+import type { DirectReportSummary, PersonOneOnOne, PersonDetail, PersonCoachingEntry } from '@/lib/types'
 
 interface OrgTreeRow {
   id: string
@@ -107,5 +107,107 @@ export function useDirectReports() {
       })
     },
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function usePersonDetail(slug: string) {
+  return useQuery({
+    queryKey: ['person-detail', slug],
+    enabled: !!slug,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<PersonDetail | null> => {
+      const { data: orgData, error } = await supabase
+        .from('v_org_tree' as never)
+        .select('id, slug, name, role, team_name, team_slug, reports_to_name, working_style, strengths, growth_areas, relationship_notes, current_focus, status')
+        .eq('slug', slug)
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      if (!orgData) return null
+      const p = orgData as unknown as OrgTreeRow
+
+      // Open tasks
+      const { data: taskData } = await supabase
+        .from('tasks' as never)
+        .select('id, title, status, priority, due_date')
+        .eq('owner_id', p.id)
+        .neq('status', 'done')
+      const tasks = ((taskData ?? []) as unknown as Array<{ id: string; title: string; status: string; priority: string | null; due_date: string | null }>)
+        .map(t => ({ id: t.id, kind: 'task' as const, title: t.title, status: t.status, priority: t.priority, dueDate: t.due_date }))
+
+      // Open action items
+      const { data: aiData } = await supabase
+        .from('meeting_action_items' as never)
+        .select('id, description, status, due_date')
+        .eq('owner_id', p.id)
+        .eq('status', 'open')
+      const actionItems = ((aiData ?? []) as unknown as Array<{ id: string; description: string; status: string; due_date: string | null }>)
+        .map(a => ({ id: a.id, kind: 'action-item' as const, title: a.description, status: a.status, priority: null, dueDate: a.due_date }))
+
+      const openItems = sortOpenItems([...tasks, ...actionItems])
+
+      // 1:1 meetings (discussion_notes only, never private_notes)
+      const { data: attData } = await supabase
+        .from('meeting_attendees' as never)
+        .select('meeting_id')
+        .eq('person_id', p.id)
+      const meetingIds = [...new Set(((attData ?? []) as unknown as Array<{ meeting_id: string }>).map(a => a.meeting_id))]
+
+      let oneOnOnes: PersonOneOnOne[] = []
+      if (meetingIds.length > 0) {
+        const { data: mtgData } = await supabase
+          .from('meetings' as never)
+          .select('id, date, topic, discussion_notes, meeting_type')
+          .in('id', meetingIds)
+          .eq('meeting_type', '1on1')
+        oneOnOnes = ((mtgData ?? []) as unknown as Array<{ id: string; date: string; topic: string | null; discussion_notes: string | null }>)
+          .map(m => ({ id: m.id, date: m.date, topic: m.topic, notes: m.discussion_notes }))
+      }
+      const todayISO = new Date().toISOString().slice(0, 10)
+      const { recent, next } = splitOneOnOnes(oneOnOnes, todayISO)
+
+      // Coaching + dev-plan (non-private only)
+      const { data: csData } = await supabase
+        .from('content_sections' as never)
+        .select('id, section_type, title, content, date, is_private')
+        .eq('entity_id', p.id)
+        .in('section_type', ['coaching-log', 'dev-plan'])
+        .eq('is_private', false)
+        .order('date', { ascending: false })
+      const coaching = ((csData ?? []) as unknown as Array<{ id: string; section_type: string; title: string | null; content: string; date: string | null }>)
+        .map(c => ({ id: c.id, sectionType: c.section_type as PersonCoachingEntry['sectionType'], title: c.title, content: c.content, date: c.date }))
+
+      // Latest performance review (metadata only)
+      const { data: prData } = await supabase
+        .from('performance_reviews' as never)
+        .select('review_period, review_date, overall_rating, rating_score')
+        .eq('person_id', p.id)
+        .order('review_date', { ascending: false })
+        .limit(1)
+      const prRow = ((prData ?? []) as unknown as Array<{ review_period: string | null; review_date: string | null; overall_rating: string | null; rating_score: number | null }>)[0]
+      const perfReview = prRow
+        ? { reviewPeriod: prRow.review_period, reviewDate: prRow.review_date, overallRating: prRow.overall_rating, ratingScore: prRow.rating_score }
+        : null
+
+      return {
+        id: p.id,
+        slug: p.slug,
+        name: p.name,
+        role: p.role,
+        teamName: p.team_name,
+        teamSlug: p.team_slug,
+        managerName: p.reports_to_name,
+        workingStyle: p.working_style,
+        strengths: p.strengths ?? [],
+        growthAreas: p.growth_areas ?? [],
+        relationshipNotes: p.relationship_notes,
+        currentFocus: p.current_focus,
+        openItems,
+        recentOneOnOnes: recent,
+        nextOneOnOne: next,
+        coaching,
+        perfReview,
+      }
+    },
   })
 }
