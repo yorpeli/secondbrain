@@ -31,8 +31,10 @@ export function splitOneOnOnes(
   meetings: PersonOneOnOne[],
   todayISO: string,
 ): { recent: PersonOneOnOne[]; next: PersonOneOnOne | null } {
-  const past = meetings.filter(m => m.date <= todayISO)
-  const future = meetings.filter(m => m.date > todayISO)
+  // A 1:1 dated today counts as the upcoming "next" (so the Today state can
+  // render), not as a past session.
+  const past = meetings.filter(m => m.date < todayISO)
+  const future = meetings.filter(m => m.date >= todayISO)
   const recent = [...past].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
   const sortedFuture = [...future].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return { recent, next: sortedFuture[0] ?? null }

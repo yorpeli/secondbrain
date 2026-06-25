@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { formatDate } from '@/lib/people-data'
+import { formatDate, daysSince } from '@/lib/people-data'
 import { ATTENTION } from './attention'
 import type { DirectReportSummary } from '@/lib/types'
 
@@ -23,7 +23,14 @@ function SummaryRow({ label, children }: { label: string; children: React.ReactN
 }
 
 function WeekSummary({ people }: { people: DirectReportSummary[] }) {
-  const scheduled = people.filter(p => p.nextOneOnOne).length
+  const todayISO = new Date().toISOString().slice(0, 10)
+  // Upcoming 1:1 within the next 7 days (daysSince returns today - date, so a
+  // 1:1 zero-to-seven days ahead is in [-7, 0]).
+  const scheduled = people.filter(p => {
+    if (!p.nextOneOnOne) return false
+    const d = daysSince(p.nextOneOnOne, todayISO)
+    return d != null && d <= 0 && d >= -7
+  }).length
   const openItems = people.reduce((s, p) => s + p.openItemsCount, 0)
   const overdue = people.reduce((s, p) => s + p.overdueCount, 0)
   const cadences = people.map(p => p.cadenceDays).filter((d): d is number => d != null)

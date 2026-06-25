@@ -75,6 +75,7 @@ describe('computeCadenceDays / cadenceLabel', () => {
 describe('nextOneOnOneKind', () => {
   it('classifies by proximity', () => {
     expect(nextOneOnOneKind(null, TODAY)).toBe('none')
+    expect(nextOneOnOneKind('2026-06-25', TODAY)).toBe('today')
     expect(nextOneOnOneKind('2026-06-26', TODAY)).toBe('soon')
     expect(nextOneOnOneKind('2026-07-05', TODAY)).toBe('date')
   })
@@ -178,5 +179,15 @@ describe('splitOneOnOnes', () => {
   it('returns null next when no future meeting exists', () => {
     const { next } = splitOneOnOnes(meetings, '2026-08-01')
     expect(next).toBeNull()
+  })
+
+  it('treats a meeting dated exactly today as the next (not recent)', () => {
+    const withToday: PersonOneOnOne[] = [
+      { id: 'past', date: '2026-06-20', topic: null, notes: null },
+      { id: 'today', date: '2026-06-25', topic: null, notes: null },
+    ]
+    const { recent, next } = splitOneOnOnes(withToday, '2026-06-25')
+    expect(next?.id).toBe('today')
+    expect(recent.map(m => m.id)).toEqual(['past'])
   })
 })
